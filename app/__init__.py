@@ -1,6 +1,6 @@
 """Application factory for the support system."""
 
-from flask import Flask, redirect, request, url_for\nfrom flask.typing import ResponseReturnValue
+from flask import Flask, redirect, request, url_for
 from flask_login import current_user
 
 from app.api.routes import api_bp
@@ -36,7 +36,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         app.register_blueprint(blueprint)
 
     @app.before_request
-    def require_initial_password_change() -> ResponseReturnValue | None:
+    def require_initial_password_change():
         if (
             current_user.is_authenticated
             and getattr(current_user, "must_change_password", False)

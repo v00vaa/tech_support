@@ -25,6 +25,7 @@ def register_commands(app: Flask) -> None:
         settings = get_settings()
         email = click.prompt("Email администратора", default=settings.admin_email)
         employee = db.session.scalar(db.select(Employee).where(Employee.email == email))
+        is_new_employee = employee is None
         if employee is None:
             password = click.prompt(
                 "Временный пароль (не менее 12 символов)",
@@ -49,7 +50,7 @@ def register_commands(app: Flask) -> None:
         employee.roles = list({*employee.roles, administrator_role})
         db.session.commit()
         click.echo("RBAC настроен. Учетная запись администратора готова.")
-        if created:
+        if is_new_employee:
             click.echo("При первом входе потребуется сменить временный пароль.")
 
     @app.cli.command("seed")
