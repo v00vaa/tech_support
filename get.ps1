@@ -1,13 +1,12 @@
 $files = @(
-    "app/core/config.py",
     "app/extensions.py",
+    "app/models/employee.py",
+    "app/models/role.py",
+    "app/models/client.py",
+    "pyproject.toml",
     "app/models/dialog.py",
     "app/models/message.py",
-    "app/services/dialog_service.py",
-    "app/services/message_service.py",
-    "app/web/routes.py",
-    "pyproject.toml",
-    "tests/conftest.py"
+    "app/models/attachment.py"
 )
 
 foreach ($file in $files) {

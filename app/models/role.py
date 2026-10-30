@@ -2,50 +2,95 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.extensions import db
 
-employee_roles = db.Table(
+if TYPE_CHECKING:
+    from app.models.employee import Employee
+
+
+employee_roles = Table(
     "employee_roles",
-    db.Column("employee_id", db.Integer, db.ForeignKey("employees.id", ondelete="CASCADE"), primary_key=True),
-    db.Column("role_id", db.Integer, db.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
+    db.metadata,
+    Column(
+        "employee_id",
+        Integer,
+        ForeignKey("employees.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "role_id",
+        Integer,
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
 )
 
-role_permissions = db.Table(
+role_permissions = Table(
     "role_permissions",
-    db.Column("role_id", db.Integer, db.ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
-    db.Column("permission_id", db.Integer, db.ForeignKey("permissions.id", ondelete="CASCADE"), primary_key=True),
+    db.metadata,
+    Column(
+        "role_id",
+        Integer,
+        ForeignKey("roles.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
+    Column(
+        "permission_id",
+        Integer,
+        ForeignKey("permissions.id", ondelete="CASCADE"),
+        primary_key=True,
+    ),
 )
 
 
-class Role(db.Model):  # type: ignore[name-defined]
+class Role(db.Model):
     """A named collection of permissions assignable to employees."""
 
     __tablename__ = "roles"
 
-    id: db.Mapped[int] = db.mapped_column(primary_key=True)
-    code: db.Mapped[str] = db.mapped_column(db.String(80), unique=True, nullable=False, index=True)
-    name: db.Mapped[str] = db.mapped_column(db.String(120), nullable=False)
-    description: db.Mapped[str | None] = db.mapped_column(db.String(500))
-    is_system: db.Mapped[bool] = db.mapped_column(db.Boolean, default=False, nullable=False)
-    is_active: db.Mapped[bool] = db.mapped_column(db.Boolean, default=True, nullable=False)
-    permissions: db.Mapped[list["Permission"]] = db.relationship(
-        secondary=role_permissions, back_populates="roles", lazy="selectin"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(
+        String(80), unique=True, nullable=False, index=True
     )
-    employees: db.Mapped[list["Employee"]] = db.relationship(
-        secondary=employee_roles, back_populates="roles"
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500))
+    is_system: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+
+    permissions: Mapped[list[Permission]] = relationship(
+        secondary=role_permissions,
+        back_populates="roles",
+        lazy="selectin",
+    )
+    employees: Mapped[list[Employee]] = relationship(
+        secondary=employee_roles,
+        back_populates="roles",
     )
 
 
-class Permission(db.Model):  # type: ignore[name-defined]
+class Permission(db.Model):
     """A single application capability."""
 
     __tablename__ = "permissions"
 
-    id: db.Mapped[int] = db.mapped_column(primary_key=True)
-    code: db.Mapped[str] = db.mapped_column(db.String(120), unique=True, nullable=False, index=True)
-    name: db.Mapped[str] = db.mapped_column(db.String(160), nullable=False)
-    description: db.Mapped[str | None] = db.mapped_column(db.String(500))
-    category: db.Mapped[str] = db.mapped_column(db.String(80), nullable=False)
-    roles: db.Mapped[list[Role]] = db.relationship(
-        secondary=role_permissions, back_populates="permissions"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    code: Mapped[str] = mapped_column(
+        String(120), unique=True, nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(160), nullable=False)
+    description: Mapped[str | None] = mapped_column(String(500))
+    category: Mapped[str] = mapped_column(String(80), nullable=False)
+
+    roles: Mapped[list[Role]] = relationship(
+        secondary=role_permissions,
+        back_populates="permissions",
     )

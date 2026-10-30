@@ -2,10 +2,20 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import StrEnum
 
+from sqlalchemy import String, ForeignKey
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.extensions import db
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from app.models.client import Client
+    from app.models.employee import Employee
+    from app.models.message import Message
 
 
 class DialogStatus(StrEnum):
@@ -17,18 +27,18 @@ class DialogStatus(StrEnum):
     CLOSED = "CLOSED"
 
 
-class Dialog(db.Model):  # type: ignore[name-defined]
+class Dialog(db.Model):
     __tablename__ = "dialogs"
 
-    id: db.Mapped[int] = db.mapped_column(primary_key=True)
-    client_id: db.Mapped[int] = db.mapped_column(db.ForeignKey("clients.id"), nullable=False, index=True)
-    responsible_employee_id: db.Mapped[int | None] = db.mapped_column(db.ForeignKey("employees.id"), index=True)
-    subject: db.Mapped[str] = db.mapped_column(db.String(255), nullable=False)
-    status: db.Mapped[DialogStatus] = db.mapped_column(db.Enum(DialogStatus), default=DialogStatus.OPEN, nullable=False)
-    channel: db.Mapped[str] = db.mapped_column(db.String(50), default="Web", nullable=False)
-    created_at: db.Mapped[datetime] = db.mapped_column(default=datetime.utcnow, nullable=False)
-    updated_at: db.Mapped[datetime] = db.mapped_column(default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    closed_at: db.Mapped[datetime | None] = db.mapped_column()
-    client: db.Mapped["Client"] = db.relationship(back_populates="dialogs")
-    responsible_employee: db.Mapped["Employee | None"] = db.relationship(back_populates="assigned_dialogs")
-    messages: db.Mapped[list["Message"]] = db.relationship(back_populates="dialog", cascade="all, delete-orphan", order_by="Message.created_at")
+    id: Mapped[int] = mapped_column(primary_key=True)
+    client_id: Mapped[int] = mapped_column(ForeignKey("clients.id"), nullable=False, index=True)
+    responsible_employee_id: Mapped[int | None] = mapped_column(db.ForeignKey("employees.id"), index=True)
+    subject: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[DialogStatus] = mapped_column(db.Enum(DialogStatus), default=DialogStatus.OPEN, nullable=False)
+    channel: Mapped[str] = mapped_column(String(50), default="Web", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at: Mapped[datetime | None] = mapped_column(default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    closed_at: Mapped[datetime | None] = mapped_column()
+    client: Mapped["Client"] = relationship(back_populates="dialogs")
+    responsible_employee: Mapped["Employee | None"] = relationship(back_populates="assigned_dialogs")
+    messages: Mapped[list["Message"]] = relationship(back_populates="dialog", cascade="all, delete-orphan", order_by="Message.created_at")
