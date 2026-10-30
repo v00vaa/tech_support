@@ -25,8 +25,14 @@ def register_commands(app: Flask) -> None:
         settings = get_settings()
         email = click.prompt("Email администратора", default=settings.admin_email)
         employee = db.session.scalar(db.select(Employee).where(Employee.email == email))
-        created = employee is None
         if employee is None:
+            password = click.prompt(
+                "Временный пароль (не менее 12 символов)",
+                hide_input=True,
+                confirmation_prompt=True,
+            )
+            if len(password) < 12:
+                raise click.ClickException("Пароль должен содержать не менее 12 символов.")
             employee = Employee(
                 name="Администратор",
                 email=email,
@@ -35,24 +41,12 @@ def register_commands(app: Flask) -> None:
                 is_active=True,
                 must_change_password=True,
             )
+            employee.set_password(password)
             db.session.add(employee)
-
-        if not employee.is_active:
+        elif not employee.is_active:
             raise click.ClickException("Учетная запись администратора отключена.")
 
-        password = click.prompt(
-            "Временный пароль (не менее 12 символов)",
-            hide_input=True,
-            confirmation_prompt=True,
-        )
-        if len(password) < 12:
-            raise click.ClickException("Пароль должен содержать не менее 12 символов.")
-
-        if created:
-            employee.set_password(password)
         employee.roles = list({*employee.roles, administrator_role})
-        if created:
-            employee.must_change_password = True
         db.session.commit()
         click.echo("RBAC настроен. Учетная запись администратора готова.")
         if created:
