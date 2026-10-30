@@ -2,7 +2,7 @@
 
 from flask_wtf import FlaskForm
 from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, Length, Optional
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
 
 from app.models.dialog import DialogStatus
 from app.models.message import AuthorType
@@ -12,6 +12,16 @@ class LoginForm(FlaskForm):
     email = StringField("Email", validators=[DataRequired(), Email()])
     password = PasswordField("Пароль", validators=[DataRequired()])
     submit = SubmitField("Войти")
+
+
+class ChangePasswordForm(FlaskForm):
+    current_password = PasswordField("Текущий пароль", validators=[DataRequired()])
+    new_password = PasswordField("Новый пароль", validators=[DataRequired(), Length(min=12, max=128)])
+    confirm_password = PasswordField(
+        "Повторите новый пароль",
+        validators=[DataRequired(), EqualTo("new_password", message="Пароли не совпадают.")],
+    )
+    submit = SubmitField("Изменить пароль")
 
 
 class ClientForm(FlaskForm):

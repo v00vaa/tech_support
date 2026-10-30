@@ -18,7 +18,6 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://support:support@localhost:5432/support"
     database_echo: bool = False
     admin_email: str = "admin@example.com"
-    admin_password: str = "change-me-before-production"
 
     @model_validator(mode="after")
     def prohibit_debug_in_production(self) -> "Settings":

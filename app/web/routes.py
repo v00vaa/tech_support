@@ -8,7 +8,10 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message
 from app.services import client_service, dialog_service, employee_service, message_service
-from app.web.forms import AssignForm, ClientForm, DialogForm, EmployeeForm, LoginForm, MessageForm, StatusForm
+from app.web.forms import (
+    AssignForm, ChangePasswordForm, ClientForm, DialogForm, EmployeeForm,
+    LoginForm, MessageForm, StatusForm,
+)
 
 main_bp = Blueprint("main", __name__)
 auth_bp = Blueprint("auth", __name__)
@@ -49,6 +52,8 @@ def index() -> ResponseReturnValue:
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login() -> ResponseReturnValue:
     if current_user.is_authenticated:
+        if getattr(current_user, "must_change_password", False):
+            return redirect(url_for("auth.change_password"))
         return redirect(url_for("main.index"))
     form = LoginForm()
     if form.validate_on_submit():
@@ -56,9 +61,27 @@ def login() -> ResponseReturnValue:
         if employee and employee.is_active and employee.check_password(form.password.data):
             login_user(employee)
             flash("Вы успешно вошли в систему.", "success")
+            if employee.must_change_password:
+                return redirect(url_for("auth.change_password"))
             return redirect(url_for("main.index"))
         flash("Неверный email или пароль.", "danger")
     return render_template("auth/login.html", form=form)
+
+
+@auth_bp.route("/change-password", methods=["GET", "POST"])
+@login_required
+def change_password() -> ResponseReturnValue:
+    form = ChangePasswordForm()
+    if form.validate_on_submit():
+        if not current_user.check_password(form.current_password.data):
+            form.current_password.errors.append("Текущий пароль указан неверно.")
+        else:
+            current_user.set_password(form.new_password.data)
+            current_user.must_change_password = False
+            db.session.commit()
+            flash("Пароль успешно изменен.", "success")
+            return redirect(url_for("main.index"))
+    return render_template("auth/change_password.html", form=form)
 
 
 @auth_bp.post("/logout")
@@ -282,5 +305,9 @@ def settings_index() -> ResponseReturnValue:
 @settings_bp.get("/<string:section>")
 @login_required
 def settings_stub(section: str) -> ResponseReturnValue:
-    labels = {"roles": "Роли и права", "workflow": "Workflow", "channels": "Каналы", "integrations": "Интеграции", "moderation": "Модерация", "ai": "AI", "notifications": "Уведомления", "company": "Интеграция с корпоративной системой"}
+    labels = {
+        "roles": "Роли и права", "workflow": "Workflow", "channels": "Каналы",
+        "integrations": "Интеграции", "moderation": "Модерация", "ai": "AI",
+        "notifications": "Уведомления", "company": "Интеграция с корпоративной системой",
+    }
     return render_template("settings/stub.html", title=labels.get(section, "Настройки"), section=section)
