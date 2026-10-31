@@ -48,10 +48,10 @@ def register_commands(app: Flask) -> None:
             raise click.ClickException("Учетная запись администратора отключена.")
 
         employee.roles = list({*employee.roles, administrator_role})
+        employee.must_change_password = True
         db.session.commit()
         click.echo("RBAC настроен. Учетная запись администратора готова.")
-        if is_new_employee:
-            click.echo("При первом входе потребуется сменить временный пароль.")
+        click.echo("При следующем входе потребуется сменить пароль.")
 
     @app.cli.command("seed")
     def seed() -> None:
