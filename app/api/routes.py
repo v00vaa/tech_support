@@ -19,9 +19,9 @@ def enforce_api_permissions() -> None:
     if not current_user.is_authenticated:
         abort(401)
     permission_by_endpoint = {
-        "api.clients": "clients.view" if request.method == "GET" else "clients.create",
-        "api.employees": "employees.view" if request.method == "GET" else "employees.create",
-        "api.dialogs": "dialogs.view" if request.method == "GET" else "dialogs.create",
+        "api.clients": "clients.view" if request.method in {"GET", "HEAD"} else "clients.create",
+        "api.employees": "employees.view" if request.method in {"GET", "HEAD"} else "employees.create",
+        "api.dialogs": "dialogs.view" if request.method in {"GET", "HEAD"} else "dialogs.create",
         "api.dialog_detail": "dialogs.view",
         "api.messages": "dialogs.view",
     }
@@ -63,7 +63,7 @@ def readiness() -> ResponseReturnValue:
 
 @api_bp.route("/clients", methods=["GET", "POST"])
 def clients() -> ResponseReturnValue:
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         return jsonify([_client_data(item) for item in db.session.scalars(select(Client).order_by(Client.id))]), 200
     data = request.get_json(silent=True) or {}
     if not data.get("name") or not data.get("email"):
@@ -74,7 +74,7 @@ def clients() -> ResponseReturnValue:
 
 @api_bp.route("/employees", methods=["GET", "POST"])
 def employees() -> ResponseReturnValue:
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         return jsonify([_employee_data(item) for item in db.session.scalars(select(Employee).order_by(Employee.id))]), 200
     data = request.get_json(silent=True) or {}
     if not all(data.get(field) for field in ("name", "email", "password")):
@@ -85,7 +85,7 @@ def employees() -> ResponseReturnValue:
 
 @api_bp.route("/dialogs", methods=["GET", "POST"])
 def dialogs() -> ResponseReturnValue:
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         return jsonify([_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]), 200
     data = request.get_json(silent=True) or {}
     if not data.get("client_id") or not data.get("subject"):
@@ -103,7 +103,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
 @api_bp.route("/dialogs/<int:dialog_id>/messages", methods=["GET", "POST"])
 def messages(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
-    if request.method == "GET":
+    if request.method in {"GET", "HEAD"}:
         visible_messages = [
             item for item in dialog.messages
             if not item.is_internal or has_permission(current_user, "dialogs.add_internal_note")
