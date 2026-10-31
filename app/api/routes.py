@@ -1,13 +1,34 @@
 """Small JSON API sharing the same services as the HTML interface."""
 
-from flask import Blueprint, ResponseReturnValue, jsonify, request
+from flask import Blueprint, ResponseReturnValue, abort, jsonify, request
+from flask_login import current_user
 from sqlalchemy import select
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, Employee, Message
 from app.services import client_service, dialog_service, employee_service, message_service
+from app.services.access_control_service import has_permission
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
+
+@api_bp.before_request
+def enforce_api_permissions() -> None:
+    """Apply RBAC to JSON endpoints while leaving health checks public."""
+    if request.endpoint in {"api.liveness", "api.readiness"}:
+        return
+    if not current_user.is_authenticated:
+        abort(401)
+    permission_by_endpoint = {
+        "api.clients": "clients.view" if request.method == "GET" else "clients.create",
+        "api.employees": "employees.view" if request.method == "GET" else "employees.create",
+        "api.dialogs": "dialogs.view" if request.method == "GET" else "dialogs.create",
+        "api.dialog_detail": "dialogs.view",
+        "api.messages": "dialogs.view" if request.method == "GET" else "dialogs.reply",
+    }
+    required = permission_by_endpoint.get(request.endpoint or "")
+    if required is None or not has_permission(current_user, required):
+        abort(403)
+
 
 
 def _client_data(client: Client) -> dict[str, object]:
@@ -87,6 +108,7 @@ def messages(dialog_id: int) -> ResponseReturnValue:
     data = request.get_json(silent=True) or {}
     if not data.get("text"):
         return jsonify(error="text is required"), 400
-    author_type = AuthorType(data.get("author_type", AuthorType.SYSTEM.value))
-    message = message_service.create_message(dialog.id, author_type, data.get("author_id"), str(data["text"]))
+    message = message_service.create_message(
+        dialog.id, AuthorType.EMPLOYEE, current_user.id, str(data["text"])
+    )
     return jsonify(_message_data(message)), 201

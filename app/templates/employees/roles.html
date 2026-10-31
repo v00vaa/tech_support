@@ -1,0 +1,9 @@
+{% extends "layout.html" %}
+{% block content %}
+<h1>Роли сотрудника: {{ employee.name }}</h1>
+<p class="text-muted">Можно назначать только активные роли, права которых не превышают ваши собственные.</p>
+<div class="card"><div class="card-body"><form method="post">{{ form.hidden_tag() }}
+<div class="mb-3">{{ form.roles.label(class_='form-label') }}{{ form.roles(class_='form-select', size='10') }}{% for error in form.roles.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
+{{ form.submit(class_='btn btn-primary') }} <a class="btn btn-outline-secondary" href="{{ url_for('employees.employee_detail', employee_id=employee.id) }}">Отмена</a>
+</form></div></div>
+{% endblock %}

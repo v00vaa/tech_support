@@ -9,6 +9,7 @@ from app.core.config import Settings
 from app.core.errors import register_error_handlers
 from app.extensions import db, login_manager, migrate
 from app.models.employee import Employee
+from app.services.access_control_service import has_permission
 from app.web.routes import (
     auth_bp, clients_bp, dialogs_bp, employees_bp, main_bp, messages_bp, settings_bp,
 )
@@ -45,6 +46,8 @@ def create_app(settings: Settings | None = None) -> Flask:
         ):
             return redirect(url_for("auth.change_password"))
         return None
+
+    app.jinja_env.globals["has_permission"] = has_permission
 
     register_error_handlers(app)
     from app.core.cli import register_commands

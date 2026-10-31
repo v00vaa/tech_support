@@ -8,9 +8,17 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message
 from app.services import client_service, dialog_service, employee_service, message_service
+from app.services.access_control_service import permission_required
+from app.services.role_service import (
+    assign_employee_roles,
+    delete_employee_safely,
+    update_employee_active_state,
+    save_role,
+)
+from app.models import Permission, Role
 from app.web.forms import (
     AssignForm, ChangePasswordForm, ClientForm, DialogForm, EmployeeForm,
-    LoginForm, MessageForm, StatusForm,
+    EmployeeRolesForm, LoginForm, MessageForm, RoleForm, StatusForm,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -37,6 +45,8 @@ def _assign_form(form: AssignForm) -> None:
     ]
 
 
+@login_required
+@permission_required("dialogs.view")
 @main_bp.get("/")
 def index() -> ResponseReturnValue:
     stats = {
@@ -92,6 +102,8 @@ def logout() -> ResponseReturnValue:
     return redirect(url_for("main.index"))
 
 
+@login_required
+@permission_required("clients.view")
 @clients_bp.get("")
 @login_required
 def client_list() -> ResponseReturnValue:
@@ -99,6 +111,8 @@ def client_list() -> ResponseReturnValue:
     return render_template("clients/list.html", clients=clients)
 
 
+@login_required
+@permission_required("clients.create")
 @clients_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def client_create() -> ResponseReturnValue:
@@ -110,12 +124,16 @@ def client_create() -> ResponseReturnValue:
     return render_template("clients/create.html", form=form)
 
 
+@login_required
+@permission_required("clients.view")
 @clients_bp.get("/<int:client_id>")
 @login_required
 def client_detail(client_id: int) -> ResponseReturnValue:
     return render_template("clients/detail.html", client=db.get_or_404(Client, client_id))
 
 
+@login_required
+@permission_required("clients.edit")
 @clients_bp.route("/<int:client_id>/edit", methods=["GET", "POST"])
 @login_required
 def client_edit(client_id: int) -> ResponseReturnValue:
@@ -128,6 +146,8 @@ def client_edit(client_id: int) -> ResponseReturnValue:
     return render_template("clients/edit.html", form=form, client=client)
 
 
+@login_required
+@permission_required("clients.delete")
 @clients_bp.post("/<int:client_id>/delete")
 @login_required
 def client_delete(client_id: int) -> ResponseReturnValue:
@@ -136,6 +156,8 @@ def client_delete(client_id: int) -> ResponseReturnValue:
     return redirect(url_for("clients.client_list"))
 
 
+@login_required
+@permission_required("employees.view")
 @employees_bp.get("")
 @login_required
 def employee_list() -> ResponseReturnValue:
@@ -143,6 +165,8 @@ def employee_list() -> ResponseReturnValue:
     return render_template("employees/list.html", employees=employees)
 
 
+@login_required
+@permission_required("employees.create")
 @employees_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def employee_create() -> ResponseReturnValue:
@@ -157,24 +181,37 @@ def employee_create() -> ResponseReturnValue:
     return render_template("employees/create.html", form=form)
 
 
+@login_required
+@permission_required("employees.view")
 @employees_bp.get("/<int:employee_id>")
 @login_required
 def employee_detail(employee_id: int) -> ResponseReturnValue:
     return render_template("employees/detail.html", employee=db.get_or_404(Employee, employee_id))
 
 
+@login_required
+@permission_required("employees.edit")
 @employees_bp.route("/<int:employee_id>/edit", methods=["GET", "POST"])
 @login_required
 def employee_edit(employee_id: int) -> ResponseReturnValue:
     employee = db.get_or_404(Employee, employee_id)
     form = EmployeeForm(obj=employee)
     if form.validate_on_submit():
-        employee_service.update_employee(employee, form.name.data, form.email.data, form.position.data, form.is_active.data)
-        flash("Сотрудник изменен.", "success")
-        return redirect(url_for("employees.employee_detail", employee_id=employee.id))
+        try:
+            employee.name = form.name.data
+            employee.email = form.email.data
+            employee.position = form.position.data
+            update_employee_active_state(employee, form.is_active.data)
+            flash("Сотрудник изменен.", "success")
+            return redirect(url_for("employees.employee_detail", employee_id=employee.id))
+        except ValueError as error:
+            db.session.rollback()
+            form.is_active.errors.append(str(error))
     return render_template("employees/edit.html", form=form, employee=employee)
 
 
+@login_required
+@permission_required("employees.deactivate")
 @employees_bp.post("/<int:employee_id>/delete")
 @login_required
 def employee_delete(employee_id: int) -> ResponseReturnValue:
@@ -182,11 +219,17 @@ def employee_delete(employee_id: int) -> ResponseReturnValue:
     if employee.id == current_user.id:
         flash("Нельзя удалить текущего пользователя.", "danger")
     else:
-        employee_service.delete_employee(employee)
-        flash("Сотрудник удален.", "info")
+        try:
+            delete_employee_safely(employee)
+            flash("Сотрудник удален.", "info")
+        except ValueError as error:
+            db.session.rollback()
+            flash(str(error), "danger")
     return redirect(url_for("employees.employee_list"))
 
 
+@login_required
+@permission_required("dialogs.view")
 @dialogs_bp.get("")
 @login_required
 def dialog_list() -> ResponseReturnValue:
@@ -194,6 +237,8 @@ def dialog_list() -> ResponseReturnValue:
     return render_template("dialogs/list.html", dialogs=dialogs)
 
 
+@login_required
+@permission_required("dialogs.create")
 @dialogs_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def dialog_create() -> ResponseReturnValue:
@@ -206,6 +251,8 @@ def dialog_create() -> ResponseReturnValue:
     return render_template("dialogs/create.html", form=form)
 
 
+@login_required
+@permission_required("dialogs.view")
 @dialogs_bp.get("/<int:dialog_id>")
 @login_required
 def dialog_detail(dialog_id: int) -> ResponseReturnValue:
@@ -217,6 +264,8 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     return render_template("dialogs/detail.html", dialog=dialog, message_form=message_form, status_form=status_form, assign_form=assign_form)
 
 
+@login_required
+@permission_required("dialogs.manage")
 @dialogs_bp.route("/<int:dialog_id>/edit", methods=["GET", "POST"])
 @login_required
 def dialog_edit(dialog_id: int) -> ResponseReturnValue:
@@ -230,6 +279,8 @@ def dialog_edit(dialog_id: int) -> ResponseReturnValue:
     return render_template("dialogs/edit.html", form=form, dialog=dialog)
 
 
+@login_required
+@permission_required("dialogs.manage")
 @dialogs_bp.post("/<int:dialog_id>/delete")
 @login_required
 def dialog_delete(dialog_id: int) -> ResponseReturnValue:
@@ -238,6 +289,8 @@ def dialog_delete(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_list"))
 
 
+@login_required
+@permission_required("dialogs.manage")
 @dialogs_bp.post("/<int:dialog_id>/status")
 @login_required
 def dialog_status(dialog_id: int) -> ResponseReturnValue:
@@ -251,6 +304,8 @@ def dialog_status(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@login_required
+@permission_required("dialogs.transfer")
 @dialogs_bp.post("/<int:dialog_id>/assign")
 @login_required
 def dialog_assign(dialog_id: int) -> ResponseReturnValue:
@@ -262,18 +317,23 @@ def dialog_assign(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@login_required
+@permission_required("dialogs.reply")
 @dialogs_bp.post("/<int:dialog_id>/messages")
 @login_required
 def message_create(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     form = MessageForm()
     if form.validate_on_submit():
-        author_id = current_user.id if form.author_type.data == AuthorType.EMPLOYEE.value else dialog.client_id
-        message_service.create_message(dialog.id, AuthorType(form.author_type.data), author_id, form.text.data)
+        message_service.create_message(
+            dialog.id, AuthorType.EMPLOYEE, current_user.id, form.text.data
+        )
         flash("Сообщение отправлено.", "success")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@login_required
+@permission_required("dialogs.manage")
 @messages_bp.route("/<int:message_id>/edit", methods=["GET", "POST"])
 @login_required
 def message_edit(message_id: int) -> ResponseReturnValue:
@@ -286,6 +346,8 @@ def message_edit(message_id: int) -> ResponseReturnValue:
     return render_template("messages/edit.html", form=form, message=message)
 
 
+@login_required
+@permission_required("dialogs.manage")
 @messages_bp.post("/<int:message_id>/delete")
 @login_required
 def message_delete(message_id: int) -> ResponseReturnValue:
@@ -296,12 +358,114 @@ def message_delete(message_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog_id))
 
 
+@login_required
+@permission_required("settings.view")
+@employees_bp.route("/<int:employee_id>/roles", methods=["GET", "POST"])
+@login_required
+@permission_required("employees.assign_roles")
+def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
+    employee = db.get_or_404(Employee, employee_id)
+    form = EmployeeRolesForm()
+    available_roles = db.session.scalars(
+        db.select(Role).where(Role.is_active).order_by(Role.name)
+    ).all()
+    form.roles.choices = [(role.id, role.name) for role in available_roles]
+    if form.validate_on_submit():
+        selected = db.session.scalars(
+            db.select(Role).where(Role.id.in_(form.roles.data))
+        ).all() if form.roles.data else []
+        try:
+            assign_employee_roles(current_user, employee, selected)
+            flash("Роли сотрудника обновлены.", "success")
+            return redirect(url_for("employees.employee_detail", employee_id=employee.id))
+        except ValueError as error:
+            db.session.rollback()
+            form.roles.errors.append(str(error))
+    elif not form.is_submitted():
+        form.roles.data = [role.id for role in employee.roles if role.is_active]
+    return render_template("employees/roles.html", form=form, employee=employee)
+
+
+@settings_bp.get("/roles")
+@login_required
+@permission_required("roles.view")
+def role_list() -> ResponseReturnValue:
+    roles = db.session.scalars(
+        db.select(Role).order_by(Role.is_system.desc(), Role.name)
+    ).all()
+    return render_template("settings/roles/list.html", roles=roles)
+
+
+@settings_bp.route("/roles/create", methods=["GET", "POST"])
+@login_required
+@permission_required("roles.create")
+def role_create() -> ResponseReturnValue:
+    form = RoleForm()
+    permissions = db.session.scalars(
+        db.select(Permission).order_by(Permission.category, Permission.name)
+    ).all()
+    form.permissions.choices = [(item.code, f"{item.name} ({item.code})") for item in permissions]
+    if form.validate_on_submit():
+        try:
+            save_role(
+                current_user,
+                role=None,
+                code=form.code.data,
+                name=form.name.data,
+                description=form.description.data or None,
+                permission_codes=form.permissions.data,
+                is_active=form.is_active.data,
+            )
+            flash("Роль создана.", "success")
+            return redirect(url_for("settings.role_list"))
+        except ValueError as error:
+            db.session.rollback()
+            form.permissions.errors.append(str(error))
+    return render_template("settings/roles/form.html", form=form, role=None)
+
+
+@settings_bp.route("/roles/<int:role_id>/edit", methods=["GET", "POST"])
+@login_required
+@permission_required("roles.edit")
+def role_edit(role_id: int) -> ResponseReturnValue:
+    role = db.get_or_404(Role, role_id)
+    if role.is_system:
+        flash("Системные роли доступны только для просмотра.", "warning")
+        return redirect(url_for("settings.role_list"))
+    form = RoleForm(obj=role)
+    permissions = db.session.scalars(
+        db.select(Permission).order_by(Permission.category, Permission.name)
+    ).all()
+    form.permissions.choices = [(item.code, f"{item.name} ({item.code})") for item in permissions]
+    if form.validate_on_submit():
+        try:
+            save_role(
+                current_user,
+                role=role,
+                code=form.code.data,
+                name=form.name.data,
+                description=form.description.data or None,
+                permission_codes=form.permissions.data,
+                is_active=form.is_active.data,
+            )
+            flash("Роль обновлена.", "success")
+            return redirect(url_for("settings.role_list"))
+        except ValueError as error:
+            db.session.rollback()
+            form.permissions.errors.append(str(error))
+    elif not form.is_submitted():
+        form.permissions.data = [item.code for item in role.permissions]
+    return render_template("settings/roles/form.html", form=form, role=role)
+
+
 @settings_bp.get("")
 @login_required
 def settings_index() -> ResponseReturnValue:
     return render_template("settings/index.html")
 
 
+@login_required
+@permission_required("settings.view")
 @settings_bp.get("/<string:section>")
 @login_required
 def settings_stub(section: str) -> ResponseReturnValue:

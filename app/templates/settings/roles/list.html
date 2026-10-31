@@ -1,0 +1,12 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div><h1>Роли и права</h1><p class="text-muted mb-0">Роль объединяет разрешения, определяющие доступ сотрудника.</p></div>
+  {% if has_permission(current_user, 'roles.create') %}<a class="btn btn-primary" href="{{ url_for('settings.role_create') }}">Создать роль</a>{% endif %}
+</div>
+<div class="card"><div class="table-responsive"><table class="table table-hover mb-0">
+<thead><tr><th>Название</th><th>Код</th><th>Тип</th><th>Состояние</th><th>Разрешений</th><th></th></tr></thead>
+<tbody>{% for role in roles %}
+<tr><td>{{ role.name }}</td><td><code>{{ role.code }}</code></td><td>{{ 'Системная' if role.is_system else 'Пользовательская' }}</td><td>{{ 'Активна' if role.is_active else 'Отключена' }}</td><td>{{ role.permissions|length }}</td><td class="text-end">{% if not role.is_system and has_permission(current_user, 'roles.edit') %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('settings.role_edit', role_id=role.id) }}">Изменить</a>{% else %}<span class="text-muted small">Только просмотр</span>{% endif %}</td></tr>
+{% else %}<tr><td colspan="6" class="text-center text-muted py-4">Роли не найдены.</td></tr>{% endfor %}</tbody></table></div></div>
+{% endblock %}
