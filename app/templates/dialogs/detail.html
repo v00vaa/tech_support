@@ -4,7 +4,7 @@
 <div class="col-md-4"><strong>Клиент:</strong> <a href="{{ url_for('clients.client_detail', client_id=dialog.client.id) }}">{{ dialog.client.name }}</a></div>
 <div class="col-md-4"><strong>Ответственный:</strong> {{ dialog.responsible_employee.name if dialog.responsible_employee else 'Не назначен' }}</div>
 <div class="col-md-4"><strong>Канал:</strong> {{ dialog.channel }}</div>
-{% if has_permission(current_user, 'dialogs.manage') %}<div class="col-md-6"><form method="post" action="{{ url_for('dialogs.dialog_status', dialog_id=dialog.id) }}">{{ status_form.hidden_tag() }}<div class="input-group">{{ status_form.status(class_='form-select') }}{{ status_form.submit(class_='btn btn-outline-primary') }}</div></form></div>{% endif %}
+{% if has_permission(current_user, 'dialogs.change_status') %}<div class="col-md-6"><form method="post" action="{{ url_for('dialogs.dialog_status', dialog_id=dialog.id) }}">{{ status_form.hidden_tag() }}<div class="input-group">{{ status_form.status(class_='form-select') }}{{ status_form.submit(class_='btn btn-outline-primary') }}</div></form></div>{% endif %}
 {% if has_permission(current_user, 'dialogs.transfer') %}<div class="col-md-6"><form method="post" action="{{ url_for('dialogs.dialog_assign', dialog_id=dialog.id) }}">{{ assign_form.hidden_tag() }}<div class="input-group">{{ assign_form.responsible_employee_id(class_='form-select') }}{{ assign_form.submit(class_='btn btn-outline-primary') }}</div></form></div>{% endif %}
 </div></div>
 <div class="card chat-card"><div class="card-header">История сообщений</div><div class="card-body chat-log">

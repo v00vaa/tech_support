@@ -26,7 +26,8 @@ PERMISSION_DEFINITIONS: tuple[PermissionDefinition, ...] = (
     {"code": "roles.assign_permissions", "name": "Назначение разрешений", "description": "Изменение набора разрешений роли", "category": "roles"},
     {"code": "dialogs.view", "name": "Просмотр диалогов", "description": "Просмотр обращений поддержки", "category": "dialogs"},
     {"code": "dialogs.create", "name": "Создание диалогов", "description": "Создание обращений", "category": "dialogs"},
-    {"code": "dialogs.manage", "name": "Управление диалогами", "description": "Изменение, удаление и смена статуса обращений", "category": "dialogs"},
+    {"code": "dialogs.manage", "name": "Управление диалогами", "description": "Изменение и удаление обращений", "category": "dialogs"},
+    {"code": "dialogs.change_status", "name": "Изменение статуса", "description": "Изменение статуса обращения", "category": "dialogs"},
     {"code": "dialogs.reply", "name": "Ответ клиенту", "description": "Отправка публичных ответов", "category": "dialogs"},
     {"code": "dialogs.add_internal_note", "name": "Внутренние заметки", "description": "Добавление заметок, видимых только сотрудникам", "category": "dialogs"},
     {"code": "dialogs.transfer", "name": "Передача диалогов", "description": "Передача обращения другому сотруднику или этапу", "category": "dialogs"},
@@ -40,6 +41,7 @@ SUPPORT_LEVEL_1_PERMISSIONS = frozenset(
         "dialogs.view",
         "dialogs.reply",
         "dialogs.add_internal_note",
+        "dialogs.change_status",
         "dialogs.transfer",
     }
 )

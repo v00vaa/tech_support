@@ -298,7 +298,7 @@ def dialog_delete(dialog_id: int) -> ResponseReturnValue:
 
 @dialogs_bp.post("/<int:dialog_id>/status")
 @login_required
-@permission_required("dialogs.manage")
+@permission_required("dialogs.change_status")
 def dialog_status(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), StatusForm()
     if form.validate_on_submit():
@@ -330,7 +330,7 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
     if form.validate_on_submit():
         is_internal = form.is_internal.data
         required_permission = "dialogs.add_internal_note" if is_internal else "dialogs.reply"
-        if not has_permission(current_user, required_permission):
+        if not has_permission(current_user, "dialogs.view") or not has_permission(current_user, required_permission):
             from flask import abort
 
             abort(403)
