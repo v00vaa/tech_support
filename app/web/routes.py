@@ -45,9 +45,9 @@ def _assign_form(form: AssignForm) -> None:
     ]
 
 
+@main_bp.get("/")
 @login_required
 @permission_required("dialogs.view")
-@main_bp.get("/")
 def index() -> ResponseReturnValue:
     stats = {
         "clients": db.session.scalar(db.select(func.count()).select_from(Client)) or 0,
@@ -102,18 +102,18 @@ def logout() -> ResponseReturnValue:
     return redirect(url_for("main.index"))
 
 
+@clients_bp.get("")
 @login_required
 @permission_required("clients.view")
-@clients_bp.get("")
 @login_required
 def client_list() -> ResponseReturnValue:
     clients = db.session.scalars(db.select(Client).order_by(Client.name)).all()
     return render_template("clients/list.html", clients=clients)
 
 
+@clients_bp.route("/create", methods=["GET", "POST"])
 @login_required
 @permission_required("clients.create")
-@clients_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def client_create() -> ResponseReturnValue:
     form = ClientForm()
@@ -124,17 +124,17 @@ def client_create() -> ResponseReturnValue:
     return render_template("clients/create.html", form=form)
 
 
+@clients_bp.get("/<int:client_id>")
 @login_required
 @permission_required("clients.view")
-@clients_bp.get("/<int:client_id>")
 @login_required
 def client_detail(client_id: int) -> ResponseReturnValue:
     return render_template("clients/detail.html", client=db.get_or_404(Client, client_id))
 
 
+@clients_bp.route("/<int:client_id>/edit", methods=["GET", "POST"])
 @login_required
 @permission_required("clients.edit")
-@clients_bp.route("/<int:client_id>/edit", methods=["GET", "POST"])
 @login_required
 def client_edit(client_id: int) -> ResponseReturnValue:
     client = db.get_or_404(Client, client_id)
@@ -146,9 +146,9 @@ def client_edit(client_id: int) -> ResponseReturnValue:
     return render_template("clients/edit.html", form=form, client=client)
 
 
+@clients_bp.post("/<int:client_id>/delete")
 @login_required
 @permission_required("clients.delete")
-@clients_bp.post("/<int:client_id>/delete")
 @login_required
 def client_delete(client_id: int) -> ResponseReturnValue:
     client_service.delete_client(db.get_or_404(Client, client_id))
@@ -156,18 +156,18 @@ def client_delete(client_id: int) -> ResponseReturnValue:
     return redirect(url_for("clients.client_list"))
 
 
+@employees_bp.get("")
 @login_required
 @permission_required("employees.view")
-@employees_bp.get("")
 @login_required
 def employee_list() -> ResponseReturnValue:
     employees = db.session.scalars(db.select(Employee).order_by(Employee.name)).all()
     return render_template("employees/list.html", employees=employees)
 
 
+@employees_bp.route("/create", methods=["GET", "POST"])
 @login_required
 @permission_required("employees.create")
-@employees_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def employee_create() -> ResponseReturnValue:
     form = EmployeeForm()
@@ -181,17 +181,17 @@ def employee_create() -> ResponseReturnValue:
     return render_template("employees/create.html", form=form)
 
 
+@employees_bp.get("/<int:employee_id>")
 @login_required
 @permission_required("employees.view")
-@employees_bp.get("/<int:employee_id>")
 @login_required
 def employee_detail(employee_id: int) -> ResponseReturnValue:
     return render_template("employees/detail.html", employee=db.get_or_404(Employee, employee_id))
 
 
+@employees_bp.route("/<int:employee_id>/edit", methods=["GET", "POST"])
 @login_required
 @permission_required("employees.edit")
-@employees_bp.route("/<int:employee_id>/edit", methods=["GET", "POST"])
 @login_required
 def employee_edit(employee_id: int) -> ResponseReturnValue:
     employee = db.get_or_404(Employee, employee_id)
@@ -210,9 +210,9 @@ def employee_edit(employee_id: int) -> ResponseReturnValue:
     return render_template("employees/edit.html", form=form, employee=employee)
 
 
+@employees_bp.post("/<int:employee_id>/delete")
 @login_required
 @permission_required("employees.deactivate")
-@employees_bp.post("/<int:employee_id>/delete")
 @login_required
 def employee_delete(employee_id: int) -> ResponseReturnValue:
     employee = db.get_or_404(Employee, employee_id)
@@ -228,18 +228,18 @@ def employee_delete(employee_id: int) -> ResponseReturnValue:
     return redirect(url_for("employees.employee_list"))
 
 
+@dialogs_bp.get("")
 @login_required
 @permission_required("dialogs.view")
-@dialogs_bp.get("")
 @login_required
 def dialog_list() -> ResponseReturnValue:
     dialogs = db.session.scalars(db.select(Dialog).order_by(Dialog.updated_at.desc())).all()
     return render_template("dialogs/list.html", dialogs=dialogs)
 
 
+@dialogs_bp.route("/create", methods=["GET", "POST"])
 @login_required
 @permission_required("dialogs.create")
-@dialogs_bp.route("/create", methods=["GET", "POST"])
 @login_required
 def dialog_create() -> ResponseReturnValue:
     form = DialogForm()
@@ -251,9 +251,9 @@ def dialog_create() -> ResponseReturnValue:
     return render_template("dialogs/create.html", form=form)
 
 
+@dialogs_bp.get("/<int:dialog_id>")
 @login_required
 @permission_required("dialogs.view")
-@dialogs_bp.get("/<int:dialog_id>")
 @login_required
 def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
@@ -264,9 +264,9 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     return render_template("dialogs/detail.html", dialog=dialog, message_form=message_form, status_form=status_form, assign_form=assign_form)
 
 
+@dialogs_bp.route("/<int:dialog_id>/edit", methods=["GET", "POST"])
 @login_required
 @permission_required("dialogs.manage")
-@dialogs_bp.route("/<int:dialog_id>/edit", methods=["GET", "POST"])
 @login_required
 def dialog_edit(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
@@ -279,9 +279,9 @@ def dialog_edit(dialog_id: int) -> ResponseReturnValue:
     return render_template("dialogs/edit.html", form=form, dialog=dialog)
 
 
+@dialogs_bp.post("/<int:dialog_id>/delete")
 @login_required
 @permission_required("dialogs.manage")
-@dialogs_bp.post("/<int:dialog_id>/delete")
 @login_required
 def dialog_delete(dialog_id: int) -> ResponseReturnValue:
     dialog_service.delete_dialog(db.get_or_404(Dialog, dialog_id))
@@ -289,9 +289,9 @@ def dialog_delete(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_list"))
 
 
+@dialogs_bp.post("/<int:dialog_id>/status")
 @login_required
 @permission_required("dialogs.manage")
-@dialogs_bp.post("/<int:dialog_id>/status")
 @login_required
 def dialog_status(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), StatusForm()
@@ -304,9 +304,9 @@ def dialog_status(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@dialogs_bp.post("/<int:dialog_id>/assign")
 @login_required
 @permission_required("dialogs.transfer")
-@dialogs_bp.post("/<int:dialog_id>/assign")
 @login_required
 def dialog_assign(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), AssignForm()
@@ -317,9 +317,9 @@ def dialog_assign(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@dialogs_bp.post("/<int:dialog_id>/messages")
 @login_required
 @permission_required("dialogs.reply")
-@dialogs_bp.post("/<int:dialog_id>/messages")
 @login_required
 def message_create(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
@@ -332,9 +332,9 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@messages_bp.route("/<int:message_id>/edit", methods=["GET", "POST"])
 @login_required
 @permission_required("dialogs.manage")
-@messages_bp.route("/<int:message_id>/edit", methods=["GET", "POST"])
 @login_required
 def message_edit(message_id: int) -> ResponseReturnValue:
     message = db.get_or_404(Message, message_id)
@@ -346,9 +346,9 @@ def message_edit(message_id: int) -> ResponseReturnValue:
     return render_template("messages/edit.html", form=form, message=message)
 
 
+@messages_bp.post("/<int:message_id>/delete")
 @login_required
 @permission_required("dialogs.manage")
-@messages_bp.post("/<int:message_id>/delete")
 @login_required
 def message_delete(message_id: int) -> ResponseReturnValue:
     message = db.get_or_404(Message, message_id)
@@ -358,9 +358,9 @@ def message_delete(message_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog_id))
 
 
+@employees_bp.route("/<int:employee_id>/roles", methods=["GET", "POST"])
 @login_required
 @permission_required("settings.view")
-@employees_bp.route("/<int:employee_id>/roles", methods=["GET", "POST"])
 @login_required
 @permission_required("employees.assign_roles")
 def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
@@ -464,9 +464,9 @@ def settings_index() -> ResponseReturnValue:
     return render_template("settings/index.html")
 
 
+@settings_bp.get("/<string:section>")
 @login_required
 @permission_required("settings.view")
-@settings_bp.get("/<string:section>")
 @login_required
 def settings_stub(section: str) -> ResponseReturnValue:
     labels = {
