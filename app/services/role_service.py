@@ -70,6 +70,13 @@ def save_role(
 def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[Role]) -> None:
     """Assign only roles whose permissions the acting employee can delegate."""
     selected_roles = list(roles)
+    current_role_permissions = {
+        permission.code
+        for role in employee.roles
+        for permission in role.permissions
+    }
+    if not can_delegate_permissions(actor, current_role_permissions):
+        raise ValueError("Недостаточно прав для изменения текущего набора ролей сотрудника.")
     if employee.id == actor.id and any(role.code == "administrator" for role in selected_roles):
         raise ValueError("Нельзя назначить роль администратора самому себе.")
 

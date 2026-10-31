@@ -1,6 +1,6 @@
 """Dialog operations and intentionally small status-transition policy."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
@@ -44,6 +44,6 @@ def change_status(dialog: Dialog, status: DialogStatus) -> Dialog:
     if status != dialog.status and status not in ALLOWED_TRANSITIONS[dialog.status]:
         raise ValueError("Недопустимый переход статуса")
     dialog.status = status
-    dialog.closed_at = datetime.utcnow() if status == DialogStatus.CLOSED else None
+    dialog.closed_at = datetime.now(timezone.utc) if status == DialogStatus.CLOSED else None
     db.session.commit()
     return dialog

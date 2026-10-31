@@ -24,7 +24,6 @@ from app.services.access_control_service import (
 )
 from app.services.role_service import (
     assign_employee_roles,
-    delete_employee_safely,
     save_role,
     update_employee_active_state,
 )
@@ -219,11 +218,11 @@ def employee_edit(employee_id: int) -> ResponseReturnValue:
 def employee_delete(employee_id: int) -> ResponseReturnValue:
     employee = db.get_or_404(Employee, employee_id)
     if employee.id == current_user.id:
-        flash("Нельзя удалить текущего пользователя.", "danger")
+        flash("Нельзя отключить текущего пользователя.", "danger")
     else:
         try:
-            delete_employee_safely(employee)
-            flash("Сотрудник удален.", "info")
+            update_employee_active_state(employee, False)
+            flash("Сотрудник отключен.", "info")
         except ValueError as error:
             db.session.rollback()
             flash(str(error), "danger")
