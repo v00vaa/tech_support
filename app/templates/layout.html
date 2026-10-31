@@ -12,11 +12,11 @@
   <div class="container"><a class="navbar-brand fw-bold" href="{{ url_for('main.index') }}">Support Desk</a>
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar"><span class="navbar-toggler-icon"></span></button>
     <div class="collapse navbar-collapse" id="navbar"><ul class="navbar-nav me-auto">
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('clients.client_list') }}">Клиенты</a></li>
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('employees.employee_list') }}">Сотрудники</a></li>
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('dialogs.dialog_list') }}">Диалоги</a></li>
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('settings.settings_index') }}">Настройки</a></li>
-      <li class="nav-item"><a class="nav-link" href="{{ url_for('api.clients') }}">API</a></li>
+      {% if has_permission(current_user, 'clients.view') %}<li class="nav-item"><a class="nav-link" href="{{ url_for('clients.client_list') }}">Клиенты</a></li>{% endif %}
+      {% if has_permission(current_user, 'employees.view') %}<li class="nav-item"><a class="nav-link" href="{{ url_for('employees.employee_list') }}">Сотрудники</a></li>{% endif %}
+      {% if has_permission(current_user, 'dialogs.view') %}<li class="nav-item"><a class="nav-link" href="{{ url_for('dialogs.dialog_list') }}">Диалоги</a></li>{% endif %}
+      {% if has_permission(current_user, 'settings.view') %}<li class="nav-item"><a class="nav-link" href="{{ url_for('settings.settings_index') }}">Настройки</a></li>{% endif %}
+      {% if current_user.is_authenticated %}<li class="nav-item"><a class="nav-link" href="{{ url_for('api.clients') }}">API</a></li>{% endif %}
     </ul><div class="navbar-text text-white">
       {% if current_user.is_authenticated %}{{ current_user.name }} <form class="d-inline" method="post" action="{{ url_for('auth.logout') }}"><button class="btn btn-sm btn-outline-light ms-2">Выйти</button></form>
       {% else %}<a class="btn btn-sm btn-light" href="{{ url_for('auth.login') }}">Войти</a>{% endif %}
