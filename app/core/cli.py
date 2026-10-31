@@ -4,7 +4,7 @@ import click
 from flask import Flask
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, DialogStatus, Employee
+from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
 from app.services.rbac_service import ensure_rbac_catalogue
 
@@ -24,6 +24,13 @@ def register_commands(app: Flask) -> None:
         administrator_role, _ = ensure_rbac_catalogue()
         settings = get_settings()
         email = click.prompt("Email администратора", default=settings.admin_email)
+        has_administrator = db.session.scalar(
+            db.select(Employee.id)
+            .join(Employee.roles)
+            .where(Role.code == "administrator")
+            .limit(1)
+        ) is not None
+        is_first_administrator = not has_administrator
         employee = db.session.scalar(db.select(Employee).where(Employee.email == email))
         if employee is None:
             password = click.prompt(
@@ -47,10 +54,12 @@ def register_commands(app: Flask) -> None:
             raise click.ClickException("Учетная запись администратора отключена.")
 
         employee.roles = list({*employee.roles, administrator_role})
-        employee.must_change_password = True
+        if is_first_administrator:
+            employee.must_change_password = True
         db.session.commit()
         click.echo("RBAC настроен. Учетная запись администратора готова.")
-        click.echo("При следующем входе потребуется сменить пароль.")
+        if is_first_administrator:
+            click.echo("При первом входе потребуется сменить временный пароль.")
 
     @app.cli.command("seed")
     def seed() -> None:
