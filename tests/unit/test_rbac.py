@@ -133,7 +133,7 @@ def test_last_active_administrator_can_be_deactivated_if_another_exists(app) -> 
 def test_internal_messages_are_hidden_from_users_without_note_permission(app, client) -> None:
     with app.app_context():
         db.create_all()
-        _, support = ensure_rbac_catalogue()
+        ensure_rbac_catalogue()
         read_only = Role(
             code="dialog_reader",
             name="Читатель диалогов",
