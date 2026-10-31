@@ -17,12 +17,16 @@ from app.models import (
     Role,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
-from app.services.access_control_service import has_permission, permission_required
+from app.services.access_control_service import (
+    can_delegate_permissions,
+    has_permission,
+    permission_required,
+)
 from app.services.role_service import (
     assign_employee_roles,
     delete_employee_safely,
-    update_employee_active_state,
     save_role,
+    update_employee_active_state,
 )
 from app.web.forms import (
     AssignForm, ChangePasswordForm, ClientForm, DialogForm, EmployeeForm,
@@ -375,7 +379,14 @@ def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
     available_roles = db.session.scalars(
         db.select(Role).where(Role.is_active).order_by(Role.name)
     ).all()
-    form.roles.choices = [(role.id, role.name) for role in available_roles]
+    form.roles.choices = [
+        (role.id, role.name)
+        for role in available_roles
+        if can_delegate_permissions(
+            current_user,
+            {permission.code for permission in role.permissions},
+        )
+    ]
     if form.validate_on_submit():
         selected = db.session.scalars(
             db.select(Role).where(Role.id.in_(form.roles.data))
