@@ -27,7 +27,7 @@ def register_commands(app: Flask) -> None:
         has_administrator = db.session.scalar(
             db.select(Employee.id)
             .join(Employee.roles)
-            .where(Role.code == "administrator")
+            .where(Employee.is_active, Role.is_active, Role.code == "administrator")
             .limit(1)
         ) is not None
         is_first_administrator = not has_administrator
