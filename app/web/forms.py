@@ -1,8 +1,16 @@
 """Flask-WTF forms for the browser prototype."""
 
 from flask_wtf import FlaskForm
-from wtforms import BooleanField, PasswordField, SelectField, StringField, SubmitField, TextAreaField
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional
+from wtforms import (
+    BooleanField,
+    PasswordField,
+    SelectField,
+    SelectMultipleField,
+    StringField,
+    SubmitField,
+    TextAreaField,
+)
+from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp
 
 from app.models.dialog import DialogStatus
 from app.models.message import AuthorType
@@ -37,6 +45,27 @@ class EmployeeForm(FlaskForm):
     position = StringField("Должность", validators=[DataRequired(), Length(max=120)])
     password = PasswordField("Пароль для входа", validators=[Optional(), Length(min=6, max=128)])
     is_active = BooleanField("Активен", default=True)
+    submit = SubmitField("Сохранить")
+
+
+class EmployeeRolesForm(FlaskForm):
+    roles = SelectMultipleField("Роли", coerce=int)
+    submit = SubmitField("Сохранить роли")
+
+
+class RoleForm(FlaskForm):
+    code = StringField(
+        "Код роли",
+        validators=[
+            DataRequired(),
+            Length(min=3, max=80),
+            Regexp(r"^[a-z][a-z0-9_]*$", message="Используйте латиницу, цифры и _, начиная с буквы."),
+        ],
+    )
+    name = StringField("Название", validators=[DataRequired(), Length(max=120)])
+    description = TextAreaField("Описание", validators=[Optional(), Length(max=500)])
+    permissions = SelectMultipleField("Разрешения", coerce=str)
+    is_active = BooleanField("Роль активна", default=True)
     submit = SubmitField("Сохранить")
 
 
