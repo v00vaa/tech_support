@@ -105,7 +105,17 @@ def test_employee_cannot_assign_administrator_role_to_self(app) -> None:
     with app.app_context():
         db.create_all()
         administrator, _ = ensure_rbac_catalogue()
-        actor = _employee("admin-self@example.com", [administrator])
+        assign_permission = db.session.scalar(
+            db.select(Permission).where(Permission.code == "employees.assign_roles")
+        )
+        assigner_role = Role(
+            code="role_assigner",
+            name="Назначающий роли",
+            permissions=[assign_permission],
+        )
+        db.session.add(assigner_role)
+        db.session.commit()
+        actor = _employee("admin-self@example.com", [assigner_role])
         with pytest.raises(ValueError, match="самому себе"):
             assign_employee_roles(actor, actor, [administrator])
 

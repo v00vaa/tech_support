@@ -77,7 +77,13 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
     }
     if not can_delegate_permissions(actor, current_role_permissions):
         raise ValueError("Недостаточно прав для изменения текущего набора ролей сотрудника.")
-    if employee.id == actor.id and any(role.code == "administrator" for role in selected_roles):
+    already_administrator = any(
+        role.code == "administrator" and role.is_active for role in employee.roles
+    )
+    adding_administrator = any(
+        role.code == "administrator" and role.is_active for role in selected_roles
+    )
+    if employee.id == actor.id and adding_administrator and not already_administrator:
         raise ValueError("Нельзя назначить роль администратора самому себе.")
 
     for role in selected_roles:
