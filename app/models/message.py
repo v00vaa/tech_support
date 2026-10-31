@@ -29,6 +29,7 @@ class Message(db.Model):
     author_type: Mapped[AuthorType] = mapped_column(db.Enum(AuthorType), nullable=False)
     author_id: Mapped[int | None] = mapped_column()
     text: Mapped[str] = mapped_column(db.Text, nullable=False)
+    is_internal: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
     deleted_at: Mapped[datetime | None] = mapped_column()

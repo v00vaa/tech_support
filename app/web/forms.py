@@ -13,7 +13,6 @@ from wtforms import (
 from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp
 
 from app.models.dialog import DialogStatus
-from app.models.message import AuthorType
 
 
 class LoginForm(FlaskForm):
@@ -79,7 +78,7 @@ class DialogForm(FlaskForm):
 
 class MessageForm(FlaskForm):
     text = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
-    author_type = SelectField("Автор", choices=[(item.value, item.value.title()) for item in AuthorType])
+    is_internal = BooleanField("Внутренняя заметка")
     submit = SubmitField("Отправить")
 
 

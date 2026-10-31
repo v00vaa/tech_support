@@ -44,7 +44,7 @@ def _dialog_data(dialog: Dialog) -> dict[str, object]:
 
 
 def _message_data(message: Message) -> dict[str, object]:
-    return {"id": message.id, "dialog_id": message.dialog_id, "author_type": message.author_type.value, "author_id": message.author_id, "text": message.text, "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None}
+    return {"id": message.id, "dialog_id": message.dialog_id, "author_type": message.author_type.value, "author_id": message.author_id, "text": message.text, "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None, "is_internal": message.is_internal}
 
 
 @api_bp.get("/health/live")
@@ -104,11 +104,23 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
 def messages(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     if request.method == "GET":
-        return jsonify([_message_data(item) for item in dialog.messages]), 200
+        visible_messages = [
+            item for item in dialog.messages
+            if not item.is_internal or has_permission(current_user, "dialogs.add_internal_note")
+        ]
+        return jsonify([_message_data(item) for item in visible_messages]), 200
     data = request.get_json(silent=True) or {}
     if not data.get("text"):
         return jsonify(error="text is required"), 400
+    is_internal = bool(data.get("is_internal", False))
+    required = "dialogs.add_internal_note" if is_internal else "dialogs.reply"
+    if not has_permission(current_user, required):
+        abort(403)
     message = message_service.create_message(
-        dialog.id, AuthorType.EMPLOYEE, current_user.id, str(data["text"])
+        dialog.id,
+        AuthorType.EMPLOYEE,
+        current_user.id,
+        str(data["text"]),
+        is_internal=is_internal,
     )
     return jsonify(_message_data(message)), 201

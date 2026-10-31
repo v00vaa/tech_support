@@ -4,7 +4,6 @@ import pytest
 
 from app.extensions import db
 from app.models import Employee
-from app.services.access_control_service import ensure_another_active_administrator
 from app.services.rbac_service import ensure_rbac_catalogue
 from app.services.role_service import assign_employee_roles, save_role, update_employee_active_state
 

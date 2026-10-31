@@ -8,7 +8,7 @@ from sqlalchemy import func
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message
 from app.services import client_service, dialog_service, employee_service, message_service
-from app.services.access_control_service import permission_required
+from app.services.access_control_service import has_permission, permission_required
 from app.services.role_service import (
     assign_employee_roles,
     delete_employee_safely,
@@ -248,7 +248,18 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     status_form.status.data = dialog.status.value
     assign_form.responsible_employee_id.data = dialog.responsible_employee_id or 0
     _assign_form(assign_form)
-    return render_template("dialogs/detail.html", dialog=dialog, message_form=message_form, status_form=status_form, assign_form=assign_form)
+    visible_messages = [
+        message for message in dialog.messages
+        if not message.is_internal or has_permission(current_user, "dialogs.add_internal_note")
+    ]
+    return render_template(
+        "dialogs/detail.html",
+        dialog=dialog,
+        messages=visible_messages,
+        message_form=message_form,
+        status_form=status_form,
+        assign_form=assign_form,
+    )
 
 
 @dialogs_bp.route("/<int:dialog_id>/edit", methods=["GET", "POST"])
@@ -302,15 +313,24 @@ def dialog_assign(dialog_id: int) -> ResponseReturnValue:
 
 @dialogs_bp.post("/<int:dialog_id>/messages")
 @login_required
-@permission_required("dialogs.reply")
 def message_create(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     form = MessageForm()
     if form.validate_on_submit():
+        is_internal = form.is_internal.data
+        required_permission = "dialogs.add_internal_note" if is_internal else "dialogs.reply"
+        if not has_permission(current_user, required_permission):
+            from flask import abort
+
+            abort(403)
         message_service.create_message(
-            dialog.id, AuthorType.EMPLOYEE, current_user.id, form.text.data
+            dialog.id,
+            AuthorType.EMPLOYEE,
+            current_user.id,
+            form.text.data,
+            is_internal=is_internal,
         )
-        flash("Сообщение отправлено.", "success")
+        flash("Внутренняя заметка добавлена." if is_internal else "Сообщение отправлено.", "success")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
@@ -340,7 +360,6 @@ def message_delete(message_id: int) -> ResponseReturnValue:
 
 @employees_bp.route("/<int:employee_id>/roles", methods=["GET", "POST"])
 @login_required
-@permission_required("settings.view")
 @permission_required("employees.assign_roles")
 def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
     employee = db.get_or_404(Employee, employee_id)
