@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+from enum import StrEnum
+from typing import TYPE_CHECKING
+
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from datetime import datetime, timezone
-from enum import StrEnum
-
 from app.extensions import db
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.dialog import Dialog
+
 
 class AuthorType(StrEnum):
     CLIENT = "CLIENT"

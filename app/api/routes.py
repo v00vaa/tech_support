@@ -23,7 +23,7 @@ def enforce_api_permissions() -> None:
         "api.employees": "employees.view" if request.method == "GET" else "employees.create",
         "api.dialogs": "dialogs.view" if request.method == "GET" else "dialogs.create",
         "api.dialog_detail": "dialogs.view",
-        "api.messages": "dialogs.view" if request.method == "GET" else "dialogs.reply",
+        "api.messages": "dialogs.view",
     }
     required = permission_by_endpoint.get(request.endpoint or "")
     if required is None or not has_permission(current_user, required):

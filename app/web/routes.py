@@ -6,7 +6,16 @@ from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message
+from app.models import (
+    AuthorType,
+    Client,
+    Dialog,
+    DialogStatus,
+    Employee,
+    Message,
+    Permission,
+    Role,
+)
 from app.services import client_service, dialog_service, employee_service, message_service
 from app.services.access_control_service import has_permission, permission_required
 from app.services.role_service import (
@@ -15,7 +24,6 @@ from app.services.role_service import (
     update_employee_active_state,
     save_role,
 )
-from app.models import Permission, Role
 from app.web.forms import (
     AssignForm, ChangePasswordForm, ClientForm, DialogForm, EmployeeForm,
     EmployeeRolesForm, LoginForm, MessageForm, RoleForm, StatusForm,

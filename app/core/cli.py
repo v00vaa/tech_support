@@ -25,7 +25,6 @@ def register_commands(app: Flask) -> None:
         settings = get_settings()
         email = click.prompt("Email администратора", default=settings.admin_email)
         employee = db.session.scalar(db.select(Employee).where(Employee.email == email))
-        is_new_employee = employee is None
         if employee is None:
             password = click.prompt(
                 "Временный пароль (не менее 12 символов)",
