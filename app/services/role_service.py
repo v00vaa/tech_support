@@ -92,9 +92,15 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
     if employee.id == actor.id and adding_administrator and not already_administrator:
         raise ValueError("Нельзя назначить роль администратора самому себе.")
 
+    selected_role_ids = {role.id for role in selected_roles}
     for role in selected_roles:
         if not role.is_active:
             raise ValueError(f"Нельзя назначить отключенную роль «{role.name}».")
+        if role.role_type in {"MANAGER", "HR"} and role.scope_role_id not in selected_role_ids:
+            raise ValueError(
+                f"Для назначения роли «{role.name}» сотрудник должен состоять "
+                "в соответствующей основной роли."
+            )
         role_codes = {permission.code for permission in role.permissions}
         if not can_delegate_permissions(actor, role_codes):
             raise ValueError(f"Недостаточно прав для назначения роли «{role.name}».")
@@ -137,6 +143,8 @@ def ensure_special_roles(main_role: Role) -> tuple[Role, Role]:
             scope_role=main_role,
         )
         db.session.add(manager)
+    manager.name = f"Начальник — {main_role.name}"
+    manager.description = f"Информация и уведомления по роли «{main_role.name}»."
     manager.permissions = [manager_permission]
 
     hr = db.session.scalar(
@@ -152,6 +160,8 @@ def ensure_special_roles(main_role: Role) -> tuple[Role, Role]:
             scope_role=main_role,
         )
         db.session.add(hr)
+    hr.name = f"HR — {main_role.name}"
+    hr.description = f"Управление составом только роли «{main_role.name}»."
     hr.permissions = [hr_permission]
     db.session.flush()
     return manager, hr
