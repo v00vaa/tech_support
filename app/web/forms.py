@@ -23,7 +23,9 @@ class LoginForm(FlaskForm):
 
 class ChangePasswordForm(FlaskForm):
     current_password = PasswordField("Текущий пароль", validators=[DataRequired()])
-    new_password = PasswordField("Новый пароль", validators=[DataRequired(), Length(min=12, max=128)])
+    new_password = PasswordField(
+        "Новый пароль", validators=[DataRequired(), Length(min=12, max=128)]
+    )
     confirm_password = PasswordField(
         "Повторите новый пароль",
         validators=[DataRequired(), EqualTo("new_password", message="Пароли не совпадают.")],
@@ -58,7 +60,9 @@ class RoleForm(FlaskForm):
         validators=[
             DataRequired(),
             Length(min=3, max=80),
-            Regexp(r"^[a-z][a-z0-9_]*$", message="Используйте латиницу, цифры и _, начиная с буквы."),
+            Regexp(
+                r"^[a-z][a-z0-9_]*$", message="Используйте латиницу, цифры и _, начиная с буквы."
+            ),
         ],
     )
     name = StringField("Название", validators=[DataRequired(), Length(max=120)])
@@ -72,7 +76,9 @@ class DialogForm(FlaskForm):
     client_id = SelectField("Клиент", coerce=int, validators=[DataRequired()])
     responsible_employee_id = SelectField("Ответственный", coerce=int, validators=[Optional()])
     subject = StringField("Тема", validators=[DataRequired(), Length(max=255)])
-    channel = SelectField("Канал", choices=[("Web", "Web"), ("API", "Внешний API"), ("Widget", "Виджет")])
+    channel = SelectField(
+        "Канал", choices=[("Web", "Web"), ("API", "Внешний API"), ("Widget", "Виджет")]
+    )
     submit = SubmitField("Сохранить")
 
 
@@ -83,7 +89,10 @@ class MessageForm(FlaskForm):
 
 
 class StatusForm(FlaskForm):
-    status = SelectField("Статус", choices=[(item.value, item.value.replace("_", " ").title()) for item in DialogStatus])
+    status = SelectField(
+        "Статус",
+        choices=[(item.value, item.value.replace("_", " ").title()) for item in DialogStatus],
+    )
     submit = SubmitField("Изменить")
 
 

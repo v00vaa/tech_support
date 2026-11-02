@@ -12,11 +12,18 @@ from app.core.config import Settings
 @pytest.fixture
 def app() -> Iterator[Flask]:
     application = create_app(
-        Settings(database_url="sqlite+pysqlite:///:memory:", environment="testing")
+        Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            environment="testing",
+        )
     )
     application.config.update(TESTING=True)
+
     yield application
-    application.extensions["database"].engine.dispose()
+
+    # Flask-SQLAlchemy requires an active application context.
+    with application.app_context():
+        application.extensions["sqlalchemy"].engine.dispose()
 
 
 @pytest.fixture

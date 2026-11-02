@@ -28,8 +28,16 @@ from app.services.role_service import (
     update_employee_active_state,
 )
 from app.web.forms import (
-    AssignForm, ChangePasswordForm, ClientForm, DialogForm, EmployeeForm,
-    EmployeeRolesForm, LoginForm, MessageForm, RoleForm, StatusForm,
+    AssignForm,
+    ChangePasswordForm,
+    ClientForm,
+    DialogForm,
+    EmployeeForm,
+    EmployeeRolesForm,
+    LoginForm,
+    MessageForm,
+    RoleForm,
+    StatusForm,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -42,17 +50,24 @@ settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 
 
 def _dialog_form(form: DialogForm) -> None:
-    form.client_id.choices = [(client.id, client.name) for client in db.session.scalars(db.select(Client).order_by(Client.name))]
+    form.client_id.choices = [
+        (client.id, client.name)
+        for client in db.session.scalars(db.select(Client).order_by(Client.name))
+    ]
     form.responsible_employee_id.choices = [(0, "Не назначен")] + [
         (employee.id, employee.name)
-        for employee in db.session.scalars(db.select(Employee).where(Employee.is_active).order_by(Employee.name))
+        for employee in db.session.scalars(
+            db.select(Employee).where(Employee.is_active).order_by(Employee.name)
+        )
     ]
 
 
 def _assign_form(form: AssignForm) -> None:
     form.responsible_employee_id.choices = [(0, "Не назначен")] + [
         (employee.id, employee.name)
-        for employee in db.session.scalars(db.select(Employee).where(Employee.is_active).order_by(Employee.name))
+        for employee in db.session.scalars(
+            db.select(Employee).where(Employee.is_active).order_by(Employee.name)
+        )
     ]
 
 
@@ -63,9 +78,20 @@ def index() -> ResponseReturnValue:
     stats = {
         "clients": db.session.scalar(db.select(func.count()).select_from(Client)) or 0,
         "employees": db.session.scalar(db.select(func.count()).select_from(Employee)) or 0,
-        "open": db.session.scalar(db.select(func.count()).select_from(Dialog).where(Dialog.status == DialogStatus.OPEN)) or 0,
-        "in_progress": db.session.scalar(db.select(func.count()).select_from(Dialog).where(Dialog.status == DialogStatus.IN_PROGRESS)) or 0,
-        "closed": db.session.scalar(db.select(func.count()).select_from(Dialog).where(Dialog.status == DialogStatus.CLOSED)) or 0,
+        "open": db.session.scalar(
+            db.select(func.count()).select_from(Dialog).where(Dialog.status == DialogStatus.OPEN)
+        )
+        or 0,
+        "in_progress": db.session.scalar(
+            db.select(func.count())
+            .select_from(Dialog)
+            .where(Dialog.status == DialogStatus.IN_PROGRESS)
+        )
+        or 0,
+        "closed": db.session.scalar(
+            db.select(func.count()).select_from(Dialog).where(Dialog.status == DialogStatus.CLOSED)
+        )
+        or 0,
     }
     return render_template("index.html", stats=stats)
 
@@ -95,7 +121,10 @@ def change_password() -> ResponseReturnValue:
     form = ChangePasswordForm()
     if form.validate_on_submit():
         if not current_user.check_password(form.current_password.data):
-            form.current_password.errors.append("Текущий пароль указан неверно.")
+            form.current_password.errors = [
+                *form.current_password.errors,
+                "Текущий пароль указан неверно.",
+            ]
         else:
             current_user.set_password(form.new_password.data)
             current_user.must_change_password = False
@@ -127,7 +156,14 @@ def client_list() -> ResponseReturnValue:
 def client_create() -> ResponseReturnValue:
     form = ClientForm()
     if form.validate_on_submit():
-        client_service.create_client(form.name.data, form.email.data, form.phone.data)
+        assert form.name.data is not None
+        assert form.email.data is not None
+
+        client_service.create_client(
+            form.name.data,
+            form.email.data,
+            form.phone.data,
+        )
         flash("Клиент создан.", "success")
         return redirect(url_for("clients.client_list"))
     return render_template("clients/create.html", form=form)
@@ -147,7 +183,15 @@ def client_edit(client_id: int) -> ResponseReturnValue:
     client = db.get_or_404(Client, client_id)
     form = ClientForm(obj=client)
     if form.validate_on_submit():
-        client_service.update_client(client, form.name.data, form.email.data, form.phone.data)
+        assert form.name.data is not None
+        assert form.email.data is not None
+
+        client_service.update_client(
+            client,
+            form.name.data,
+            form.email.data,
+            form.phone.data,
+        )
         flash("Клиент изменен.", "success")
         return redirect(url_for("clients.client_detail", client_id=client.id))
     return render_template("clients/edit.html", form=form, client=client)
@@ -177,9 +221,22 @@ def employee_create() -> ResponseReturnValue:
     form = EmployeeForm()
     if form.validate_on_submit():
         if not form.password.data:
-            form.password.errors.append("Укажите пароль.")
+            form.password.errors = [
+                *form.password.errors,
+                "Укажите пароль.",
+            ]
         else:
-            employee_service.create_employee(form.name.data, form.email.data, form.position.data, form.password.data, form.is_active.data)
+            assert form.name.data is not None
+            assert form.email.data is not None
+            assert form.position.data is not None
+
+            employee_service.create_employee(
+                form.name.data,
+                form.email.data,
+                form.position.data,
+                form.password.data,
+                form.is_active.data,
+            )
             flash("Сотрудник создан.", "success")
             return redirect(url_for("employees.employee_list"))
     return render_template("employees/create.html", form=form)
@@ -199,6 +256,9 @@ def employee_edit(employee_id: int) -> ResponseReturnValue:
     employee = db.get_or_404(Employee, employee_id)
     form = EmployeeForm(obj=employee)
     if form.validate_on_submit():
+        assert form.name.data is not None
+        assert form.email.data is not None
+        assert form.position.data is not None
         try:
             employee.name = form.name.data
             employee.email = form.email.data
@@ -208,7 +268,10 @@ def employee_edit(employee_id: int) -> ResponseReturnValue:
             return redirect(url_for("employees.employee_detail", employee_id=employee.id))
         except ValueError as error:
             db.session.rollback()
-            form.is_active.errors.append(str(error))
+            form.is_active.errors = [
+                *form.is_active.errors,
+                str(error),
+            ]
     return render_template("employees/edit.html", form=form, employee=employee)
 
 
@@ -244,7 +307,16 @@ def dialog_create() -> ResponseReturnValue:
     form = DialogForm()
     _dialog_form(form)
     if form.validate_on_submit():
-        dialog = dialog_service.create_dialog(form.client_id.data, form.responsible_employee_id.data or None, form.subject.data, form.channel.data)
+        assert form.client_id.data is not None
+        assert form.subject.data is not None
+        assert form.channel.data is not None
+
+        dialog = dialog_service.create_dialog(
+            form.client_id.data,
+            form.responsible_employee_id.data or None,
+            form.subject.data,
+            form.channel.data,
+        )
         flash("Диалог создан.", "success")
         return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
     return render_template("dialogs/create.html", form=form)
@@ -260,7 +332,8 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     assign_form.responsible_employee_id.data = dialog.responsible_employee_id or 0
     _assign_form(assign_form)
     visible_messages = [
-        message for message in dialog.messages
+        message
+        for message in dialog.messages
         if not message.is_internal or has_permission(current_user, "dialogs.add_internal_note")
     ]
     return render_template(
@@ -281,7 +354,15 @@ def dialog_edit(dialog_id: int) -> ResponseReturnValue:
     form = DialogForm(obj=dialog)
     _dialog_form(form)
     if form.validate_on_submit():
-        dialog_service.update_dialog(dialog, form.client_id.data, form.responsible_employee_id.data or None, form.subject.data, form.channel.data)
+        assert form.client_id.data is not None
+        assert form.subject.data is not None
+        dialog_service.update_dialog(
+            dialog,
+            form.client_id.data,
+            form.responsible_employee_id.data or None,
+            form.subject.data,
+            form.channel.data,
+        )
         flash("Диалог изменен.", "success")
         return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
     return render_template("dialogs/edit.html", form=form, dialog=dialog)
@@ -328,9 +409,13 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     form = MessageForm()
     if form.validate_on_submit():
+        assert form.text.data is not None
+
         is_internal = form.is_internal.data
         required_permission = "dialogs.add_internal_note" if is_internal else "dialogs.reply"
-        if not has_permission(current_user, "dialogs.view") or not has_permission(current_user, required_permission):
+        if not has_permission(current_user, "dialogs.view") or not has_permission(
+            current_user, required_permission
+        ):
             from flask import abort
 
             abort(403)
@@ -341,7 +426,9 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
             form.text.data,
             is_internal=is_internal,
         )
-        flash("Внутренняя заметка добавлена." if is_internal else "Сообщение отправлено.", "success")
+        flash(
+            "Внутренняя заметка добавлена." if is_internal else "Сообщение отправлено.", "success"
+        )
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
@@ -352,6 +439,8 @@ def message_edit(message_id: int) -> ResponseReturnValue:
     message = db.get_or_404(Message, message_id)
     form = MessageForm(obj=message)
     if form.validate_on_submit():
+        assert form.text.data is not None
+
         message_service.update_message(message, form.text.data)
         flash("Сообщение изменено.", "success")
         return redirect(url_for("dialogs.dialog_detail", dialog_id=message.dialog_id))
@@ -387,16 +476,21 @@ def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
         )
     ]
     if form.validate_on_submit():
-        selected = db.session.scalars(
-            db.select(Role).where(Role.id.in_(form.roles.data))
-        ).all() if form.roles.data else []
+        selected = (
+            db.session.scalars(db.select(Role).where(Role.id.in_(form.roles.data))).all()
+            if form.roles.data
+            else []
+        )
         try:
             assign_employee_roles(current_user, employee, selected)
             flash("Роли сотрудника обновлены.", "success")
             return redirect(url_for("employees.employee_detail", employee_id=employee.id))
         except ValueError as error:
             db.session.rollback()
-            form.roles.errors.append(str(error))
+            form.roles.errors = [
+                *form.roles.errors,
+                str(error),
+            ]
     elif not form.is_submitted():
         form.roles.data = [role.id for role in employee.roles if role.is_active]
     return render_template("employees/roles.html", form=form, employee=employee)
@@ -406,9 +500,7 @@ def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
 @login_required
 @permission_required("roles.view")
 def role_list() -> ResponseReturnValue:
-    roles = db.session.scalars(
-        db.select(Role).order_by(Role.is_system.desc(), Role.name)
-    ).all()
+    roles = db.session.scalars(db.select(Role).order_by(Role.is_system.desc(), Role.name)).all()
     return render_template("settings/roles/list.html", roles=roles)
 
 
@@ -422,6 +514,8 @@ def role_create() -> ResponseReturnValue:
     ).all()
     form.permissions.choices = [(item.code, f"{item.name} ({item.code})") for item in permissions]
     if form.validate_on_submit():
+        assert form.code.data is not None
+        assert form.name.data is not None
         try:
             save_role(
                 current_user,
@@ -429,14 +523,20 @@ def role_create() -> ResponseReturnValue:
                 code=form.code.data,
                 name=form.name.data,
                 description=form.description.data or None,
-                permission_codes=form.permissions.data,
+                permission_codes=tuple(
+                    str(code) for code in (form.permissions.data or [])
+                    if code is not None
+                ),
                 is_active=form.is_active.data,
             )
             flash("Роль создана.", "success")
             return redirect(url_for("settings.role_list"))
         except ValueError as error:
             db.session.rollback()
-            form.permissions.errors.append(str(error))
+            form.permissions.errors = [
+                *form.permissions.errors,
+                str(error),
+            ]
     return render_template("settings/roles/form.html", form=form, role=None)
 
 
@@ -454,6 +554,8 @@ def role_edit(role_id: int) -> ResponseReturnValue:
     ).all()
     form.permissions.choices = [(item.code, f"{item.name} ({item.code})") for item in permissions]
     if form.validate_on_submit():
+        assert form.code.data is not None
+        assert form.name.data is not None
         try:
             save_role(
                 current_user,
@@ -461,14 +563,20 @@ def role_edit(role_id: int) -> ResponseReturnValue:
                 code=form.code.data,
                 name=form.name.data,
                 description=form.description.data or None,
-                permission_codes=form.permissions.data,
+                permission_codes=tuple(
+                    str(code) for code in (form.permissions.data or [])
+                    if code is not None
+                ),
                 is_active=form.is_active.data,
             )
             flash("Роль обновлена.", "success")
             return redirect(url_for("settings.role_list"))
         except ValueError as error:
             db.session.rollback()
-            form.permissions.errors.append(str(error))
+            form.permissions.errors = [
+                *form.permissions.errors,
+                str(error),
+            ]
     elif not form.is_submitted():
         form.permissions.data = [item.code for item in role.permissions]
     return render_template("settings/roles/form.html", form=form, role=role)
@@ -486,8 +594,15 @@ def settings_index() -> ResponseReturnValue:
 @permission_required("settings.view")
 def settings_stub(section: str) -> ResponseReturnValue:
     labels = {
-        "roles": "Роли и права", "workflow": "Workflow", "channels": "Каналы",
-        "integrations": "Интеграции", "moderation": "Модерация", "ai": "AI",
-        "notifications": "Уведомления", "company": "Интеграция с корпоративной системой",
+        "roles": "Роли и права",
+        "workflow": "Workflow",
+        "channels": "Каналы",
+        "integrations": "Интеграции",
+        "moderation": "Модерация",
+        "ai": "AI",
+        "notifications": "Уведомления",
+        "company": "Интеграция с корпоративной системой",
     }
-    return render_template("settings/stub.html", title=labels.get(section, "Настройки"), section=section)
+    return render_template(
+        "settings/stub.html", title=labels.get(section, "Настройки"), section=section
+    )

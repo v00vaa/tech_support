@@ -1,6 +1,7 @@
 """Small JSON API sharing the same services as the HTML interface."""
 
-from flask import Blueprint, ResponseReturnValue, abort, jsonify, request
+from flask import Blueprint, abort, jsonify, request
+from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from sqlalchemy import select
 
@@ -11,6 +12,7 @@ from app.services.access_control_service import has_permission
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
+
 @api_bp.before_request
 def enforce_api_permissions() -> None:
     """Apply RBAC to JSON endpoints while leaving health checks public."""
@@ -20,7 +22,9 @@ def enforce_api_permissions() -> None:
         abort(401)
     permission_by_endpoint = {
         "api.clients": "clients.view" if request.method in {"GET", "HEAD"} else "clients.create",
-        "api.employees": "employees.view" if request.method in {"GET", "HEAD"} else "employees.create",
+        "api.employees": "employees.view"
+        if request.method in {"GET", "HEAD"}
+        else "employees.create",
         "api.dialogs": "dialogs.view" if request.method in {"GET", "HEAD"} else "dialogs.create",
         "api.dialog_detail": "dialogs.view",
         "api.messages": "dialogs.view",
@@ -30,21 +34,41 @@ def enforce_api_permissions() -> None:
         abort(403)
 
 
-
 def _client_data(client: Client) -> dict[str, object]:
     return {"id": client.id, "name": client.name, "email": client.email, "phone": client.phone}
 
 
 def _employee_data(employee: Employee) -> dict[str, object]:
-    return {"id": employee.id, "name": employee.name, "email": employee.email, "position": employee.position, "is_active": employee.is_active}
+    return {
+        "id": employee.id,
+        "name": employee.name,
+        "email": employee.email,
+        "position": employee.position,
+        "is_active": employee.is_active,
+    }
 
 
 def _dialog_data(dialog: Dialog) -> dict[str, object]:
-    return {"id": dialog.id, "client_id": dialog.client_id, "responsible_employee_id": dialog.responsible_employee_id, "subject": dialog.subject, "status": dialog.status.value, "channel": dialog.channel}
+    return {
+        "id": dialog.id,
+        "client_id": dialog.client_id,
+        "responsible_employee_id": dialog.responsible_employee_id,
+        "subject": dialog.subject,
+        "status": dialog.status.value,
+        "channel": dialog.channel,
+    }
 
 
 def _message_data(message: Message) -> dict[str, object]:
-    return {"id": message.id, "dialog_id": message.dialog_id, "author_type": message.author_type.value, "author_id": message.author_id, "text": message.text, "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None, "is_internal": message.is_internal}
+    return {
+        "id": message.id,
+        "dialog_id": message.dialog_id,
+        "author_type": message.author_type.value,
+        "author_id": message.author_id,
+        "text": message.text,
+        "deleted_at": message.deleted_at.isoformat() if message.deleted_at else None,
+        "is_internal": message.is_internal,
+    }
 
 
 @api_bp.get("/health/live")
@@ -64,7 +88,9 @@ def readiness() -> ResponseReturnValue:
 @api_bp.route("/clients", methods=["GET", "POST"])
 def clients() -> ResponseReturnValue:
     if request.method in {"GET", "HEAD"}:
-        return jsonify([_client_data(item) for item in db.session.scalars(select(Client).order_by(Client.id))]), 200
+        return jsonify(
+            [_client_data(item) for item in db.session.scalars(select(Client).order_by(Client.id))]
+        ), 200
     data = request.get_json(silent=True) or {}
     if not data.get("name") or not data.get("email"):
         return jsonify(error="name and email are required"), 400
@@ -75,22 +101,40 @@ def clients() -> ResponseReturnValue:
 @api_bp.route("/employees", methods=["GET", "POST"])
 def employees() -> ResponseReturnValue:
     if request.method in {"GET", "HEAD"}:
-        return jsonify([_employee_data(item) for item in db.session.scalars(select(Employee).order_by(Employee.id))]), 200
+        return jsonify(
+            [
+                _employee_data(item)
+                for item in db.session.scalars(select(Employee).order_by(Employee.id))
+            ]
+        ), 200
     data = request.get_json(silent=True) or {}
     if not all(data.get(field) for field in ("name", "email", "password")):
         return jsonify(error="name, email and password are required"), 400
-    employee = employee_service.create_employee(str(data["name"]), str(data["email"]), str(data.get("position", "Специалист поддержки")), str(data["password"]), bool(data.get("is_active", True)))
+    employee = employee_service.create_employee(
+        str(data["name"]),
+        str(data["email"]),
+        str(data.get("position", "Специалист поддержки")),
+        str(data["password"]),
+        bool(data.get("is_active", True)),
+    )
     return jsonify(_employee_data(employee)), 201
 
 
 @api_bp.route("/dialogs", methods=["GET", "POST"])
 def dialogs() -> ResponseReturnValue:
     if request.method in {"GET", "HEAD"}:
-        return jsonify([_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]), 200
+        return jsonify(
+            [_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]
+        ), 200
     data = request.get_json(silent=True) or {}
     if not data.get("client_id") or not data.get("subject"):
         return jsonify(error="client_id and subject are required"), 400
-    dialog = dialog_service.create_dialog(int(data["client_id"]), data.get("responsible_employee_id"), str(data["subject"]), str(data.get("channel", "API")))
+    dialog = dialog_service.create_dialog(
+        int(data["client_id"]),
+        data.get("responsible_employee_id"),
+        str(data["subject"]),
+        str(data.get("channel", "API")),
+    )
     return jsonify(_dialog_data(dialog)), 201
 
 
@@ -105,7 +149,8 @@ def messages(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     if request.method in {"GET", "HEAD"}:
         visible_messages = [
-            item for item in dialog.messages
+            item
+            for item in dialog.messages
             if not item.is_internal or has_permission(current_user, "dialogs.add_internal_note")
         ]
         return jsonify([_message_data(item) for item in visible_messages]), 200

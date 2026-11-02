@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.extensions import db
+from app.extensions import Base, db
 
 if TYPE_CHECKING:
     from app.models.employee import Employee
@@ -48,23 +48,17 @@ role_permissions = Table(
 )
 
 
-class Role(db.Model):
+class Role(Base):
     """A named collection of permissions assignable to employees."""
 
     __tablename__ = "roles"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(
-        String(80), unique=True, nullable=False, index=True
-    )
+    code: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500))
-    is_system: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
-    is_active: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
+    is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     permissions: Mapped[list[Permission]] = relationship(
         secondary=role_permissions,
@@ -77,15 +71,13 @@ class Role(db.Model):
     )
 
 
-class Permission(db.Model):
+class Permission(Base):
     """A single application capability."""
 
     __tablename__ = "permissions"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    code: Mapped[str] = mapped_column(
-        String(120), unique=True, nullable=False, index=True
-    )
+    code: Mapped[str] = mapped_column(String(120), unique=True, nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str | None] = mapped_column(String(500))
     category: Mapped[str] = mapped_column(String(80), nullable=False)

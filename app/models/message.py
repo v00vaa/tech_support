@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
 from sqlalchemy import ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.extensions import db
+from app.extensions import Base, db
 
 if TYPE_CHECKING:
     from app.models.dialog import Dialog
@@ -21,7 +21,7 @@ class AuthorType(StrEnum):
     SYSTEM = "SYSTEM"
 
 
-class Message(db.Model):
+class Message(Base):
     __tablename__ = "messages"
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -30,7 +30,9 @@ class Message(db.Model):
     author_id: Mapped[int | None] = mapped_column()
     text: Mapped[str] = mapped_column(db.Text, nullable=False)
     is_internal: Mapped[bool] = mapped_column(default=False, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), nullable=False)
-    updated_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(default=lambda: datetime.now(UTC), nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(
+        default=lambda: datetime.now(UTC), onupdate=lambda: datetime.now(UTC), nullable=False
+    )
     deleted_at: Mapped[datetime | None] = mapped_column()
-    dialog: Mapped["Dialog"] = relationship(back_populates="messages")
+    dialog: Mapped[Dialog] = relationship(back_populates="messages")

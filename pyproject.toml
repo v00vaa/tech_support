@@ -62,9 +62,16 @@ strict = true
 warn_unreachable = true
 disallow_any_generics = true
 exclude = "^(tests|migrations)/"
+mypy_path = "typings"
 
 [[tool.mypy.overrides]]
-module = ["alembic.*"]
+module = [
+    "alembic.*",
+    "flask_login",
+    "flask_login.*",
+    "flask_wtf",
+    "flask_wtf.*",
+]
 ignore_missing_imports = true
 
 [tool.bandit]

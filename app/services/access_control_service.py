@@ -55,11 +55,15 @@ def ensure_another_active_administrator(
 
     from app.extensions import db
 
-    other_admins = db.session.query(Employee.id).join(Employee.roles).filter(
-        Employee.is_active,
-        Role.code == "administrator",
-        Role.is_active,
-        Employee.id != employee.id,
+    other_admins = (
+        db.session.query(Employee.id)
+        .join(Employee.roles)
+        .filter(
+            Employee.is_active,
+            Role.code == "administrator",
+            Role.is_active,
+            Employee.id != employee.id,
+        )
     )
     if other_admins.first() is None:
         raise ValueError("Нельзя отключить или лишить роли последнего активного администратора.")

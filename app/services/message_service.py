@@ -1,6 +1,6 @@
 """Message operations, including internal notes and soft deletion."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 from app.models.message import AuthorType, Message
@@ -33,5 +33,5 @@ def update_message(message: Message, text: str) -> Message:
 
 
 def delete_message(message: Message) -> None:
-    message.deleted_at = datetime.now(timezone.utc)
+    message.deleted_at = datetime.now(UTC)
     db.session.commit()

@@ -8,8 +8,11 @@ def test_forced_password_change_redirects_until_password_is_updated(app, client)
     with app.app_context():
         db.create_all()
         employee = Employee(
-            name="Admin", email="admin@example.com", position="Admin",
-            password_hash="", must_change_password=True,
+            name="Admin",
+            email="admin@example.com",
+            position="Admin",
+            password_hash="",
+            must_change_password=True,
         )
         employee.set_password("temporary-password")
         db.session.add(employee)

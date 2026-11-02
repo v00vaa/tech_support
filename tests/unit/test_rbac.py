@@ -11,9 +11,9 @@ from app.models import (
     Role,
 )
 from app.services.access_control_service import has_permission
+from app.services.dialog_service import create_dialog
 from app.services.message_service import create_message
 from app.services.rbac_service import ensure_rbac_catalogue
-from app.services.dialog_service import create_dialog
 from app.services.role_service import (
     assign_employee_roles,
     save_role,
@@ -149,9 +149,7 @@ def test_internal_messages_are_hidden_from_users_without_note_permission(app, cl
             is_system=False,
             is_active=True,
             permissions=[
-                db.session.scalar(
-                    db.select(Permission).where(Permission.code == "dialogs.view")
-                )
+                db.session.scalar(db.select(Permission).where(Permission.code == "dialogs.view"))
             ],
         )
         db.session.add(read_only)

@@ -1,12 +1,12 @@
 """Attachment placeholder; binary storage is intentionally deferred."""
 
-from sqlalchemy import String, ForeignKey
+from sqlalchemy import ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from app.extensions import db
+from app.extensions import Base
 
 
-class Attachment(db.Model):  
+class Attachment(Base):
     __tablename__ = "attachments"
 
     id: Mapped[int] = mapped_column(primary_key=True)

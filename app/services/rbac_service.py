@@ -21,9 +21,7 @@ def ensure_rbac_catalogue() -> tuple[Role, Role]:
             permission.category = definition["category"]
         permissions_by_code[permission.code] = permission
 
-    administrator = db.session.scalar(
-        db.select(Role).where(Role.code == "administrator")
-    )
+    administrator = db.session.scalar(db.select(Role).where(Role.code == "administrator"))
     if administrator is None:
         administrator = Role(
             code="administrator",
@@ -33,9 +31,7 @@ def ensure_rbac_catalogue() -> tuple[Role, Role]:
         )
         db.session.add(administrator)
 
-    support = db.session.scalar(
-        db.select(Role).where(Role.code == "support_level_1")
-    )
+    support = db.session.scalar(db.select(Role).where(Role.code == "support_level_1"))
     if support is None:
         support = Role(
             code="support_level_1",
@@ -47,8 +43,6 @@ def ensure_rbac_catalogue() -> tuple[Role, Role]:
 
     db.session.flush()
     administrator.permissions = list(permissions_by_code.values())
-    support.permissions = [
-        permissions_by_code[code] for code in SUPPORT_LEVEL_1_PERMISSIONS
-    ]
+    support.permissions = [permissions_by_code[code] for code in SUPPORT_LEVEL_1_PERMISSIONS]
     db.session.commit()
     return administrator, support

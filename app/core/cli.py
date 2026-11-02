@@ -24,12 +24,15 @@ def register_commands(app: Flask) -> None:
         administrator_role, _ = ensure_rbac_catalogue()
         settings = get_settings()
         email = click.prompt("Email администратора", default=settings.admin_email)
-        has_administrator = db.session.scalar(
-            db.select(Employee.id)
-            .join(Employee.roles)
-            .where(Employee.is_active, Role.is_active, Role.code == "administrator")
-            .limit(1)
-        ) is not None
+        has_administrator = (
+            db.session.scalar(
+                db.select(Employee.id)
+                .join(Employee.roles)
+                .where(Employee.is_active, Role.is_active, Role.code == "administrator")
+                .limit(1)
+            )
+            is not None
+        )
         is_first_administrator = not has_administrator
         employee = db.session.scalar(db.select(Employee).where(Employee.email == email))
         if employee is None:
@@ -78,16 +81,14 @@ def register_commands(app: Flask) -> None:
                 password_hash="",
                 is_active=True,
             )
-            specialist.set_password(click.prompt(
-                "Пароль демо-сотрудника anna@example.com", hide_input=True
-            ))
+            specialist.set_password(
+                click.prompt("Пароль демо-сотрудника anna@example.com", hide_input=True)
+            )
             specialist.roles = [support_role]
             db.session.add(specialist)
             db.session.flush()
 
-        client_one = db.session.scalar(
-            db.select(Client).where(Client.email == "ivan@example.com")
-        )
+        client_one = db.session.scalar(db.select(Client).where(Client.email == "ivan@example.com"))
         if client_one is None:
             client_one = Client(
                 name="Иван Иванов", email="ivan@example.com", phone="+7 900 000-00-01"
@@ -99,10 +100,13 @@ def register_commands(app: Flask) -> None:
             db.select(Client).where(Client.email == "office@romashka.example")
         )
         if client_two is None:
-            db.session.add(Client(
-                name="ООО Ромашка", email="office@romashka.example",
-                phone="+7 900 000-00-02",
-            ))
+            db.session.add(
+                Client(
+                    name="ООО Ромашка",
+                    email="office@romashka.example",
+                    phone="+7 900 000-00-02",
+                )
+            )
 
         db.session.commit()
         existing_dialog = db.session.scalar(
@@ -114,11 +118,15 @@ def register_commands(app: Flask) -> None:
             )
             dialog_service.change_status(dialog, DialogStatus.IN_PROGRESS)
             message_service.create_message(
-                dialog.id, AuthorType.CLIENT, client_one.id,
+                dialog.id,
+                AuthorType.CLIENT,
+                client_one.id,
                 "Не могу войти в личный кабинет.",
             )
             message_service.create_message(
-                dialog.id, AuthorType.EMPLOYEE, specialist.id,
+                dialog.id,
+                AuthorType.EMPLOYEE,
+                specialist.id,
                 "Проверяю информацию по вашему аккаунту.",
             )
         click.echo("Демонстрационные данные подготовлены.")

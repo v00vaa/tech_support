@@ -1,14 +1,23 @@
 """Dialog operations and intentionally small status-transition policy."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
 
 ALLOWED_TRANSITIONS: dict[DialogStatus, set[DialogStatus]] = {
     DialogStatus.OPEN: {DialogStatus.IN_PROGRESS, DialogStatus.CLOSED},
-    DialogStatus.IN_PROGRESS: {DialogStatus.WAITING_CLIENT, DialogStatus.WAITING_EMPLOYEE, DialogStatus.RESOLVED, DialogStatus.CLOSED},
-    DialogStatus.WAITING_CLIENT: {DialogStatus.IN_PROGRESS, DialogStatus.RESOLVED, DialogStatus.CLOSED},
+    DialogStatus.IN_PROGRESS: {
+        DialogStatus.WAITING_CLIENT,
+        DialogStatus.WAITING_EMPLOYEE,
+        DialogStatus.RESOLVED,
+        DialogStatus.CLOSED,
+    },
+    DialogStatus.WAITING_CLIENT: {
+        DialogStatus.IN_PROGRESS,
+        DialogStatus.RESOLVED,
+        DialogStatus.CLOSED,
+    },
     DialogStatus.WAITING_EMPLOYEE: {DialogStatus.IN_PROGRESS, DialogStatus.CLOSED},
     DialogStatus.RESOLVED: {DialogStatus.CLOSED, DialogStatus.IN_PROGRESS},
     DialogStatus.CLOSED: {DialogStatus.OPEN, DialogStatus.IN_PROGRESS},
@@ -16,13 +25,17 @@ ALLOWED_TRANSITIONS: dict[DialogStatus, set[DialogStatus]] = {
 
 
 def create_dialog(client_id: int, employee_id: int | None, subject: str, channel: str) -> Dialog:
-    dialog = Dialog(client_id=client_id, responsible_employee_id=employee_id, subject=subject, channel=channel)
+    dialog = Dialog(
+        client_id=client_id, responsible_employee_id=employee_id, subject=subject, channel=channel
+    )
     db.session.add(dialog)
     db.session.commit()
     return dialog
 
 
-def update_dialog(dialog: Dialog, client_id: int, employee_id: int | None, subject: str, channel: str) -> Dialog:
+def update_dialog(
+    dialog: Dialog, client_id: int, employee_id: int | None, subject: str, channel: str
+) -> Dialog:
     dialog.client_id, dialog.responsible_employee_id = client_id, employee_id
     dialog.subject, dialog.channel = subject, channel
     db.session.commit()
@@ -44,6 +57,6 @@ def change_status(dialog: Dialog, status: DialogStatus) -> Dialog:
     if status != dialog.status and status not in ALLOWED_TRANSITIONS[dialog.status]:
         raise ValueError("Недопустимый переход статуса")
     dialog.status = status
-    dialog.closed_at = datetime.now(timezone.utc) if status == DialogStatus.CLOSED else None
+    dialog.closed_at = datetime.now(UTC) if status == DialogStatus.CLOSED else None
     db.session.commit()
     return dialog

@@ -7,11 +7,18 @@ from app.core.config import Settings
 
 
 def test_create_app_registers_transport_and_database() -> None:
-    app = create_app(Settings(database_url="sqlite+pysqlite:///:memory:", environment="testing"))
+    app = create_app(
+        Settings(
+            database_url="sqlite+pysqlite:///:memory:",
+            environment="testing",
+        )
+    )
 
     try:
         assert isinstance(app, Flask)
+        assert "sqlalchemy" in app.extensions
         assert "database" in app.extensions
-        assert "health.liveness" in app.view_functions
+        assert "api.liveness" in app.view_functions
     finally:
-        app.extensions["database"].engine.dispose()
+        with app.app_context():
+            app.extensions["database"].engine.dispose()

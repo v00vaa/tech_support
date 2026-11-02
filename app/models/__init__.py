@@ -8,6 +8,13 @@ from app.models.message import AuthorType, Message
 from app.models.role import Permission, Role
 
 __all__ = [
-    "Attachment", "AuthorType", "Client", "Dialog", "DialogStatus",
-    "Employee", "Message", "Permission", "Role",
+    "Attachment",
+    "AuthorType",
+    "Client",
+    "Dialog",
+    "DialogStatus",
+    "Employee",
+    "Message",
+    "Permission",
+    "Role",
 ]

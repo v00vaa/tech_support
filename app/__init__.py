@@ -11,7 +11,13 @@ from app.extensions import db, login_manager, migrate
 from app.models.employee import Employee
 from app.services.access_control_service import has_permission
 from app.web.routes import (
-    auth_bp, clients_bp, dialogs_bp, employees_bp, main_bp, messages_bp, settings_bp,
+    auth_bp,
+    clients_bp,
+    dialogs_bp,
+    employees_bp,
+    main_bp,
+    messages_bp,
+    settings_bp,
 )
 
 
@@ -28,12 +34,19 @@ def create_app(settings: Settings | None = None) -> Flask:
     )
 
     db.init_app(app)
+    app.extensions["database"] = db
     migrate.init_app(app, db)
     login_manager.init_app(app)
 
     for blueprint in (
-        main_bp, auth_bp, clients_bp, employees_bp, dialogs_bp,
-        messages_bp, settings_bp, api_bp,
+        main_bp,
+        auth_bp,
+        clients_bp,
+        employees_bp,
+        dialogs_bp,
+        messages_bp,
+        settings_bp,
+        api_bp,
     ):
         app.register_blueprint(blueprint)
 

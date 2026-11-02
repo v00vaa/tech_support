@@ -42,20 +42,26 @@ def save_role(
         raise ValueError("Роль с таким кодом уже существует.")
 
     requested_codes = set(permission_codes)
-    known_permissions = db.session.scalars(
-        select(Permission).where(Permission.code.in_(requested_codes))
-    ).all() if requested_codes else []
+    known_permissions = (
+        db.session.scalars(select(Permission).where(Permission.code.in_(requested_codes))).all()
+        if requested_codes
+        else []
+    )
     if {item.code for item in known_permissions} != requested_codes:
         raise ValueError("Выбрано неизвестное разрешение.")
 
     current_codes = {item.code for item in role.permissions} if role else set()
-    if requested_codes != current_codes and not can_delegate_permissions(actor, {"roles.assign_permissions"}):
+    if requested_codes != current_codes and not can_delegate_permissions(
+        actor, {"roles.assign_permissions"}
+    ):
         raise ValueError("У вас нет права назначать разрешения ролям.")
     if not can_delegate_permissions(actor, requested_codes):
         raise ValueError("Нельзя назначить разрешения, которыми вы сами не обладаете.")
 
     if role is None:
-        role = Role(code=normalized_code, name=name.strip(), description=description, is_active=is_active)
+        role = Role(
+            code=normalized_code, name=name.strip(), description=description, is_active=is_active
+        )
         db.session.add(role)
     else:
         role.code = normalized_code
@@ -71,9 +77,7 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
     """Assign only roles whose permissions the acting employee can delegate."""
     selected_roles = list(roles)
     current_role_permissions = {
-        permission.code
-        for role in employee.roles
-        for permission in role.permissions
+        permission.code for role in employee.roles for permission in role.permissions
     }
     if not can_delegate_permissions(actor, current_role_permissions):
         raise ValueError("Недостаточно прав для изменения текущего набора ролей сотрудника.")

@@ -8,7 +8,7 @@ from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.extensions import db
+from app.extensions import Base
 from app.models.role import employee_roles
 
 if TYPE_CHECKING:
@@ -16,16 +16,14 @@ if TYPE_CHECKING:
     from app.models.role import Role
 
 
-class Employee(db.Model):
+class Employee(Base):
     """Employee account used for authentication and support operations."""
 
     __tablename__ = "employees"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
-    email: Mapped[str] = mapped_column(
-        String(255), unique=True, nullable=False, index=True
-    )
+    email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     position: Mapped[str] = mapped_column(
         String(120),
         nullable=False,
