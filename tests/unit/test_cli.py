@@ -1,8 +1,9 @@
 """Tests for database bootstrap and demonstration CLI commands."""
 
+from sqlalchemy import inspect
+
 from app.extensions import db
 from app.models import Client, Dialog, Employee, Role
-from sqlalchemy import inspect
 
 
 def test_init_db_command_creates_tables(app) -> None:
@@ -12,7 +13,7 @@ def test_init_db_command_creates_tables(app) -> None:
     assert "База данных инициализирована" in result.output
     with app.app_context():
         assert inspect(db.engine).has_table("employees")
-        assert db.inspect(db.engine).has_table("roles")
+        assert inspect(db.engine).has_table("roles")
 
 
 def test_bootstrap_creates_first_administrator_and_is_idempotent(app) -> None:
