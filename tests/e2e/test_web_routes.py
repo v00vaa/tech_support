@@ -432,3 +432,111 @@ def test_login_logout_and_password_change_routes(
 
     logged_out = client.post("/logout")
     assert logged_out.status_code == 302
+
+
+def test_employee_create_requires_a_password(support_system: dict[str, object]) -> None:
+    response = _client(support_system).post(
+        "/employees/create",
+        data={
+            "name": "Passwordless Agent",
+            "email": "passwordless-agent@example.com",
+            "position": "Support",
+            "is_active": "y",
+            "submit": "Save",
+        },
+    )
+
+    assert response.status_code == 200
+    assert "Укажите пароль".encode() in response.data
+
+
+def test_employee_edit_cannot_deactivate_the_last_administrator(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    administrator_id = _ids(support_system)["administrator"]
+
+    response = client.post(
+        f"/employees/{administrator_id}/edit",
+        data={
+            "name": "Administrator",
+            "email": "admin-tests@example.com",
+            "position": "Administrator",
+            "submit": "Save",
+        },
+    )
+
+    assert response.status_code == 200
+    with client.application.app_context():
+        administrator = db.session.get(Employee, administrator_id)
+        assert administrator is not None
+        assert administrator.is_active is True
+
+
+def test_invalid_dialog_status_transition_is_rejected(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    dialog_id = _ids(support_system)["dialog"]
+
+    response = client.post(
+        f"/dialogs/{dialog_id}/status",
+        data={"status": "RESOLVED", "submit": "Change"},
+    )
+
+    assert response.status_code == 302
+    with client.application.app_context():
+        dialog = db.session.get(Dialog, dialog_id)
+        assert dialog is not None
+        assert dialog.status.value == "OPEN"
+
+
+def test_system_role_cannot_be_edited(support_system: dict[str, object]) -> None:
+    client = _client(support_system)
+    support_role_id = _ids(support_system)["support_role"]
+
+    response = client.get(f"/settings/roles/{support_role_id}/edit")
+
+    assert response.status_code == 302
+    assert response.headers["Location"].endswith("/settings/roles")
+
+
+def test_public_message_requires_reply_permission(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    ids = _ids(support_system)
+
+    with client.application.app_context():
+        view_permission = db.session.scalar(
+            db.select(Permission).where(Permission.code == "dialogs.view")
+        )
+        assert view_permission is not None
+        viewer_role = Role(
+            code="dialog_viewer_only",
+            name="Dialog viewer only",
+            permissions=[view_permission],
+        )
+        viewer = Employee(
+            name="Read-only Employee",
+            email="read-only-employee@example.com",
+            position="Observer",
+            password_hash="",
+            is_active=True,
+            roles=[viewer_role],
+        )
+        viewer.set_password("Read-only-password-123!")
+        db.session.add(viewer)
+        db.session.commit()
+        viewer_id = viewer.id
+
+    with client.session_transaction() as session:
+        session["_user_id"] = str(viewer_id)
+        session["_fresh"] = True
+
+    response = client.post(
+        f"/dialogs/{ids['dialog']}/messages",
+        data={"text": "This response must be denied", "submit": "Send"},
+    )
+
+    assert response.status_code == 403
