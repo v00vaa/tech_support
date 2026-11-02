@@ -159,9 +159,7 @@ def test_client_create_edit_and_delete_routes(support_system: dict[str, object])
     with client.application.app_context():
         assert db.session.get(Client, client_id) is None
         assert (
-            db.session.scalar(
-                db.select(Client).where(Client.email == "new-customer@example.com")
-            )
+            db.session.scalar(db.select(Client).where(Client.email == "new-customer@example.com"))
             is not None
         )
 
@@ -309,9 +307,10 @@ def test_message_create_edit_and_soft_delete_routes(
         assert message is not None
         assert message.text == "Edited public response"
         assert message.deleted_at is not None
-        assert db.session.scalar(
-            db.select(Message).where(Message.text == "An internal note")
-        ) is not None
+        assert (
+            db.session.scalar(db.select(Message).where(Message.text == "An internal note"))
+            is not None
+        )
 
 
 def test_employee_roles_and_custom_role_routes(support_system: dict[str, object]) -> None:

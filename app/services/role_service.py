@@ -246,11 +246,7 @@ def manage_role_members(
             )
             employee.roles.remove(main_role)
         # A scoped manager/HR assignment must not outlive membership in its main role.
-        employee.roles = [
-            role
-            for role in employee.roles
-            if role.scope_role_id != main_role.id
-        ]
+        employee.roles = [role for role in employee.roles if role.scope_role_id != main_role.id]
     db.session.commit()
 
 

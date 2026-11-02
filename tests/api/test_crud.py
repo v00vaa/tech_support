@@ -3,7 +3,6 @@
 from collections.abc import Iterator
 
 import pytest
-
 from flask import Flask
 from flask.testing import FlaskClient
 
@@ -146,9 +145,7 @@ def test_messages_api_filters_internal_notes_and_creates_messages(
     with api_client.application.app_context():
         from app.models import Dialog
 
-        dialog = db.session.scalar(
-            db.select(Dialog).where(Dialog.subject == "API dialog")
-        )
+        dialog = db.session.scalar(db.select(Dialog).where(Dialog.subject == "API dialog"))
         assert dialog is not None
         dialog_id = dialog.id
 

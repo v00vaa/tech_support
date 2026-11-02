@@ -16,7 +16,9 @@ if TYPE_CHECKING:
 employee_roles = Table(
     "employee_roles",
     db.metadata,
-    Column("employee_id", Integer, ForeignKey("employees.id", ondelete="CASCADE"), primary_key=True),
+    Column(
+        "employee_id", Integer, ForeignKey("employees.id", ondelete="CASCADE"), primary_key=True
+    ),
     Column("role_id", Integer, ForeignKey("roles.id", ondelete="CASCADE"), primary_key=True),
 )
 

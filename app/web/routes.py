@@ -524,8 +524,7 @@ def role_create() -> ResponseReturnValue:
                 name=form.name.data,
                 description=form.description.data or None,
                 permission_codes=tuple(
-                    str(code) for code in (form.permissions.data or [])
-                    if code is not None
+                    str(code) for code in (form.permissions.data or []) if code is not None
                 ),
                 is_active=form.is_active.data,
             )
@@ -564,8 +563,7 @@ def role_edit(role_id: int) -> ResponseReturnValue:
                 name=form.name.data,
                 description=form.description.data or None,
                 permission_codes=tuple(
-                    str(code) for code in (form.permissions.data or [])
-                    if code is not None
+                    str(code) for code in (form.permissions.data or []) if code is not None
                 ),
                 is_active=form.is_active.data,
             )

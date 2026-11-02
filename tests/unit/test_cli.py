@@ -98,18 +98,21 @@ def test_seed_command_creates_demo_data_and_can_run_twice(app) -> None:
     assert "демонстрационные данные подготовлены" in first_run.output.lower()
 
     with app.app_context():
-        assert db.session.scalar(
-            db.select(Employee).where(Employee.email == "anna@example.com")
-        ) is not None
-        assert db.session.scalar(
-            db.select(Client).where(Client.email == "ivan@example.com")
-        ) is not None
-        assert db.session.scalar(
-            db.select(Dialog).where(Dialog.subject == "Не работает личный кабинет")
-        ) is not None
-        assert db.session.scalar(
-            db.select(Role).where(Role.code == "support_level_1")
-        ) is not None
+        assert (
+            db.session.scalar(db.select(Employee).where(Employee.email == "anna@example.com"))
+            is not None
+        )
+        assert (
+            db.session.scalar(db.select(Client).where(Client.email == "ivan@example.com"))
+            is not None
+        )
+        assert (
+            db.session.scalar(
+                db.select(Dialog).where(Dialog.subject == "Не работает личный кабинет")
+            )
+            is not None
+        )
+        assert db.session.scalar(db.select(Role).where(Role.code == "support_level_1")) is not None
 
     second_run = runner.invoke(args=["seed"])
     assert second_run.exit_code == 0

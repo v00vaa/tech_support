@@ -294,9 +294,7 @@ def test_scoped_special_roles_are_created_idempotently(app) -> None:
         }
         assert hr.role_type == "HR"
         assert hr.scope_role_id == main_role.id
-        assert {permission.code for permission in hr.permissions} == {
-            "roles.manage_scoped_members"
-        }
+        assert {permission.code for permission in hr.permissions} == {"roles.manage_scoped_members"}
 
 
 def test_scoped_hr_can_manage_only_its_main_role(app) -> None:
@@ -349,7 +347,7 @@ def test_global_hr_can_manage_any_main_role(app) -> None:
 
 
 def test_scoped_special_role_requires_membership_in_its_main_role(app) -> None:
-    from app.services.role_service import ensure_special_roles, assign_employee_roles
+    from app.services.role_service import assign_employee_roles, ensure_special_roles
 
     with app.app_context():
         db.create_all()
