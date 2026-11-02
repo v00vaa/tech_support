@@ -147,6 +147,7 @@ def ensure_special_roles(main_role: Role) -> tuple[Role, Role]:
         db.session.add(manager)
     manager.name = f"Начальник — {main_role.name}"
     manager.description = f"Информация и уведомления по роли «{main_role.name}»."
+    manager.is_active = main_role.is_active
     manager.permissions = [manager_permission]
 
     hr = db.session.scalar(
@@ -164,6 +165,7 @@ def ensure_special_roles(main_role: Role) -> tuple[Role, Role]:
         db.session.add(hr)
     hr.name = f"HR — {main_role.name}"
     hr.description = f"Управление составом только роли «{main_role.name}»."
+    hr.is_active = main_role.is_active
     hr.permissions = [hr_permission]
     db.session.flush()
     return manager, hr
