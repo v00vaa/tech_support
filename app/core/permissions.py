@@ -140,7 +140,10 @@ PERMISSION_DEFINITIONS: tuple[PermissionDefinition, ...] = (
     {
         "code": "roles.manage_scoped_members",
         "name": "Управление сотрудниками своей роли",
-        "description": "Добавление и удаление сотрудников только в пределах назначенной основной роли",
+        "description": (
+            "Добавление и удаление сотрудников только в пределах "
+            "назначенной основной роли"
+        ),
         "category": "roles",
     },
     {
