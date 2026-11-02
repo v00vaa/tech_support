@@ -47,7 +47,9 @@ def ensure_rbac_catalogue() -> tuple[Role, Role]:
     support.permissions = [permissions_by_code[code] for code in SUPPORT_LEVEL_1_PERMISSIONS]
     ensure_global_hr_role()
     main_roles = db.session.scalars(
-        db.select(Role).where(Role.role_type == "MAIN", Role.is_active)
+        db.select(Role).where(
+            Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
+        )
     ).all()
     for main_role in main_roles:
         ensure_special_roles(main_role)
