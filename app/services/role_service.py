@@ -72,6 +72,8 @@ def save_role(
         role.is_active = is_active
     role.permissions = list(known_permissions)
     db.session.commit()
+    ensure_special_roles(role)
+    db.session.commit()
     return role
 
 
