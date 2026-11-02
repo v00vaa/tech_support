@@ -44,10 +44,9 @@ def test_unexpected_api_error_returns_generic_json(app: Flask) -> None:
     }
 
 
-def test_error_handlers_can_be_registered_on_another_app() -> None:
-    application = Flask("isolated-errors")
-    register_error_handlers(application)
+def test_error_handlers_can_be_registered_on_existing_app(app: Flask) -> None:
+    register_error_handlers(app)
 
-    response = application.test_client().get("/missing")
+    response = app.test_client().get("/missing")
 
     assert response.status_code == 404
