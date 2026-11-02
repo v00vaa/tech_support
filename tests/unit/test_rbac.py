@@ -48,7 +48,7 @@ def test_rbac_catalogue_is_idempotent(app) -> None:
         first = ensure_rbac_catalogue()
         second = ensure_rbac_catalogue()
         assert first[0].id == second[0].id
-        assert db.session.scalar(db.select(db.func.count()).select_from(Role)) == 2
+        assert db.session.scalar(db.select(db.func.count()).select_from(Role)) == 5
         assert db.session.scalar(db.select(db.func.count()).select_from(Permission)) > 0
 
 
