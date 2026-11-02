@@ -1,9 +1,8 @@
 """Tests for database bootstrap and demonstration CLI commands."""
 
-import pytest
-
 from app.extensions import db
 from app.models import Client, Dialog, Employee, Role
+from sqlalchemy import inspect
 
 
 def test_init_db_command_creates_tables(app) -> None:
@@ -12,7 +11,7 @@ def test_init_db_command_creates_tables(app) -> None:
     assert result.exit_code == 0
     assert "База данных инициализирована" in result.output
     with app.app_context():
-        assert db.inspect(db.engine).has_table("employees")
+        assert inspect(db.engine).has_table("employees")
         assert db.inspect(db.engine).has_table("roles")
 
 
