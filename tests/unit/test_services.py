@@ -269,3 +269,80 @@ def test_save_role_validates_and_persists_custom_roles(app) -> None:
                 permission_codes=set(),
                 is_active=True,
             )
+
+
+def test_scoped_special_roles_are_created_idempotently(app) -> None:
+    from app.services.role_service import ensure_special_roles
+
+    with app.app_context():
+        db.create_all()
+        ensure_rbac_catalogue()
+        main_role = Role(code="first_line", name="Первая линия")
+        db.session.add(main_role)
+        db.session.flush()
+
+        manager, hr = ensure_special_roles(main_role)
+        db.session.commit()
+        manager_again, hr_again = ensure_special_roles(main_role)
+
+        assert manager.id == manager_again.id
+        assert hr.id == hr_again.id
+        assert manager.role_type == "MANAGER"
+        assert manager.scope_role_id == main_role.id
+        assert {permission.code for permission in manager.permissions} == {
+            "roles.view_scope_notifications"
+        }
+        assert hr.role_type == "HR"
+        assert hr.scope_role_id == main_role.id
+        assert {permission.code for permission in hr.permissions} == {
+            "roles.manage_scoped_members"
+        }
+
+
+def test_scoped_hr_can_manage_only_its_main_role(app) -> None:
+    from app.services.role_service import ensure_special_roles, manage_role_members
+
+    with app.app_context():
+        db.create_all()
+        ensure_rbac_catalogue()
+        first_line = Role(code="first_line", name="Первая линия")
+        second_line = Role(code="second_line", name="Вторая линия")
+        db.session.add_all([first_line, second_line])
+        db.session.flush()
+        _, first_line_hr = ensure_special_roles(first_line)
+        _, second_line_hr = ensure_special_roles(second_line)
+        actor = _employee("scoped-hr@example.com", [first_line, first_line_hr])
+        target = _employee("scoped-target@example.com", [second_line])
+
+        with pytest.raises(ValueError, match="этой роли"):
+            manage_role_members(actor, target, second_line, add=True)
+
+        manage_role_members(actor, target, first_line, add=True)
+        assert first_line in target.roles
+        assert second_line in target.roles
+
+        manage_role_members(actor, target, first_line, add=False)
+        assert first_line not in target.roles
+        assert second_line in target.roles
+        assert first_line_hr not in target.roles
+        assert second_line_hr not in target.roles
+
+
+def test_global_hr_can_manage_any_main_role(app) -> None:
+    from app.services.role_service import ensure_global_hr_role, manage_role_members
+
+    with app.app_context():
+        db.create_all()
+        ensure_rbac_catalogue()
+        global_hr = ensure_global_hr_role()
+        first_line = Role(code="first_line", name="Первая линия")
+        second_line = Role(code="second_line", name="Вторая линия")
+        db.session.add_all([first_line, second_line])
+        db.session.flush()
+        actor = _employee("global-hr@example.com", [global_hr])
+        target = _employee("global-target@example.com")
+
+        manage_role_members(actor, target, first_line, add=True)
+        manage_role_members(actor, target, second_line, add=True)
+        assert first_line in target.roles
+        assert second_line in target.roles
