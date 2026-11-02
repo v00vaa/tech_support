@@ -230,7 +230,7 @@ def test_save_role_validates_and_persists_custom_roles(app) -> None:
             save_role(
                 actor,
                 role=None,
-                code="INVALID",
+                code="invalid-code",
                 name="Invalid",
                 description=None,
                 permission_codes=set(),
