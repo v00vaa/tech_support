@@ -2,7 +2,6 @@
 
 from collections.abc import Iterator
 
-import pytest
 from flask import Flask
 from flask.testing import FlaskClient
 
@@ -45,7 +44,6 @@ def api_client(app: Flask, client: FlaskClient) -> Iterator[FlaskClient]:
             is_internal=True,
         )
         administrator_id = administrator.id
-        dialog_id = dialog.id
 
     with client.session_transaction() as session:
         session["_user_id"] = str(administrator_id)
