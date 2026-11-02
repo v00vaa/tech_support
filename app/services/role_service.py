@@ -120,8 +120,12 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
 
 def ensure_special_roles(main_role: Role) -> tuple[Role, Role]:
     """Create the manager and HR roles scoped to one main role, idempotently."""
-    if main_role.role_type != "MAIN" or main_role.scope_role_id is not None:
-        raise ValueError("Специальные роли можно создавать только для основной роли.")
+    if (
+        main_role.role_type != "MAIN"
+        or main_role.scope_role_id is not None
+        or main_role.code == "administrator"
+    ):
+        raise ValueError("Специальные роли можно создавать только для операционной основной роли.")
 
     manager_permission = db.session.scalar(
         select(Permission).where(Permission.code == "roles.view_scope_notifications")
@@ -203,7 +207,11 @@ def manage_role_members(
     """Add/remove one employee from a main role with strict server-side scope checks."""
     if not actor.is_active or not employee.is_active:
         raise ValueError("Управлять составом можно только для активных сотрудников.")
-    if main_role.role_type != "MAIN" or main_role.scope_role_id is not None:
+    if (
+        main_role.role_type != "MAIN"
+        or main_role.scope_role_id is not None
+        or main_role.code == "administrator"
+    ):
         raise ValueError("Указана некорректная основная роль.")
     if not main_role.is_active:
         raise ValueError("Нельзя изменять состав отключенной роли.")
