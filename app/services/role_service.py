@@ -30,6 +30,8 @@ def save_role(
     """Create or update a custom role without allowing permission escalation."""
     if role is not None and role.is_system:
         raise ValueError("Системные роли нельзя изменять.")
+    if role is not None and role.role_type != "MAIN":
+        raise ValueError("Специальные роли нельзя изменять как обычные роли.")
 
     normalized_code = code.strip().lower()
     if not re.fullmatch(r"[a-z][a-z0-9_]{2,79}", normalized_code):
@@ -105,6 +107,128 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
         will_remain_administrator=will_remain_admin,
     )
     employee.roles = selected_roles
+    db.session.commit()
+
+
+def ensure_special_roles(main_role: Role) -> tuple[Role, Role]:
+    """Create the manager and HR roles scoped to one main role, idempotently."""
+    if main_role.role_type != "MAIN" or main_role.scope_role_id is not None:
+        raise ValueError("Специальные роли можно создавать только для основной роли.")
+
+    manager_permission = db.session.scalar(
+        select(Permission).where(Permission.code == "roles.view_scope_notifications")
+    )
+    hr_permission = db.session.scalar(
+        select(Permission).where(Permission.code == "roles.manage_scoped_members")
+    )
+    if manager_permission is None or hr_permission is None:
+        raise ValueError("Сначала необходимо выполнить инициализацию каталога RBAC.")
+
+    manager = db.session.scalar(
+        select(Role).where(Role.scope_role_id == main_role.id, Role.role_type == "MANAGER")
+    )
+    if manager is None:
+        manager = Role(
+            code=f"manager_{main_role.id}",
+            name=f"Начальник — {main_role.name}",
+            description=f"Информация и уведомления по роли «{main_role.name}».",
+            is_system=True,
+            role_type="MANAGER",
+            scope_role=main_role,
+        )
+        db.session.add(manager)
+    manager.permissions = [manager_permission]
+
+    hr = db.session.scalar(
+        select(Role).where(Role.scope_role_id == main_role.id, Role.role_type == "HR")
+    )
+    if hr is None:
+        hr = Role(
+            code=f"hr_{main_role.id}",
+            name=f"HR — {main_role.name}",
+            description=f"Управление составом только роли «{main_role.name}».",
+            is_system=True,
+            role_type="HR",
+            scope_role=main_role,
+        )
+        db.session.add(hr)
+    hr.permissions = [hr_permission]
+    db.session.flush()
+    return manager, hr
+
+
+def ensure_global_hr_role() -> Role:
+    """Create the global HR role, which is not scoped to a particular main role."""
+    permission = db.session.scalar(
+        select(Permission).where(Permission.code == "roles.manage_all_members")
+    )
+    if permission is None:
+        raise ValueError("Сначала необходимо выполнить инициализацию каталога RBAC.")
+    role = db.session.scalar(select(Role).where(Role.code == "global_hr"))
+    if role is None:
+        role = Role(
+            code="global_hr",
+            name="Глобальный HR",
+            description="Управление составом всех основных ролей.",
+            is_system=True,
+            role_type="GLOBAL_HR",
+        )
+        db.session.add(role)
+    role.permissions = [permission]
+    db.session.flush()
+    return role
+
+
+def manage_role_members(
+    actor: Employee,
+    employee: Employee,
+    main_role: Role,
+    *,
+    add: bool,
+) -> None:
+    """Add/remove one employee from a main role with strict server-side scope checks."""
+    if not actor.is_active or not employee.is_active:
+        raise ValueError("Управлять составом можно только для активных сотрудников.")
+    if main_role.role_type != "MAIN" or main_role.scope_role_id is not None:
+        raise ValueError("Указана некорректная основная роль.")
+    if not main_role.is_active:
+        raise ValueError("Нельзя изменять состав отключенной роли.")
+
+    is_global_hr = any(
+        role.is_active and role.code == "global_hr" and role.role_type == "GLOBAL_HR"
+        for role in actor.roles
+    )
+    is_administrator = is_active_administrator(actor)
+    has_scoped_hr = any(
+        role.is_active
+        and role.role_type == "HR"
+        and role.scope_role_id == main_role.id
+        and "roles.manage_scoped_members" in {permission.code for permission in role.permissions}
+        for role in actor.roles
+    )
+    if not (is_global_hr or is_administrator or has_scoped_hr):
+        raise ValueError("Недостаточно прав для управления сотрудниками этой роли.")
+
+    if add:
+        if main_role not in employee.roles:
+            employee.roles.append(main_role)
+    else:
+        if main_role in employee.roles:
+            ensure_another_active_administrator(
+                employee,
+                will_remain_administrator=any(
+                    role.code == "administrator" and role.is_active
+                    for role in employee.roles
+                    if role.id != main_role.id
+                ),
+            )
+            employee.roles.remove(main_role)
+        # A scoped manager/HR assignment must not outlive membership in its main role.
+        employee.roles = [
+            role
+            for role in employee.roles
+            if role.scope_role_id != main_role.id
+        ]
     db.session.commit()
 
 
