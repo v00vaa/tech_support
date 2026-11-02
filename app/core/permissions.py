@@ -132,6 +132,24 @@ PERMISSION_DEFINITIONS: tuple[PermissionDefinition, ...] = (
         "category": "dialogs",
     },
     {
+        "code": "roles.view_scope_notifications",
+        "name": "Просмотр информации своей роли",
+        "description": "Получение информации и уведомлений в пределах основной роли",
+        "category": "roles",
+    },
+    {
+        "code": "roles.manage_scoped_members",
+        "name": "Управление сотрудниками своей роли",
+        "description": "Добавление и удаление сотрудников только в пределах назначенной основной роли",
+        "category": "roles",
+    },
+    {
+        "code": "roles.manage_all_members",
+        "name": "Глобальное управление сотрудниками ролей",
+        "description": "Добавление и удаление сотрудников в любых основных ролях",
+        "category": "roles",
+    },
+    {
         "code": "settings.view",
         "name": "Просмотр настроек",
         "description": "Просмотр системных настроек",
