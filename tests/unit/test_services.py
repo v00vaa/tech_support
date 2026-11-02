@@ -346,3 +346,24 @@ def test_global_hr_can_manage_any_main_role(app) -> None:
         manage_role_members(actor, target, second_line, add=True)
         assert first_line in target.roles
         assert second_line in target.roles
+
+
+def test_scoped_special_role_requires_membership_in_its_main_role(app) -> None:
+    from app.services.role_service import ensure_special_roles, assign_employee_roles
+
+    with app.app_context():
+        db.create_all()
+        administrator, _ = ensure_rbac_catalogue()
+        main_role = Role(code="first_line", name="Первая линия")
+        db.session.add(main_role)
+        db.session.flush()
+        _, scoped_hr = ensure_special_roles(main_role)
+        actor = _employee("scope-assignment-admin@example.com", [administrator])
+        target = _employee("scope-assignment-target@example.com")
+
+        with pytest.raises(ValueError, match="соответствующей основной роли"):
+            assign_employee_roles(actor, target, [scoped_hr])
+
+        assign_employee_roles(actor, target, [main_role, scoped_hr])
+        assert main_role in target.roles
+        assert scoped_hr in target.roles
