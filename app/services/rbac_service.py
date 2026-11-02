@@ -3,6 +3,7 @@
 from app.core.permissions import PERMISSION_DEFINITIONS, SUPPORT_LEVEL_1_PERMISSIONS
 from app.extensions import db
 from app.models.role import Permission, Role
+from app.services.role_service import ensure_global_hr_role
 
 
 def ensure_rbac_catalogue() -> tuple[Role, Role]:
@@ -44,5 +45,6 @@ def ensure_rbac_catalogue() -> tuple[Role, Role]:
     db.session.flush()
     administrator.permissions = list(permissions_by_code.values())
     support.permissions = [permissions_by_code[code] for code in SUPPORT_LEVEL_1_PERMISSIONS]
+    ensure_global_hr_role()
     db.session.commit()
     return administrator, support
