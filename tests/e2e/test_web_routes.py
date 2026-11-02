@@ -6,7 +6,7 @@ import pytest
 from flask.testing import FlaskClient
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, Message, Role
+from app.models import AuthorType, Client, Dialog, Employee, Message, Permission, Role
 from app.services.dialog_service import create_dialog
 from app.services.message_service import create_message
 from app.services.rbac_service import ensure_rbac_catalogue
