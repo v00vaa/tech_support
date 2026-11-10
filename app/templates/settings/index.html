@@ -1,1 +1,20 @@
-{% extends "layout.html" %}{% block content %}<h1>Настройки</h1>{% if has_permission(current_user, 'roles.view') %}<p><a class="btn btn-outline-primary" href="{{ url_for('settings.role_list') }}">Управление ролями и разрешениями</a></p>{% endif %}<p class="text-muted">Разделы будущего развития системы.</p><div class="row g-3">{% for slug, label in [('workflow','Workflow'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}<div class="col-md-4"><a class="card card-link h-100 text-decoration-none" href="{{ url_for('settings.settings_stub', section=slug) }}"><div class="card-body"><h2 class="h5">{{ label }}</h2><p class="text-muted mb-0">Открыть описание раздела</p></div></a></div>{% endfor %}</div>{% endblock %}
+{% extends "layout.html" %}
+{% block content %}
+<div class="row g-4">
+  <aside class="col-md-3 col-lg-2">
+    <h1 class="h4 mb-3">Настройки</h1>
+    <div class="list-group">
+      {% if has_permission(current_user, 'roles.view') or current_user.roles|selectattr('role_type', 'equalto', 'HR')|list or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list %}
+      <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% endif %}
+      {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </aside>
+  <section class="col-md-9 col-lg-10">
+    <h2 class="h3">Общие настройки</h2>
+    <p class="text-muted">Выберите раздел в навигации слева. Управление ролями и составом сотрудников доступно в разделе «Роли».</p>
+  </section>
+</div>
+{% endblock %}
