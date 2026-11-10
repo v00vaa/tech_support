@@ -10,8 +10,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import Base, db
 
 if TYPE_CHECKING:
-    from app.models.employee import Employee
     from app.models.dialog import Dialog
+    from app.models.employee import Employee
     from app.models.role_route import RoleRoute
 
 
