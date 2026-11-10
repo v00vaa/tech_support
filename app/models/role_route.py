@@ -6,6 +6,7 @@ from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, UniqueCons
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
+from app.models.role import Role
 
 
 class RoleRoute(Base):
@@ -38,5 +39,3 @@ class RoleRoute(Base):
         back_populates="incoming_routes", foreign_keys=[target_role_id]
     )
 
-
-from app.models.role import Role
