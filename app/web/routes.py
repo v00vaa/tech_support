@@ -15,12 +15,18 @@ from app.models import (
     Message,
     Permission,
     Role,
+    RoleRoute,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
 from app.services.access_control_service import (
     can_delegate_permissions,
     has_permission,
     permission_required,
+)
+from app.services.routing_service import (
+    delete_role_route,
+    route_dialog_to_role,
+    save_role_route,
 )
 from app.services.role_service import (
     assign_employee_roles,
@@ -41,6 +47,9 @@ from app.web.forms import (
     RoleForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
+    RoleRouteForm,
+    RoleRouteDeleteForm,
+    DialogRouteForm,
     StatusForm,
 )
 
@@ -340,6 +349,19 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         for message in dialog.messages
         if not message.is_internal or has_permission(current_user, "dialogs.add_internal_note")
     ]
+    route_form = DialogRouteForm()
+    if dialog.assigned_role_id is None:
+        route_targets = db.session.scalars(
+            db.select(Role).where(
+                Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
+            ).order_by(Role.name)
+        ).all()
+    else:
+        route_targets = [
+            route.target_role for route in dialog.assigned_role.outgoing_routes
+            if route.target_role.is_active
+        ]
+    route_form.target_role_id.choices = [(item.id, item.name) for item in route_targets]
     return render_template(
         "dialogs/detail.html",
         dialog=dialog,
@@ -347,6 +369,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         message_form=message_form,
         status_form=status_form,
         assign_form=assign_form,
+        route_form=route_form,
     )
 
 
@@ -392,6 +415,33 @@ def dialog_status(dialog_id: int) -> ResponseReturnValue:
             flash("Статус изменен.", "success")
         except ValueError as error:
             flash(str(error), "danger")
+    return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
+
+
+@dialogs_bp.post("/<int:dialog_id>/route")
+@login_required
+def dialog_route(dialog_id: int) -> ResponseReturnValue:
+    dialog = db.get_or_404(Dialog, dialog_id)
+    form = DialogRouteForm()
+    if dialog.assigned_role_id is None:
+        targets = db.session.scalars(
+            db.select(Role).where(
+                Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
+            )
+        ).all()
+    else:
+        targets = [item.target_role for item in dialog.assigned_role.outgoing_routes]
+    form.target_role_id.choices = [(item.id, item.name) for item in targets]
+    if form.validate_on_submit():
+        target = db.get_or_404(Role, form.target_role_id.data)
+        try:
+            route_dialog_to_role(current_user, dialog, target)
+            flash(f"Диалог передан в роль «{target.name}».", "success")
+        except ValueError as error:
+            db.session.rollback()
+            flash(str(error), "danger")
+    else:
+        flash("Выберите допустимую роль для передачи диалога.", "danger")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
@@ -582,6 +632,92 @@ def role_member_remove(role_id: int, employee_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash(str(error), "danger")
     return redirect(url_for("settings.role_list"))
+
+
+@settings_bp.get("/roles/<int:role_id>/routing/<string:direction>")
+@login_required
+def role_routing(role_id: int, direction: str) -> ResponseReturnValue:
+    source_role = db.get_or_404(Role, role_id)
+    if direction not in {"outgoing", "incoming"}:
+        abort(404)
+    if source_role.role_type != "MAIN" or source_role.code == "administrator":
+        abort(404)
+    if direction == "outgoing" and not has_permission(current_user, "roles.manage_routing"):
+        abort(403)
+    if direction == "incoming" and not (
+        has_permission(current_user, "roles.view")
+        or has_permission(current_user, "roles.manage_routing")
+    ):
+        abort(403)
+    form = RoleRouteForm()
+    main_roles = db.session.scalars(
+        db.select(Role).where(
+            Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
+        ).order_by(Role.name)
+    ).all()
+    form.target_role_id.choices = [
+        (item.id, item.name) for item in main_roles if item.id != source_role.id
+    ]
+    routes_for_view = (
+        source_role.outgoing_routes if direction == "outgoing" else source_role.incoming_routes
+    )
+    return render_template(
+        "settings/roles/routing.html",
+        role=source_role,
+        direction=direction,
+        routes=routes_for_view,
+        route_form=form,
+    )
+
+
+@settings_bp.post("/roles/<int:role_id>/routing/add")
+@login_required
+def role_routing_add(role_id: int) -> ResponseReturnValue:
+    source_role = db.get_or_404(Role, role_id)
+    form = RoleRouteForm()
+    main_roles = db.session.scalars(
+        db.select(Role).where(
+            Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
+        )
+    ).all()
+    form.target_role_id.choices = [
+        (item.id, item.name) for item in main_roles if item.id != source_role.id
+    ]
+    if not form.validate_on_submit():
+        flash("Проверьте параметры маршрута.", "danger")
+        return redirect(url_for("settings.role_routing", role_id=role_id, direction="outgoing"))
+    target = db.get_or_404(Role, form.target_role_id.data)
+    try:
+        save_role_route(
+            current_user,
+            source_role=source_role,
+            target_role=target,
+            is_default=form.is_default.data,
+            auto_forward_after_minutes=form.auto_forward_after_minutes.data,
+        )
+        flash("Маршрут сохранен.", "success")
+    except ValueError as error:
+        db.session.rollback()
+        flash(str(error), "danger")
+    return redirect(url_for("settings.role_routing", role_id=role_id, direction="outgoing"))
+
+
+@settings_bp.post("/roles/<int:role_id>/routing/<int:route_id>/delete")
+@login_required
+def role_routing_delete(role_id: int, route_id: int) -> ResponseReturnValue:
+    source = db.get_or_404(Role, role_id)
+    route = db.get_or_404(RoleRoute, route_id)
+    if route.source_role_id != source.id:
+        abort(404)
+    form = RoleRouteDeleteForm()
+    if form.validate_on_submit():
+        try:
+            delete_role_route(current_user, route)
+            flash("Маршрут удален.", "success")
+        except ValueError as error:
+            db.session.rollback()
+            flash(str(error), "danger")
+    return redirect(url_for("settings.role_routing", role_id=role_id, direction="outgoing"))
 
 
 @settings_bp.route("/roles/create", methods=["GET", "POST"])
