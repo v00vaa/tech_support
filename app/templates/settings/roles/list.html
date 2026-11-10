@@ -5,9 +5,11 @@
     <h1 class="h4 mb-3">Настройки</h1>
     <div class="list-group">
       <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% if has_permission(current_user, 'settings.view') %}
       {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
       <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
       {% endfor %}
+      {% endif %}
     </div>
   </aside>
 
@@ -60,7 +62,7 @@
               <table class="table table-sm align-middle">
                 <thead><tr><th>Сотрудник</th><th>Email</th><th>Должность</th><th>Другие роли</th><th>Специальные роли</th><th></th></tr></thead>
                 <tbody>
-                {% for employee in role.employees|sort(attribute='name') %}
+                {% for employee in role.employees|selectattr('is_active')|sort(attribute='name') %}
                   {% if employee.is_active %}
                   <tr>
                     <td>{{ employee.name }}</td>
