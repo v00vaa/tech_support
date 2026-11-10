@@ -4,6 +4,7 @@ from flask_wtf import FlaskForm
 from wtforms import (
     BooleanField,
     HiddenField,
+    IntegerField,
     PasswordField,
     SelectField,
     SelectMultipleField,
@@ -11,7 +12,7 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, Optional, Regexp
+from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional, Regexp
 
 from app.models.dialog import DialogStatus
 
@@ -63,6 +64,20 @@ class RoleMemberForm(FlaskForm):
 class RoleMemberRemoveForm(FlaskForm):
     employee_id = HiddenField(validators=[DataRequired()])
     submit = SubmitField("Убрать")
+
+
+class RoleRouteForm(FlaskForm):
+    target_role_id = SelectField("Направлять к роли", coerce=int, validators=[DataRequired()])
+    is_default = BooleanField("Маршрут по умолчанию")
+    auto_forward_after_minutes = IntegerField(
+        "Автоматически передать через (минут)",
+        validators=[Optional(), NumberRange(min=1, max=10080)],
+    )
+    submit = SubmitField("Сохранить маршрут")
+
+
+class RoleRouteDeleteForm(FlaskForm):
+    submit = SubmitField("Удалить")
 
 
 class RoleForm(FlaskForm):
