@@ -41,6 +41,14 @@ def upgrade() -> None:
     )
     op.create_index("ix_role_routes_source_role_id", "role_routes", ["source_role_id"])
     op.create_index("ix_role_routes_target_role_id", "role_routes", ["target_role_id"])
+    op.create_index(
+        "uq_role_routes_one_default_per_source",
+        "role_routes",
+        ["source_role_id"],
+        unique=True,
+        postgresql_where=sa.text("is_default = true"),
+        sqlite_where=sa.text("is_default = 1"),
+    )
     op.add_column("dialogs", sa.Column("assigned_role_id", sa.Integer(), nullable=True))
     op.add_column(
         "dialogs",
@@ -62,6 +70,7 @@ def downgrade() -> None:
     op.drop_constraint("fk_dialogs_assigned_role_id_roles", "dialogs", type_="foreignkey")
     op.drop_column("dialogs", "role_assigned_at")
     op.drop_column("dialogs", "assigned_role_id")
+    op.drop_index("uq_role_routes_one_default_per_source", table_name="role_routes")
     op.drop_index("ix_role_routes_target_role_id", table_name="role_routes")
     op.drop_index("ix_role_routes_source_role_id", table_name="role_routes")
     op.drop_table("role_routes")
