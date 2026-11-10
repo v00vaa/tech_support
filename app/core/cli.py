@@ -7,6 +7,7 @@ from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
 from app.services.rbac_service import ensure_rbac_catalogue
+from app.services.routing_service import process_due_auto_forwards
 
 
 def register_commands(app: Flask) -> None:
@@ -63,6 +64,12 @@ def register_commands(app: Flask) -> None:
         click.echo("RBAC настроен. Учетная запись администратора готова.")
         if is_first_administrator:
             click.echo("При первом входе потребуется сменить временный пароль.")
+
+    @app.cli.command("process-auto-forwards")
+    def process_auto_forwards_command() -> None:
+        """Process role routes whose automatic forwarding threshold has elapsed."""
+        count = process_due_auto_forwards()
+        click.echo(f"Автоматически передано диалогов: {count}")
 
     @app.cli.command("seed")
     def seed() -> None:
