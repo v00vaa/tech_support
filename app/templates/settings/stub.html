@@ -1,1 +1,26 @@
-{% extends "layout.html" %}{% block content %}<h1>{{ title }}</h1><div class="card"><div class="card-body"><p class="lead">Функциональность находится в разработке.</p><p>Этот раздел будет использоваться для настройки {{ title|lower }} системы технической поддержки.</p>{% if section == 'company' %}<p>В будущем здесь будет настроено получение клиентов и сотрудников из основной корпоративной информационной системы.</p>{% endif %}<a class="btn btn-outline-secondary" href="{{ url_for('settings.settings_index') }}">Вернуться к настройкам</a></div></div>{% endblock %}
+{% extends "layout.html" %}
+{% block content %}
+<div class="row g-4">
+  <aside class="col-md-3 col-lg-2">
+    <h1 class="h4 mb-3">Настройки</h1>
+    <div class="list-group">
+      {% if has_permission(current_user, 'roles.view') or current_user.roles|selectattr('role_type', 'equalto', 'HR')|list or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% endif %}
+      {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
+      <a class="list-group-item list-group-item-action {{ 'active' if section == slug else '' }}" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </aside>
+  <section class="col-md-9 col-lg-10">
+    <h2 class="h3">{{ title }}</h2>
+    <div class="card"><div class="card-body">
+      <p class="lead">Функциональность находится в разработке.</p>
+      <p>Этот раздел будет использоваться для настройки {{ title|lower }} системы технической поддержки.</p>
+      {% if section == 'company' %}
+      <p>В будущем здесь будет настроено получение клиентов и сотрудников из основной корпоративной информационной системы.</p>
+      {% endif %}
+    </div></div>
+  </section>
+</div>
+{% endblock %}
