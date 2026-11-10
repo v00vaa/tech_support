@@ -107,13 +107,9 @@ def process_due_auto_forwards(*, now: datetime | None = None, limit: int = 100) 
     if current_time.tzinfo is None:
         current_time = current_time.replace(tzinfo=UTC)
     routes = db.session.scalars(
-        select(RoleRoute)
-        .join(RoleRoute.source_role)
-        .join(RoleRoute.target_role)
-        .where(
+        select(RoleRoute).where(
             RoleRoute.is_default.is_(True),
             RoleRoute.auto_forward_after_minutes.is_not(None),
-            Role.is_active,
         )
     ).all()
     transferred = 0
