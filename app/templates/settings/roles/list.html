@@ -41,8 +41,8 @@
           <div class="accordion-body">
             <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Разделы роли">
               <button type="button" class="btn btn-primary btn-sm" aria-current="page">Сотрудники</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Направляют к</button>
-              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Получают от</button>
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_routing', role_id=role.id, direction='outgoing') }}">Направляют к</a>
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_routing', role_id=role.id, direction='incoming') }}">Получают от</a>
               <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Разрешения</button>
             </div>
 
@@ -129,7 +129,7 @@
     </div>
     {% endif %}
 
-    <p class="text-muted small mt-3 mb-0">Разделы маршрутизации и разрешений будут доступны на следующих этапах разработки.</p>
+    <p class="text-muted small mt-3 mb-0">Настройка маршрутов доступна пользователям с разрешением «Настройка маршрутизации ролей».</p>
   </section>
 </div>
 {% endblock %}
