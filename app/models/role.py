@@ -11,6 +11,7 @@ from app.extensions import Base, db
 
 if TYPE_CHECKING:
     from app.models.employee import Employee
+    from app.models.dialog import Dialog
     from app.models.role_route import RoleRoute
 
 
@@ -78,6 +79,7 @@ class Role(Base):
         back_populates="target_role",
         foreign_keys="RoleRoute.target_role_id",
     )
+    assigned_dialogs: Mapped[list[Dialog]] = relationship(back_populates="assigned_role")
 
 
 class Permission(Base):
