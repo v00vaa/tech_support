@@ -1,6 +1,6 @@
 """Browser routes split into compact entity blueprints."""
 
-from flask import Blueprint, flash, redirect, render_template, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
@@ -24,6 +24,8 @@ from app.services.access_control_service import (
 )
 from app.services.role_service import (
     assign_employee_roles,
+    can_manage_role_members,
+    manage_role_members,
     save_role,
     update_employee_active_state,
 )
@@ -37,6 +39,8 @@ from app.web.forms import (
     LoginForm,
     MessageForm,
     RoleForm,
+    RoleMemberForm,
+    RoleMemberRemoveForm,
     StatusForm,
 )
 
@@ -498,10 +502,86 @@ def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
 
 @settings_bp.get("/roles")
 @login_required
-@permission_required("roles.view")
 def role_list() -> ResponseReturnValue:
-    roles = db.session.scalars(db.select(Role).order_by(Role.is_system.desc(), Role.name)).all()
-    return render_template("settings/roles/list.html", roles=roles)
+    all_roles = db.session.scalars(
+        db.select(Role).where(Role.role_type == "MAIN").order_by(Role.is_system.desc(), Role.name)
+    ).all()
+    if not has_permission(current_user, "roles.view") and not any(
+        can_manage_role_members(current_user, role) for role in all_roles
+    ):
+        abort(403)
+    roles = (
+        all_roles
+        if has_permission(current_user, "roles.view")
+        else [role for role in all_roles if can_manage_role_members(current_user, role)]
+    )
+    active_employees = db.session.scalars(
+        db.select(Employee).where(Employee.is_active).order_by(Employee.name)
+    ).all()
+    member_forms = {}
+    remove_forms = {}
+    for role in roles:
+        add_form = RoleMemberForm()
+        add_form.employee_id.choices = [
+            (employee.id, f"{employee.name} — {employee.email}")
+            for employee in active_employees
+            if role not in employee.roles
+        ]
+        member_forms[role.id] = add_form
+        remove_forms[role.id] = {
+            employee.id: RoleMemberRemoveForm(employee_id=str(employee.id))
+            for employee in role.employees
+        }
+    global_hr = db.session.scalar(db.select(Role).where(Role.code == "global_hr"))
+    return render_template(
+        "settings/roles/list.html",
+        roles=roles,
+        member_forms=member_forms,
+        remove_forms=remove_forms,
+        can_manage_role_members=can_manage_role_members,
+        global_hr=global_hr,
+    )
+
+
+@settings_bp.post("/roles/<int:role_id>/members/add")
+@login_required
+def role_member_add(role_id: int) -> ResponseReturnValue:
+    role = db.get_or_404(Role, role_id)
+    form = RoleMemberForm()
+    form.employee_id.choices = [
+        (employee.id, employee.name)
+        for employee in db.session.scalars(
+            db.select(Employee).where(Employee.is_active).order_by(Employee.name)
+        )
+    ]
+    if not form.validate_on_submit():
+        flash("Выберите сотрудника для добавления.", "danger")
+        return redirect(url_for("settings.role_list"))
+    employee = db.get_or_404(Employee, form.employee_id.data)
+    try:
+        manage_role_members(current_user, employee, role, add=True)
+        flash(f"Сотрудник «{employee.name}» добавлен в роль «{role.name}».", "success")
+    except ValueError as error:
+        db.session.rollback()
+        flash(str(error), "danger")
+    return redirect(url_for("settings.role_list"))
+
+
+@settings_bp.post("/roles/<int:role_id>/members/<int:employee_id>/remove")
+@login_required
+def role_member_remove(role_id: int, employee_id: int) -> ResponseReturnValue:
+    role = db.get_or_404(Role, role_id)
+    employee = db.get_or_404(Employee, employee_id)
+    form = RoleMemberRemoveForm()
+    if not form.validate_on_submit() or form.employee_id.data != str(employee.id):
+        abort(400)
+    try:
+        manage_role_members(current_user, employee, role, add=False)
+        flash(f"Сотрудник «{employee.name}» исключен из роли «{role.name}».", "success")
+    except ValueError as error:
+        db.session.rollback()
+        flash(str(error), "danger")
+    return redirect(url_for("settings.role_list"))
 
 
 @settings_bp.route("/roles/create", methods=["GET", "POST"])
