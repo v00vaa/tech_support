@@ -1,6 +1,7 @@
 """Flask CLI commands for database bootstrap and demo data."""
 
 import click
+import time
 from flask import Flask
 
 from app.extensions import db
@@ -70,6 +71,20 @@ def register_commands(app: Flask) -> None:
         """Process role routes whose automatic forwarding threshold has elapsed."""
         count = process_due_auto_forwards()
         click.echo(f"Автоматически передано диалогов: {count}")
+
+    @app.cli.command("run-auto-forward-worker")
+    @click.option("--interval", default=60, show_default=True, type=click.IntRange(min=5))
+    def run_auto_forward_worker(interval: int) -> None:
+        """Run the automatic role forwarding worker until interrupted."""
+        click.echo(f"Worker автопередачи запущен. Интервал: {interval} сек.")
+        try:
+            while True:
+                count = process_due_auto_forwards()
+                if count:
+                    click.echo(f"Автоматически передано диалогов: {count}")
+                time.sleep(interval)
+        except KeyboardInterrupt:
+            click.echo("Worker автопередачи остановлен.")
 
     @app.cli.command("seed")
     def seed() -> None:
