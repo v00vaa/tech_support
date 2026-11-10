@@ -152,6 +152,18 @@ PERMISSION_DEFINITIONS: tuple[PermissionDefinition, ...] = (
         "category": "roles",
     },
     {
+        "code": "roles.manage_routing",
+        "name": "Настройка маршрутизации ролей",
+        "description": "Создание и изменение направлений передачи диалогов между ролями",
+        "category": "roles",
+    },
+    {
+        "code": "dialogs.route_to_role",
+        "name": "Передача диалога в роль",
+        "description": "Назначение диалога другой основной роли по настроенному маршруту",
+        "category": "dialogs",
+    },
+    {
         "code": "settings.view",
         "name": "Просмотр настроек",
         "description": "Просмотр системных настроек",
@@ -173,5 +185,6 @@ SUPPORT_LEVEL_1_PERMISSIONS = frozenset(
         "dialogs.add_internal_note",
         "dialogs.change_status",
         "dialogs.transfer",
+        "dialogs.route_to_role",
     }
 )
