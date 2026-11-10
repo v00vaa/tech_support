@@ -7,9 +7,11 @@
       {% if has_permission(current_user, 'roles.view') or current_user.roles|selectattr('role_type', 'equalto', 'HR')|list or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list %}
       <a class="list-group-item list-group-item-action" href="{{ url_for('settings.role_list') }}">Роли</a>
       {% endif %}
+      {% if has_permission(current_user, 'settings.view') %}
       {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
       <a class="list-group-item list-group-item-action {{ 'active' if section == slug else '' }}" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
       {% endfor %}
+      {% endif %}
     </div>
   </aside>
   <section class="col-md-9 col-lg-10">
