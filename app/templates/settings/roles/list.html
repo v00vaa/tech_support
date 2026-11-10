@@ -1,12 +1,117 @@
 {% extends "layout.html" %}
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div><h1>Роли и права</h1><p class="text-muted mb-0">Роль объединяет разрешения, определяющие доступ сотрудника.</p></div>
-  {% if has_permission(current_user, 'roles.create') %}<a class="btn btn-primary" href="{{ url_for('settings.role_create') }}">Создать роль</a>{% endif %}
+<div class="row g-4">
+  <aside class="col-md-3 col-lg-2">
+    <h1 class="h4 mb-3">Настройки</h1>
+    <div class="list-group">
+      <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+      {% endfor %}
+    </div>
+  </aside>
+
+  <section class="col-md-9 col-lg-10">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <div>
+        <h2 class="h3 mb-1">Роли</h2>
+        <p class="text-muted mb-0">Раскройте роль, чтобы управлять ее составом.</p>
+      </div>
+      {% if has_permission(current_user, 'roles.create') %}
+      <a class="btn btn-primary" href="{{ url_for('settings.role_create') }}">Создать роль</a>
+      {% endif %}
+    </div>
+
+    <div class="accordion" id="rolesAccordion">
+      {% for role in roles %}
+      <div class="accordion-item">
+        <h3 class="accordion-header" id="heading-{{ role.id }}">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#role-{{ role.id }}" aria-expanded="false"
+                  aria-controls="role-{{ role.id }}">
+            <span class="fw-semibold">{{ role.name }}</span>
+            <span class="badge text-bg-secondary ms-2">{{ role.employees|length }} сотрудников</span>
+            {% if not role.is_active %}<span class="badge text-bg-warning ms-2">Отключена</span>{% endif %}
+          </button>
+        </h3>
+        <div id="role-{{ role.id }}" class="accordion-collapse collapse"
+             aria-labelledby="heading-{{ role.id }}" data-bs-parent="#rolesAccordion">
+          <div class="accordion-body">
+            <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Разделы роли">
+              <button type="button" class="btn btn-primary btn-sm" aria-current="page">Сотрудники</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Направляют к</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Получают от</button>
+              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Разрешения</button>
+            </div>
+
+            {% if can_manage_role_members(current_user, role) %}
+            <form method="post" action="{{ url_for('settings.role_member_add', role_id=role.id) }}"
+                  class="row g-2 align-items-end mb-3">
+              {{ member_forms[role.id].hidden_tag() }}
+              <div class="col-md-8">
+                {{ member_forms[role.id].employee_id.label(class_='form-label') }}
+                {{ member_forms[role.id].employee_id(class_='form-select') }}
+              </div>
+              <div class="col-md-4">{{ member_forms[role.id].submit(class_='btn btn-success w-100') }}</div>
+            </form>
+            {% endif %}
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead><tr><th>Сотрудник</th><th>Email</th><th>Должность</th><th>Другие роли</th><th></th></tr></thead>
+                <tbody>
+                {% for employee in role.employees|sort(attribute='name') %}
+                  {% if employee.is_active %}
+                  <tr>
+                    <td>{{ employee.name }}</td>
+                    <td>{{ employee.email }}</td>
+                    <td>{{ employee.position }}</td>
+                    <td>
+                      {% for other_role in employee.roles if other_role.id != role.id and other_role.is_active and other_role.role_type == 'MAIN' %}
+                      <span class="badge text-bg-light border">{{ other_role.name }}</span>
+                      {% else %}—{% endfor %}
+                    </td>
+                    <td class="text-end">
+                      {% if can_manage_role_members(current_user, role) %}
+                      <form method="post" action="{{ url_for('settings.role_member_remove', role_id=role.id, employee_id=employee.id) }}">
+                        {{ remove_forms[role.id][employee.id].hidden_tag() }}
+                        <button class="btn btn-sm btn-outline-danger" type="submit">Убрать</button>
+                      </form>
+                      {% endif %}
+                    </td>
+                  </tr>
+                  {% endif %}
+                {% else %}
+                  <tr><td colspan="5" class="text-muted text-center py-3">В этой роли пока нет активных сотрудников.</td></tr>
+                {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            <div class="small text-muted">
+              Тип: {{ 'Системная' if role.is_system else 'Пользовательская' }} ·
+              Разрешений: {{ role.permissions|length }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% else %}
+      <div class="alert alert-info">Доступные основные роли не найдены.</div>
+      {% endfor %}
+    </div>
+
+    {% if global_hr and global_hr.employees %}
+    <div class="card mt-4">
+      <div class="card-header fw-semibold">Глобальный HR</div>
+      <div class="card-body">
+        <p class="text-muted small">Эта специальная роль предоставляет управление составом всех основных ролей.</p>
+        {% for employee in global_hr.employees %}
+        <span class="badge text-bg-secondary me-1">{{ employee.name }}</span>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <p class="text-muted small mt-3 mb-0">Разделы маршрутизации и разрешений будут доступны на следующих этапах разработки.</p>
+  </section>
 </div>
-<div class="card"><div class="table-responsive"><table class="table table-hover mb-0">
-<thead><tr><th>Название</th><th>Код</th><th>Тип</th><th>Состояние</th><th>Разрешений</th><th></th></tr></thead>
-<tbody>{% for role in roles %}
-<tr><td>{{ role.name }}</td><td><code>{{ role.code }}</code></td><td>{{ 'Системная' if role.is_system else 'Пользовательская' }}</td><td>{{ 'Активна' if role.is_active else 'Отключена' }}</td><td>{{ role.permissions|length }}</td><td class="text-end">{% if not role.is_system and has_permission(current_user, 'roles.edit') %}<a class="btn btn-sm btn-outline-primary" href="{{ url_for('settings.role_edit', role_id=role.id) }}">Изменить</a>{% else %}<span class="text-muted small">Только просмотр</span>{% endif %}</td></tr>
-{% else %}<tr><td colspan="6" class="text-center text-muted py-4">Роли не найдены.</td></tr>{% endfor %}</tbody></table></div></div>
 {% endblock %}
