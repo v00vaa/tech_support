@@ -66,6 +66,11 @@ class RoleMemberRemoveForm(FlaskForm):
     submit = SubmitField("Убрать")
 
 
+class DialogRouteForm(FlaskForm):
+    target_role_id = SelectField("Передать в роль", coerce=int, validators=[DataRequired()])
+    submit = SubmitField("Передать")
+
+
 class RoleRouteForm(FlaskForm):
     target_role_id = SelectField("Направлять к роли", coerce=int, validators=[DataRequired()])
     is_default = BooleanField("Маршрут по умолчанию")
