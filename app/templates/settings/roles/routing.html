@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row g-4">
+  <aside class="col-md-3 col-lg-2">
+    <h1 class="h4 mb-3">Настройки</h1>
+    <div class="list-group">
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% if has_permission(current_user, 'settings.view') %}
+      {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+      {% endfor %}
+      {% endif %}
+    </div>
+  </aside>
+  <section class="col-md-9 col-lg-10">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+      <div>
+        <a href="{{ url_for('settings.role_list') }}" class="text-decoration-none">← Все роли</a>
+        <h2 class="h3 mt-2">{{ role.name }}</h2>
+        <p class="text-muted mb-0">{{ 'Исходящие направления: куда эта роль передает диалоги.' if direction == 'outgoing' else 'Входящие направления: из каких ролей сюда могут поступать диалоги.' }}</p>
+      </div>
+      <div class="btn-group">
+        <a class="btn {{ 'btn-primary' if direction == 'outgoing' else 'btn-outline-primary' }}" href="{{ url_for('settings.role_routing', role_id=role.id, direction='outgoing') }}">Направляют к</a>
+        <a class="btn {{ 'btn-primary' if direction == 'incoming' else 'btn-outline-primary' }}" href="{{ url_for('settings.role_routing', role_id=role.id, direction='incoming') }}">Получают от</a>
+      </div>
+    </div>
+
+    {% if direction == 'outgoing' %}
+    {% if has_permission(current_user, 'roles.manage_routing') %}
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">Добавить или изменить направление</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('settings.role_routing_add', role_id=role.id) }}" class="row g-3 align-items-end">
+          {{ route_form.hidden_tag() }}
+          <div class="col-lg-5">
+            {{ route_form.target_role_id.label(class_='form-label') }}
+            {{ route_form.target_role_id(class_='form-select') }}
+          </div>
+          <div class="col-lg-3">
+            {{ route_form.auto_forward_after_minutes.label(class_='form-label') }}
+            {{ route_form.auto_forward_after_minutes(class_='form-control', placeholder='Например, 30') }}
+            <div class="form-text">Оставьте пустым, чтобы отключить автопередачу.</div>
+          </div>
+          <div class="col-lg-2">
+            <div class="form-check mb-2">{{ route_form.is_default(class_='form-check-input') }}{{ route_form.is_default.label(class_='form-check-label') }}</div>
+          </div>
+          <div class="col-lg-2">{{ route_form.submit(class_='btn btn-primary w-100') }}</div>
+        </form>
+        {% for field in route_form if field.errors %}
+          {% for error in field.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+        {% endfor %}
+        <p class="small text-muted mt-3 mb-0">Если выбрать уже существующую пару ролей, настройки этого направления обновятся. Одновременно может быть только один маршрут по умолчанию.</p>
+      </div>
+    </div>
+    {% endif %}
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header fw-semibold">{{ 'Куда можно передать диалог' if direction == 'outgoing' else 'Какие роли могут передавать сюда диалоги' }}</div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr>
+            <th>{{ 'Целевая роль' if direction == 'outgoing' else 'Исходная роль' }}</th>
+            {% if direction == 'outgoing' %}<th>По умолчанию</th><th>Автопередача</th><th></th>{% endif %}
+          </tr></thead>
+          <tbody>
+          {% for route in routes|sort(attribute='target_role.name' if direction == 'outgoing' else 'source_role.name') %}
+            <tr>
+              <td>{{ route.target_role.name if direction == 'outgoing' else route.source_role.name }}</td>
+              {% if direction == 'outgoing' %}
+              <td>{% if route.is_default %}<span class="badge text-bg-success">По умолчанию</span>{% else %}—{% endif %}</td>
+              <td>{{ route.auto_forward_after_minutes ~ ' мин.' if route.auto_forward_after_minutes else 'Отключена' }}</td>
+              <td class="text-end">
+                {% if has_permission(current_user, 'roles.manage_routing') %}
+                <form method="post" action="{{ url_for('settings.role_routing_delete', role_id=role.id, route_id=route.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
+                </form>
+                {% endif %}
+              </td>
+              {% endif %}
+            </tr>
+          {% else %}
+            <tr><td colspan="{{ 4 if direction == 'outgoing' else 1 }}" class="text-center text-muted py-4">Направления пока не настроены.</td></tr>
+          {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% if direction == 'outgoing' %}
+    <div class="alert alert-info mt-3 mb-0">
+      Автопередача применяется только к диалогам в очереди этой роли без назначенного сотрудника. После передачи отсчет времени начинается заново для следующей роли.
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
