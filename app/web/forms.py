@@ -2,8 +2,8 @@
 
 from flask_wtf import FlaskForm
 from wtforms import (
-    HiddenField,
     BooleanField,
+    HiddenField,
     PasswordField,
     SelectField,
     SelectMultipleField,
