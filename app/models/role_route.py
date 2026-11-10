@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, UniqueConstraint
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Index, Integer, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
@@ -15,6 +15,13 @@ class RoleRoute(Base):
     __tablename__ = "role_routes"
     __table_args__ = (
         UniqueConstraint("source_role_id", "target_role_id", name="uq_role_routes_source_target"),
+        Index(
+            "uq_role_routes_one_default_per_source",
+            "source_role_id",
+            unique=True,
+            postgresql_where=text("is_default = true"),
+            sqlite_where=text("is_default = 1"),
+        ),
         CheckConstraint("source_role_id != target_role_id", name="ck_role_routes_distinct_roles"),
         CheckConstraint(
             "auto_forward_after_minutes IS NULL OR auto_forward_after_minutes > 0",
