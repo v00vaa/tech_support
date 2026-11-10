@@ -49,6 +49,8 @@ def delete_dialog(dialog: Dialog) -> None:
 
 def assign_employee(dialog: Dialog, employee_id: int | None) -> Dialog:
     dialog.responsible_employee_id = employee_id
+    if employee_id is None and dialog.assigned_role_id is not None:
+        dialog.role_assigned_at = datetime.now(UTC)
     db.session.commit()
     return dialog
 
@@ -56,6 +58,12 @@ def assign_employee(dialog: Dialog, employee_id: int | None) -> Dialog:
 def change_status(dialog: Dialog, status: DialogStatus) -> Dialog:
     if status != dialog.status and status not in ALLOWED_TRANSITIONS[dialog.status]:
         raise ValueError("Недопустимый переход статуса")
+    if (
+        dialog.status == DialogStatus.WAITING_CLIENT
+        and status != DialogStatus.WAITING_CLIENT
+        and dialog.assigned_role_id is not None
+    ):
+        dialog.role_assigned_at = datetime.now(UTC)
     dialog.status = status
     dialog.closed_at = datetime.now(UTC) if status == DialogStatus.CLOSED else None
     db.session.commit()
