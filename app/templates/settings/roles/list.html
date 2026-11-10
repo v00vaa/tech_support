@@ -58,7 +58,7 @@
 
             <div class="table-responsive">
               <table class="table table-sm align-middle">
-                <thead><tr><th>Сотрудник</th><th>Email</th><th>Должность</th><th>Другие роли</th><th></th></tr></thead>
+                <thead><tr><th>Сотрудник</th><th>Email</th><th>Должность</th><th>Другие роли</th><th>Специальные роли</th><th></th></tr></thead>
                 <tbody>
                 {% for employee in role.employees|sort(attribute='name') %}
                   {% if employee.is_active %}
@@ -71,9 +71,18 @@
                       <span class="badge text-bg-light border">{{ other_role.name }}</span>
                       {% else %}—{% endfor %}
                     </td>
+                    <td>
+                      {% set employee_role_ids = employee.roles|map(attribute='id')|list %}
+                      {% for special_role in role.scoped_roles if special_role.is_active and special_role.id in employee_role_ids %}
+                      <span class="badge text-bg-info">{{ 'Начальник' if special_role.role_type == 'MANAGER' else 'HR' }}</span>
+                      {% else %}—{% endfor %}
+                    </td>
                     <td class="text-end">
+                      {% if has_permission(current_user, 'employees.assign_roles') %}
+                      <a class="btn btn-sm btn-outline-primary" href="{{ url_for('employees.employee_roles_edit', employee_id=employee.id) }}">Роли</a>
+                      {% endif %}
                       {% if can_manage_role_members(current_user, role) %}
-                      <form method="post" action="{{ url_for('settings.role_member_remove', role_id=role.id, employee_id=employee.id) }}">
+                      <form class="d-inline" method="post" action="{{ url_for('settings.role_member_remove', role_id=role.id, employee_id=employee.id) }}">
                         {{ remove_forms[role.id][employee.id].hidden_tag() }}
                         <button class="btn btn-sm btn-outline-danger" type="submit">Убрать</button>
                       </form>
@@ -82,7 +91,7 @@
                   </tr>
                   {% endif %}
                 {% else %}
-                  <tr><td colspan="5" class="text-muted text-center py-3">В этой роли пока нет активных сотрудников.</td></tr>
+                  <tr><td colspan="6" class="text-muted text-center py-3">В этой роли пока нет активных сотрудников.</td></tr>
                 {% endfor %}
                 </tbody>
               </table>
