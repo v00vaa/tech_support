@@ -11,6 +11,7 @@ from app.extensions import Base, db
 
 if TYPE_CHECKING:
     from app.models.employee import Employee
+    from app.models.role_route import RoleRoute
 
 
 employee_roles = Table(
@@ -67,6 +68,15 @@ class Role(Base):
     )
     employees: Mapped[list[Employee]] = relationship(
         secondary=employee_roles, back_populates="roles"
+    )
+    outgoing_routes: Mapped[list[RoleRoute]] = relationship(
+        back_populates="source_role",
+        foreign_keys="RoleRoute.source_role_id",
+        cascade="all, delete-orphan",
+    )
+    incoming_routes: Mapped[list[RoleRoute]] = relationship(
+        back_populates="target_role",
+        foreign_keys="RoleRoute.target_role_id",
     )
 
 
