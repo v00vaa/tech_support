@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from app.models.client import Client
     from app.models.employee import Employee
     from app.models.message import Message
+    from app.models.role import Role
 
 
 class DialogStatus(StrEnum):
@@ -34,6 +35,10 @@ class Dialog(Base):
     responsible_employee_id: Mapped[int | None] = mapped_column(
         db.ForeignKey("employees.id"), index=True
     )
+    assigned_role_id: Mapped[int | None] = mapped_column(
+        ForeignKey("roles.id", ondelete="SET NULL"), index=True
+    )
+    role_assigned_at: Mapped[datetime | None] = mapped_column()
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[DialogStatus] = mapped_column(
         db.Enum(DialogStatus), default=DialogStatus.OPEN, nullable=False
@@ -46,6 +51,7 @@ class Dialog(Base):
     closed_at: Mapped[datetime | None] = mapped_column()
     client: Mapped[Client] = relationship(back_populates="dialogs")
     responsible_employee: Mapped[Employee | None] = relationship(back_populates="assigned_dialogs")
+    assigned_role: Mapped[Role | None] = relationship(back_populates="assigned_dialogs")
     messages: Mapped[list[Message]] = relationship(
         back_populates="dialog", cascade="all, delete-orphan", order_by="Message.created_at"
     )
