@@ -6,7 +6,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import DateTime, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base, db
@@ -38,7 +38,7 @@ class Dialog(Base):
     assigned_role_id: Mapped[int | None] = mapped_column(
         ForeignKey("roles.id", ondelete="SET NULL"), index=True
     )
-    role_assigned_at: Mapped[datetime | None] = mapped_column()
+    role_assigned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     subject: Mapped[str] = mapped_column(String(255), nullable=False)
     status: Mapped[DialogStatus] = mapped_column(
         db.Enum(DialogStatus), default=DialogStatus.OPEN, nullable=False
