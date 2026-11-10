@@ -2,6 +2,7 @@
 
 from flask_wtf import FlaskForm
 from wtforms import (
+    HiddenField,
     BooleanField,
     PasswordField,
     SelectField,
@@ -52,6 +53,16 @@ class EmployeeForm(FlaskForm):
 class EmployeeRolesForm(FlaskForm):
     roles = SelectMultipleField("Роли", coerce=int)
     submit = SubmitField("Сохранить роли")
+
+
+class RoleMemberForm(FlaskForm):
+    employee_id = SelectField("Сотрудник", coerce=int, validators=[DataRequired()])
+    submit = SubmitField("Добавить")
+
+
+class RoleMemberRemoveForm(FlaskForm):
+    employee_id = HiddenField(validators=[DataRequired()])
+    submit = SubmitField("Убрать")
 
 
 class RoleForm(FlaskForm):
