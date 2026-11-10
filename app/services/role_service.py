@@ -197,6 +197,33 @@ def ensure_global_hr_role() -> Role:
     return role
 
 
+def can_manage_role_members(actor: Employee, main_role: Role) -> bool:
+    """Return whether an employee may manage membership in this main role."""
+    if not actor.is_active or not main_role.is_active:
+        return False
+    if (
+        main_role.role_type != "MAIN"
+        or main_role.scope_role_id is not None
+        or main_role.code == "administrator"
+    ):
+        return False
+    if is_active_administrator(actor):
+        return True
+    return any(
+        role.is_active
+        and (
+            (role.code == "global_hr" and role.role_type == "GLOBAL_HR")
+            or (
+                role.role_type == "HR"
+                and role.scope_role_id == main_role.id
+                and "roles.manage_scoped_members"
+                in {permission.code for permission in role.permissions}
+            )
+        )
+        for role in actor.roles
+    )
+
+
 def manage_role_members(
     actor: Employee,
     employee: Employee,
@@ -216,19 +243,7 @@ def manage_role_members(
     if not main_role.is_active:
         raise ValueError("Нельзя изменять состав отключенной роли.")
 
-    is_global_hr = any(
-        role.is_active and role.code == "global_hr" and role.role_type == "GLOBAL_HR"
-        for role in actor.roles
-    )
-    is_administrator = is_active_administrator(actor)
-    has_scoped_hr = any(
-        role.is_active
-        and role.role_type == "HR"
-        and role.scope_role_id == main_role.id
-        and "roles.manage_scoped_members" in {permission.code for permission in role.permissions}
-        for role in actor.roles
-    )
-    if not (is_global_hr or is_administrator or has_scoped_hr):
+    if not can_manage_role_members(actor, main_role):
         raise ValueError("Недостаточно прав для управления сотрудниками этой роли.")
 
     if add:
