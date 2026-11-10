@@ -98,9 +98,14 @@
                 </tbody>
               </table>
             </div>
-            <div class="small text-muted">
-              Тип: {{ 'Системная' if role.is_system else 'Пользовательская' }} ·
-              Разрешений: {{ role.permissions|length }}
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="small text-muted">
+                Тип: {{ 'Системная' if role.is_system else 'Пользовательская' }} ·
+                Разрешений: {{ role.permissions|length }}
+              </div>
+              {% if not role.is_system and has_permission(current_user, 'roles.edit') %}
+              <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('settings.role_edit', role_id=role.id) }}">Изменить роль</a>
+              {% endif %}
             </div>
           </div>
         </div>
@@ -110,13 +115,15 @@
       {% endfor %}
     </div>
 
-    {% if global_hr and global_hr.employees %}
+    {% if global_hr %}
     <div class="card mt-4">
       <div class="card-header fw-semibold">Глобальный HR</div>
       <div class="card-body">
         <p class="text-muted small">Эта специальная роль предоставляет управление составом всех основных ролей.</p>
         {% for employee in global_hr.employees %}
         <span class="badge text-bg-secondary me-1">{{ employee.name }}</span>
+        {% else %}
+        <span class="text-muted">Сотрудники пока не назначены.</span>
         {% endfor %}
       </div>
     </div>
