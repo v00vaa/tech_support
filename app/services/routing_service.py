@@ -124,7 +124,9 @@ def process_due_auto_forwards(*, now: datetime | None = None, limit: int = 100) 
             .where(
                 Dialog.assigned_role_id == route.source_role_id,
                 Dialog.responsible_employee_id.is_(None),
-                Dialog.status.not_in([DialogStatus.RESOLVED, DialogStatus.CLOSED]),
+                Dialog.status.not_in(
+                    [DialogStatus.WAITING_CLIENT, DialogStatus.RESOLVED, DialogStatus.CLOSED]
+                ),
                 Dialog.role_assigned_at.is_not(None),
             )
             .order_by(Dialog.role_assigned_at)
