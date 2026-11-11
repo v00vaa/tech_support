@@ -1,0 +1,104 @@
+html {
+  min-width: 320px;
+  min-height: 100%;
+  background: var(--support-color-background);
+}
+
+body {
+  display: flex;
+  min-height: 100vh;
+  flex-direction: column;
+  margin: 0;
+  color: var(--support-color-text);
+  background: var(--support-color-background);
+  font-family: var(--support-font-family);
+  font-size: var(--support-font-size);
+  line-height: var(--support-line-height);
+  -webkit-font-smoothing: antialiased;
+}
+
+.support-navbar {
+  min-height: var(--support-navbar-height);
+  background: var(--support-color-surface);
+  border-bottom: 1px solid var(--support-color-border);
+  box-shadow: var(--support-shadow-sm);
+}
+
+.support-navbar .navbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: var(--support-color-text);
+  font-weight: 700;
+  letter-spacing: -0.025em;
+}
+
+.support-brand-mark {
+  display: inline-grid;
+  width: 2.15rem;
+  height: 2.15rem;
+  place-items: center;
+  border-radius: 0.7rem;
+  color: #fff;
+  background: var(--support-color-primary);
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.support-navbar .navbar-nav {
+  gap: 0.25rem;
+}
+
+.support-navbar .nav-link {
+  padding: 0.55rem 0.8rem;
+  border-radius: var(--support-radius-sm);
+  color: var(--support-color-text-muted);
+  font-weight: 500;
+  transition: color var(--support-transition), background var(--support-transition);
+}
+
+.support-navbar .nav-link:hover,
+.support-navbar .nav-link:focus {
+  color: var(--support-color-primary);
+  background: var(--support-color-primary-soft);
+}
+
+.support-navbar .navbar-toggler {
+  border-color: var(--support-color-border);
+}
+
+.support-navbar .navbar-toggler:focus {
+  box-shadow: 0 0 0 0.2rem rgb(37 99 235 / 15%);
+}
+
+.support-main {
+  width: 100%;
+  max-width: var(--support-content-width);
+  min-height: calc(100vh - var(--support-navbar-height) - 4.25rem);
+  flex: 1 0 auto;
+  margin-inline: auto;
+  padding: 2rem clamp(1rem, 2.5vw, 2rem);
+}
+
+.support-footer {
+  padding: 1.25rem 1rem;
+  border-top: 1px solid var(--support-color-border);
+  color: var(--support-color-text-muted);
+  background: var(--support-color-surface);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+@media (max-width: 991.98px) {
+  .support-navbar .navbar-nav {
+    padding-block: 0.75rem;
+  }
+
+  .support-navbar .navbar-text {
+    padding-bottom: 0.75rem;
+  }
+
+  .support-main {
+    padding-block: 1.25rem;
+  }
+}
