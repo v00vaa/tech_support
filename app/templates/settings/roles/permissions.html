@@ -18,7 +18,7 @@
     </div>
 
     <div class="alert alert-info">
-      Можно назначить только те разрешения, которыми вы сами обладаете. Недоступные для делегирования права показаны отдельно и сохраняются без изменений.
+      Можно назначить только те разрешения, которыми вы сами обладаете. Ранее выданные права можно отозвать. Новые права можно добавить только в том случае, если вы сами ими обладаете.
     </div>
 
     <form method="post">
@@ -35,16 +35,17 @@
           <label class="list-group-item d-flex gap-3 align-items-start">
             <input class="form-check-input mt-1" type="checkbox"
                    name="{{ form.permissions.name }}" value="{{ permission.code }}"
-                   id="permission-{{ loop.index }}-{{ loop.depth0 }}"
-                   {% if permission.code in current_codes %}checked{% endif %}
-                   {% if permission.code not in delegable_codes %}disabled{% endif %}>
+                   id="permission-{{ permission.id }}"
+                   {% if permission.code in (form.permissions.data or []) %}checked{% endif %}
+                   {% if permission.code not in delegable_codes and permission.code not in current_codes %}disabled{% endif %}>
             <span class="flex-grow-1">
               <span class="d-block fw-medium">{{ permission.name }}</span>
               <span class="d-block small text-muted">{{ permission.description }}</span>
               <code class="small">{{ permission.code }}</code>
-              {% if permission.code in current_codes and permission.code not in delegable_codes %}
-              <input type="hidden" name="{{ form.permissions.name }}" value="{{ permission.code }}">
-              <span class="badge text-bg-light border ms-1">Без изменения</span>
+              {% if permission.code not in delegable_codes %}
+              <span class="badge text-bg-light border ms-1">
+                {{ 'Можно отозвать, нельзя повторно выдать' if permission.code in current_codes else 'Нет права на выдачу' }}
+              </span>
               {% endif %}
             </span>
           </label>
