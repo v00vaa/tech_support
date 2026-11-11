@@ -1,0 +1,74 @@
+<nav class="navbar navbar-expand-lg support-navbar">
+  <div class="container-fluid px-3 px-lg-4">
+    <a class="navbar-brand" href="{{ url_for('main.index') }}" aria-label="Support Desk — главная">
+      <span class="support-brand-mark" aria-hidden="true">S</span>
+      <span>Support Desk</span>
+    </a>
+
+    <button
+      class="navbar-toggler"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#supportNavbar"
+      aria-controls="supportNavbar"
+      aria-expanded="false"
+      aria-label="Открыть меню"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="supportNavbar">
+      <ul class="navbar-nav me-auto">
+        {% if has_permission(current_user, 'clients.view') %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('clients.client_list') }}">Клиенты</a>
+        </li>
+        {% endif %}
+
+        {% if has_permission(current_user, 'employees.view') %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('employees.employee_list') }}">Сотрудники</a>
+        </li>
+        {% endif %}
+
+        {% if has_permission(current_user, 'dialogs.view') %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('dialogs.dialog_list') }}">Диалоги</a>
+        </li>
+        {% endif %}
+
+        {% if has_permission(current_user, 'settings.view')
+          or has_permission(current_user, 'roles.view')
+          or (
+            current_user.is_authenticated
+            and (
+              current_user.roles|selectattr('role_type', 'equalto', 'HR')|list
+              or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list
+            )
+          )
+        %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('settings.role_list') }}">Настройки</a>
+        </li>
+        {% endif %}
+
+        {% if current_user.is_authenticated %}
+        <li class="nav-item">
+          <a class="nav-link" href="{{ url_for('api.clients') }}">API</a>
+        </li>
+        {% endif %}
+      </ul>
+
+      <div class="navbar-text d-flex align-items-center gap-2">
+        {% if current_user.is_authenticated %}
+        <span class="text-muted">{{ current_user.name }}</span>
+        <form method="post" action="{{ url_for('auth.logout') }}">
+          <button class="btn btn-sm btn-outline-secondary" type="submit">Выйти</button>
+        </form>
+        {% else %}
+        <a class="btn btn-sm btn-primary" href="{{ url_for('auth.login') }}">Войти</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</nav>
