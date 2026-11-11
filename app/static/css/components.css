@@ -1,0 +1,213 @@
+:root {
+  --bs-primary: var(--support-color-primary);
+  --bs-primary-rgb: 37, 99, 235;
+  --bs-link-color: var(--support-color-primary);
+  --bs-link-hover-color: var(--support-color-primary-hover);
+  --bs-body-color: var(--support-color-text);
+  --bs-body-bg: var(--support-color-background);
+  --bs-border-color: var(--support-color-border);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  color: var(--support-color-text);
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+h1 { margin-bottom: 1.25rem; font-size: clamp(1.55rem, 2.5vw, 2rem); }
+
+a {
+  text-underline-offset: 0.18em;
+}
+
+.btn {
+  --bs-btn-border-radius: var(--support-radius-sm);
+  font-weight: 550;
+  transition: color var(--support-transition), background-color var(--support-transition),
+    border-color var(--support-transition), box-shadow var(--support-transition);
+}
+
+.btn-primary {
+  --bs-btn-bg: var(--support-color-primary);
+  --bs-btn-border-color: var(--support-color-primary);
+  --bs-btn-hover-bg: var(--support-color-primary-hover);
+  --bs-btn-hover-border-color: var(--support-color-primary-hover);
+  --bs-btn-active-bg: var(--support-color-primary-hover);
+  --bs-btn-active-border-color: var(--support-color-primary-hover);
+}
+
+.btn:focus-visible,
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  box-shadow: 0 0 0 0.2rem rgb(37 99 235 / 16%);
+}
+
+.card,
+.accordion-item {
+  overflow: hidden;
+  border: 1px solid var(--support-color-border);
+  border-radius: var(--support-radius-md);
+  background: var(--support-color-surface);
+  box-shadow: var(--support-shadow-sm);
+}
+
+.card-header,
+.card-footer {
+  border-color: var(--support-color-border);
+  background: #fbfcfe;
+}
+
+.card-header {
+  padding: 0.9rem 1.1rem;
+}
+
+.card-body {
+  padding: 1.25rem;
+}
+
+.stat-card {
+  border: 0;
+  border-left: 4px solid var(--support-color-primary);
+}
+
+.stat-card .display-6 {
+  margin-top: 0.2rem;
+  color: var(--support-color-text);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.card-link {
+  color: inherit;
+  transition: transform var(--support-transition), box-shadow var(--support-transition);
+}
+
+.card-link:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--support-shadow-md);
+}
+
+.table {
+  --bs-table-bg: transparent;
+  --bs-table-hover-bg: #f8faff;
+  margin-bottom: 0;
+  vertical-align: middle;
+}
+
+.table thead th {
+  padding-block: 0.85rem;
+  color: var(--support-color-text-muted);
+  background: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.045em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table tbody td {
+  padding-block: 0.8rem;
+}
+
+.form-label {
+  margin-bottom: 0.4rem;
+  color: var(--support-color-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.form-control,
+.form-select {
+  min-height: 2.65rem;
+  border-color: var(--support-color-border);
+  border-radius: var(--support-radius-sm);
+  background-color: var(--support-color-surface);
+}
+
+textarea.form-control {
+  min-height: auto;
+}
+
+.form-text,
+.text-muted {
+  color: var(--support-color-text-muted) !important;
+}
+
+.alert {
+  border: 1px solid transparent;
+  border-radius: var(--support-radius-md);
+}
+
+.badge {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.list-group-item {
+  border-color: var(--support-color-border);
+}
+
+.accordion-item {
+  margin-bottom: 0.75rem;
+}
+
+.accordion-button {
+  color: var(--support-color-text);
+  font-weight: 600;
+}
+
+.accordion-button:not(.collapsed) {
+  color: var(--support-color-primary);
+  background: var(--support-color-primary-soft);
+  box-shadow: none;
+}
+
+.chat-card {
+  max-width: 960px;
+}
+
+.chat-log {
+  display: flex;
+  max-height: 560px;
+  flex-direction: column;
+  gap: 0.75rem;
+  overflow-y: auto;
+  padding: 1.25rem;
+  background: #f8fafc;
+}
+
+.chat-message {
+  max-width: min(78%, 46rem);
+  margin-bottom: 0;
+  padding: 0.8rem 1rem;
+  border: 1px solid transparent;
+  border-radius: var(--support-radius-md);
+  overflow-wrap: anywhere;
+}
+
+.chat-message.client {
+  align-self: flex-start;
+  background: #eaf1ff;
+}
+
+.chat-message.employee {
+  align-self: flex-end;
+  background: #e6f5ed;
+}
+
+.chat-message.system {
+  align-self: center;
+  background: #eef2f6;
+}
+
+.chat-message.border-warning {
+  border-color: #f0c36d !important;
+  background: #fff8e8;
+}
+
+@media (max-width: 575.98px) {
+  .card-body { padding: 1rem; }
+  .chat-message { max-width: 94%; }
+  .table { font-size: 0.875rem; }
+}
