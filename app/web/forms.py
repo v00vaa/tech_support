@@ -85,6 +85,11 @@ class RoleRouteDeleteForm(FlaskForm):
     submit = SubmitField("Удалить")
 
 
+class RolePermissionsForm(FlaskForm):
+    permissions = SelectMultipleField("Разрешения", coerce=str)
+    submit = SubmitField("Сохранить разрешения")
+
+
 class RoleForm(FlaskForm):
     code = StringField(
         "Код роли",
