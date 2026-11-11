@@ -1,0 +1,63 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="row g-4">
+  <aside class="col-md-3 col-lg-2">
+    <h1 class="h4 mb-3">Настройки</h1>
+    <div class="list-group">
+      <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
+    </div>
+  </aside>
+  <section class="col-md-9 col-lg-10">
+    <a href="{{ url_for('settings.role_list') }}" class="text-decoration-none">← Все роли</a>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
+      <div>
+        <h2 class="h3 mb-1">Разрешения роли «{{ role.name }}»</h2>
+        <p class="text-muted mb-0">Отметьте действия, которые будут доступны сотрудникам с этой ролью.</p>
+      </div>
+      <span class="badge text-bg-secondary">{{ current_codes|length }} назначено</span>
+    </div>
+
+    <div class="alert alert-info">
+      Можно назначить только те разрешения, которыми вы сами обладаете. Недоступные для делегирования права показаны отдельно и сохраняются без изменений.
+    </div>
+
+    <form method="post">
+      {{ form.hidden_tag() }}
+      {% for error in form.permissions.errors %}
+      <div class="alert alert-danger">{{ error }}</div>
+      {% endfor %}
+
+      {% for category, permissions in permission_groups %}
+      <section class="card mb-3">
+        <div class="card-header fw-semibold">{{ category }}</div>
+        <div class="list-group list-group-flush">
+          {% for permission in permissions %}
+          <label class="list-group-item d-flex gap-3 align-items-start">
+            <input class="form-check-input mt-1" type="checkbox"
+                   name="{{ form.permissions.name }}" value="{{ permission.code }}"
+                   id="permission-{{ loop.index }}-{{ loop.depth0 }}"
+                   {% if permission.code in current_codes %}checked{% endif %}
+                   {% if permission.code not in delegable_codes %}disabled{% endif %}>
+            <span class="flex-grow-1">
+              <span class="d-block fw-medium">{{ permission.name }}</span>
+              <span class="d-block small text-muted">{{ permission.description }}</span>
+              <code class="small">{{ permission.code }}</code>
+              {% if permission.code in current_codes and permission.code not in delegable_codes %}
+              <input type="hidden" name="{{ form.permissions.name }}" value="{{ permission.code }}">
+              <span class="badge text-bg-light border ms-1">Без изменения</span>
+              {% endif %}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </section>
+      {% endfor %}
+
+      <div class="d-flex gap-2">
+        {{ form.submit(class_='btn btn-primary', value='Сохранить разрешения') }}
+        <a class="btn btn-outline-secondary" href="{{ url_for('settings.role_list') }}">Отмена</a>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}
