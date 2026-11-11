@@ -57,7 +57,7 @@ def save_role(
         actor, {"roles.assign_permissions"}
     ):
         raise ValueError("У вас нет права назначать разрешения ролям.")
-    if not can_delegate_permissions(actor, requested_codes):
+    if not can_delegate_permissions(actor, requested_codes - current_codes):
         raise ValueError("Нельзя назначить разрешения, которыми вы сами не обладаете.")
 
     if role is None:
@@ -280,4 +280,37 @@ def delete_employee_safely(employee: Employee) -> None:
     """Delete an employee unless this would remove the last active administrator."""
     ensure_another_active_administrator(employee, will_remain_administrator=False)
     db.session.delete(employee)
+    db.session.commit()
+
+
+
+def update_role_permissions(
+    actor: Employee,
+    role: Role,
+    permission_codes: Iterable[str],
+) -> None:
+    """Update permissions of a custom main role without privilege escalation."""
+    if role.is_system or role.role_type != "MAIN":
+        raise ValueError("Разрешения системных и специальных ролей нельзя изменять.")
+
+    if not can_delegate_permissions(actor, {"roles.assign_permissions"}):
+        raise ValueError("У вас нет права назначать разрешения ролям.")
+
+    requested_codes = set(permission_codes)
+    permissions = (
+        db.session.scalars(
+            select(Permission).where(Permission.code.in_(requested_codes))
+        ).all()
+        if requested_codes
+        else []
+    )
+    if {permission.code for permission in permissions} != requested_codes:
+        raise ValueError("Выбрано неизвестное разрешение.")
+
+    current_codes = {permission.code for permission in role.permissions}
+    added_codes = requested_codes - current_codes
+    if not can_delegate_permissions(actor, added_codes):
+        raise ValueError("Нельзя выдать роли разрешения, которыми вы сами не обладаете.")
+
+    role.permissions = list(permissions)
     db.session.commit()
