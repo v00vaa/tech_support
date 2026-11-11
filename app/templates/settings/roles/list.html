@@ -47,7 +47,9 @@
               {% if has_permission(current_user, 'roles.view') or has_permission(current_user, 'roles.manage_routing') %}
               <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_routing', role_id=role.id, direction='incoming') }}">Получают от</a>
               {% endif %}
-              <button type="button" class="btn btn-outline-secondary btn-sm" disabled>Разрешения</button>
+              {% if has_permission(current_user, 'roles.assign_permissions') and not role.is_system %}
+              <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_permissions_edit', role_id=role.id) }}">Разрешения</a>
+              {% endif %}
             </div>
 
             {% if can_manage_role_members(current_user, role) %}
@@ -102,6 +104,23 @@
                 </tbody>
               </table>
             </div>
+            {% if role.scoped_roles %}
+            <div class="border rounded p-3 mb-3">
+              <div class="fw-semibold mb-2">Специальные возможности</div>
+              {% for special_role in role.scoped_roles|sort(attribute='role_type') %}
+              <div class="mb-2">
+                <span class="fw-medium">{{ special_role.name }}</span>
+                <span class="small text-muted">— {{ special_role.description }}</span>
+                <div class="small mt-1">
+                  {% for permission in special_role.permissions %}
+                  <span class="badge text-bg-light border">{{ permission.name }}</span>
+                  {% endfor %}
+                </div>
+              </div>
+              {% endfor %}
+            </div>
+            {% endif %}
+
             <div class="d-flex justify-content-between align-items-center">
               <div class="small text-muted">
                 Тип: {{ 'Системная' if role.is_system else 'Пользовательская' }} ·
@@ -124,6 +143,11 @@
       <div class="card-header fw-semibold">Глобальный HR</div>
       <div class="card-body">
         <p class="text-muted small">Эта специальная роль предоставляет управление составом всех основных ролей.</p>
+        <div class="small mb-2">
+          {% for permission in global_hr.permissions %}
+          <span class="badge text-bg-light border">{{ permission.name }}</span>
+          {% endfor %}
+        </div>
         {% for employee in global_hr.employees %}
         <span class="badge text-bg-secondary me-1">{{ employee.name }}</span>
         {% else %}
