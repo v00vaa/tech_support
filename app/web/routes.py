@@ -33,6 +33,7 @@ from app.services.role_service import (
     can_manage_role_members,
     manage_role_members,
     save_role,
+    update_role_permissions,
     update_employee_active_state,
 )
 from app.web.forms import (
@@ -45,6 +46,7 @@ from app.web.forms import (
     LoginForm,
     MessageForm,
     RoleForm,
+    RolePermissionsForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
     RoleRouteForm,
@@ -718,6 +720,66 @@ def role_routing_delete(role_id: int, route_id: int) -> ResponseReturnValue:
             db.session.rollback()
             flash(str(error), "danger")
     return redirect(url_for("settings.role_routing", role_id=role_id, direction="outgoing"))
+
+
+@settings_bp.route("/roles/<int:role_id>/permissions", methods=["GET", "POST"])
+@login_required
+@permission_required("roles.assign_permissions")
+def role_permissions_edit(role_id: int) -> ResponseReturnValue:
+    role = db.get_or_404(Role, role_id)
+    if role.is_system or role.role_type != "MAIN":
+        abort(403)
+
+    form = RolePermissionsForm()
+    permissions = db.session.scalars(
+        db.select(Permission).order_by(Permission.category, Permission.name)
+    ).all()
+    form.permissions.choices = [(item.code, item.name) for item in permissions]
+    current_codes = {item.code for item in role.permissions}
+    delegable_codes = {
+        item.code for item in permissions
+        if can_delegate_permissions(current_user, {item.code})
+    }
+
+    if form.validate_on_submit():
+        try:
+            update_role_permissions(
+                current_user,
+                role,
+                (str(code) for code in (form.permissions.data or [])),
+            )
+            flash("Разрешения роли обновлены.", "success")
+            return redirect(url_for("settings.role_list"))
+        except ValueError as error:
+            db.session.rollback()
+            form.permissions.errors = [*form.permissions.errors, str(error)]
+    elif not form.is_submitted():
+        form.permissions.data = sorted(current_codes)
+
+    categories = {
+        "clients": "Клиенты",
+        "employees": "Сотрудники",
+        "roles": "Роли и доступ",
+        "dialogs": "Диалоги",
+        "settings": "Настройки",
+    }
+    grouped_permissions = []
+    for category in dict.fromkeys(item.category for item in permissions):
+        grouped_permissions.append(
+            (
+                categories.get(category, category.capitalize()),
+                [item for item in permissions if item.category == category],
+            )
+        )
+
+    return render_template(
+        "settings/roles/permissions.html",
+        role=role,
+        form=form,
+        permission_groups=grouped_permissions,
+        current_codes=current_codes,
+        delegable_codes=delegable_codes,
+    )
 
 
 @settings_bp.route("/roles/create", methods=["GET", "POST"])
