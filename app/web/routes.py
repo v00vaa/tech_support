@@ -132,6 +132,8 @@ def client_register() -> ResponseReturnValue:
 
     # TODO: accept and verify a short-lived, single-use signed token instead of trusting
     # an external_id query parameter. The current lookup is intentionally demo-only.
+    # TODO: add the automatic provisioning path when the source provides all required
+    # profile data and a safe password-setup mechanism; this route is semi-automatic only.
     if external_client:
         existing_external = db.session.scalar(
             db.select(Client).where(Client.external_id == external_id)
