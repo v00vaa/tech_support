@@ -1,6 +1,6 @@
 """Browser routes split into compact entity blueprints."""
 
-from flask import Blueprint, abort, flash, redirect, render_template, url_for
+from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
@@ -40,6 +40,7 @@ from app.web.forms import (
     AssignForm,
     ChangePasswordForm,
     ClientForm,
+    ClientRegistrationForm,
     DialogForm,
     EmployeeForm,
     EmployeeRolesForm,
@@ -109,6 +110,60 @@ def index() -> ResponseReturnValue:
         or 0,
     }
     return render_template("index.html", stats=stats)
+
+
+# Prototype fixture standing in for a lookup in the customer's main system.
+# TODO: replace this static fixture with a configured integration adapter (API or read-only DB).
+_DEMO_EXTERNAL_CLIENTS = {
+    "DEMO-1001": {"external_id": "DEMO-1001", "name": "Демонстрационный клиент"},
+}
+
+
+@auth_bp.route("/register", methods=["GET", "POST"])
+def client_register() -> ResponseReturnValue:
+    """Create a local customer account using a profile from the demo main system."""
+    if current_user.is_authenticated:
+        return redirect(url_for("main.index"))
+
+    external_id = (request.args.get("external_id") or "").strip()
+    external_client = _DEMO_EXTERNAL_CLIENTS.get(external_id)
+    form = ClientRegistrationForm()
+    already_registered = False
+
+    # TODO: accept and verify a short-lived, single-use signed token instead of trusting
+    # an external_id query parameter. The current lookup is intentionally demo-only.
+    if external_client:
+        existing_external = db.session.scalar(
+            db.select(Client).where(Client.external_id == external_id)
+        )
+        if existing_external:
+            already_registered = True
+        elif form.validate_on_submit():
+            existing_email = db.session.scalar(
+                db.select(Client).where(Client.email == form.email.data)
+            )
+            if existing_email:
+                form.email.errors = [*form.email.errors, "Этот email уже используется."]
+            else:
+                assert form.email.data is not None
+                client = Client(
+                    name=external_client["name"],
+                    email=form.email.data.strip().lower(),
+                    phone=form.phone.data or None,
+                    external_id=external_id,
+                )
+                client.set_password(form.password.data)
+                db.session.add(client)
+                db.session.commit()
+                flash("Аккаунт клиента создан. Вход в клиентский кабинет будет добавлен отдельно.", "success")
+                return redirect(url_for("auth.client_register", external_id=external_id))
+
+    return render_template(
+        "auth/register.html",
+        form=form,
+        external_client=external_client,
+        already_registered=already_registered,
+    )
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
