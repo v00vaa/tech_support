@@ -10,7 +10,7 @@
         <div class="text-center mb-4">
           <span class="support-brand-mark mb-3" aria-hidden="true">S</span>
           <p class="text-uppercase text-primary small fw-semibold mb-2">Support Desk</p>
-          <h1 class="h3 mb-2">Вход в систему</h1>
+          <h1 class="h3 mb-2">Вход для сотрудников</h1>
           <p class="text-muted mb-0">
             Войдите под учётной записью сотрудника, чтобы продолжить работу.
           </p>
@@ -47,11 +47,24 @@
 
           {{ form.submit(class_="btn btn-primary btn-lg w-100") }}
         </form>
+
+        <div class="border-top mt-4 pt-4 text-center">
+          <p class="fw-semibold mb-1">Вы клиент?</p>
+          <p class="text-muted small mb-3">
+            Перейдите из основной системы по ссылке технической поддержки, чтобы создать аккаунт.
+          </p>
+          <a
+            class="btn btn-outline-primary w-100"
+            href="{{ url_for('auth.client_register', external_id='DEMO-1001') }}"
+          >
+            Открыть демонстрационную регистрацию
+          </a>
+        </div>
       </div>
     </div>
 
     <p class="text-center text-muted small mt-3 mb-0">
-      Доступ предоставляется администратором системы.
+      Доступ сотрудникам предоставляется администратором системы.
     </p>
   </div>
 </section>
