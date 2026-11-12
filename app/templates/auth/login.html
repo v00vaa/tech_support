@@ -1,1 +1,58 @@
-{% extends "layout.html" %}{% block title %}Вход · Support Desk{% endblock %}{% block content %}<div class="row justify-content-center"><div class="col-md-5"><div class="card"><div class="card-body"><h1 class="h3 mb-3">Вход сотрудника</h1><form method="post">{{ form.hidden_tag() }}{% for field in [form.email, form.password] %}<div class="mb-3">{{ field.label(class_='form-label') }}{{ field(class_='form-control') }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}{{ form.submit(class_='btn btn-primary w-100') }}</form></div></div></div></div>{% endblock %}
+{% extends "layout.html" %}
+
+{% block title %}Вход · Support Desk{% endblock %}
+
+{% block content %}
+<section class="row justify-content-center py-4 py-lg-5">
+  <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
+    <div class="card">
+      <div class="card-body p-4 p-lg-5">
+        <div class="text-center mb-4">
+          <span class="support-brand-mark mb-3" aria-hidden="true">S</span>
+          <p class="text-uppercase text-primary small fw-semibold mb-2">Support Desk</p>
+          <h1 class="h3 mb-2">Вход в систему</h1>
+          <p class="text-muted mb-0">
+            Войдите под учётной записью сотрудника, чтобы продолжить работу.
+          </p>
+        </div>
+
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+
+          <div class="mb-3">
+            {{ form.email.label(class_="form-label") }}
+            {{ form.email(
+              class_="form-control",
+              autocomplete="username",
+              inputmode="email",
+              placeholder="name@example.com",
+              autofocus=true
+            ) }}
+            {% for error in form.email.errors %}
+              <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          <div class="mb-4">
+            {{ form.password.label(class_="form-label") }}
+            {{ form.password(
+              class_="form-control",
+              autocomplete="current-password",
+              placeholder="Введите пароль"
+            ) }}
+            {% for error in form.password.errors %}
+              <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+            {% endfor %}
+          </div>
+
+          {{ form.submit(class_="btn btn-primary btn-lg w-100") }}
+        </form>
+      </div>
+    </div>
+
+    <p class="text-center text-muted small mt-3 mb-0">
+      Доступ предоставляется администратором системы.
+    </p>
+  </div>
+</section>
+{% endblock %}
