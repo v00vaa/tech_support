@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING
 
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from app.extensions import Base
 
@@ -14,12 +15,27 @@ if TYPE_CHECKING:
 
 
 class Client(Base):
+    """Customer profile and local Support Desk credentials."""
+
     __tablename__ = "clients"
 
     id: Mapped[int] = mapped_column(primary_key=True)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     phone: Mapped[str | None] = mapped_column(String(40))
+    # Nullable to keep existing manually-created prototype records compatible.
+    password_hash: Mapped[str | None] = mapped_column(String(255))
+    # External identity is supplied by the main-system registration link.
+    external_id: Mapped[str | None] = mapped_column(String(128), unique=True)
+
     dialogs: Mapped[list[Dialog]] = relationship(
         back_populates="client", cascade="all, delete-orphan"
     )
+
+    def set_password(self, password: str) -> None:
+        """Store a password hash; never persist the raw password."""
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password: str) -> bool:
+        """Check a password for a registered customer account."""
+        return bool(self.password_hash and check_password_hash(self.password_hash, password))
