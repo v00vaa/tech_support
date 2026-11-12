@@ -23,6 +23,22 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Войти")
 
 
+class ClientRegistrationForm(FlaskForm):
+    """Fields entered by a customer after arriving from the main system."""
+
+    email = StringField("Email для связи", validators=[DataRequired(), Email(), Length(max=255)])
+    phone = StringField("Телефон", validators=[Optional(), Length(max=40)])
+    password = PasswordField(
+        "Пароль",
+        validators=[DataRequired(), Length(min=12, max=128)],
+    )
+    confirm_password = PasswordField(
+        "Повторите пароль",
+        validators=[DataRequired(), EqualTo("password", message="Пароли не совпадают.")],
+    )
+    submit = SubmitField("Создать аккаунт")
+
+
 class ChangePasswordForm(FlaskForm):
     current_password = PasswordField("Текущий пароль", validators=[DataRequired()])
     new_password = PasswordField(
