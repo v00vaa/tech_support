@@ -7,14 +7,31 @@ Create Date: 2026-10-08
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "20261008_01"
 down_revision = None
 branch_labels = None
 depends_on = None
 
-dialog_status = sa.Enum("OPEN", "IN_PROGRESS", "WAITING_CLIENT", "WAITING_EMPLOYEE", "RESOLVED", "CLOSED", name="dialogstatus")
-author_type = sa.Enum("CLIENT", "EMPLOYEE", "SYSTEM", name="authortype")
+dialog_status = postgresql.ENUM(
+    "OPEN",
+    "IN_PROGRESS",
+    "WAITING_CLIENT",
+    "WAITING_EMPLOYEE",
+    "RESOLVED",
+    "CLOSED",
+    name="dialogstatus",
+    create_type=False,
+)
+
+author_type = postgresql.ENUM(
+    "CLIENT",
+    "EMPLOYEE",
+    "SYSTEM",
+    name="authortype",
+    create_type=False,
+)
 
 
 def upgrade() -> None:
