@@ -155,7 +155,11 @@ def client_register() -> ResponseReturnValue:
                 client.set_password(form.password.data)
                 db.session.add(client)
                 db.session.commit()
-                flash("Аккаунт клиента создан. Вход в клиентский кабинет будет добавлен отдельно.", "success")
+                # TODO: implement client-specific login, password recovery, and the customer portal.
+                flash(
+                    "Аккаунт клиента создан. Вход в клиентский кабинет будет добавлен отдельно.",
+                    "success",
+                )
                 return redirect(url_for("auth.client_register", external_id=external_id))
 
     return render_template(
