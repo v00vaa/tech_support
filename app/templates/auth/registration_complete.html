@@ -1,0 +1,28 @@
+{% extends "layout.html" %}
+
+{% block title %}Регистрация завершена · Support Desk{% endblock %}
+
+{% block content %}
+<section class="row justify-content-center py-5">
+  <div class="col-12 col-md-8 col-lg-6">
+    <div class="card">
+      <div class="card-body p-4 p-lg-5 text-center">
+        <div class="mb-3 text-success" aria-hidden="true">
+          <span class="display-4">✓</span>
+        </div>
+        <h1 class="h3 mb-3">Регистрация завершена</h1>
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'warning' if category == 'warning' else ('info' if category == 'info' else 'success') }}" role="status">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endwith %}
+        <p class="small text-muted mb-0">
+          Авторизация клиентов и личный кабинет будут подключены отдельным этапом.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
