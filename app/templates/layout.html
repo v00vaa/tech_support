@@ -4,6 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffffff">
+  {% if request.endpoint == "auth.client_register" and request.args.get("token") %}
+    <script>history.replaceState(null, "", window.location.pathname);</script>
+  {% endif %}
   <title>{% block title %}Техническая поддержка{% endblock %}</title>
 
   <link
@@ -40,7 +43,9 @@
     Support Desk Prototype · учебный проект
   </footer>
 
+  {% block vendor_scripts %}
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  {% endblock %}
   <script src="{{ url_for('static', filename='js/app.js') }}"></script>
   {% block scripts %}{% endblock %}
 </body>
