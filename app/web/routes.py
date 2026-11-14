@@ -34,15 +34,15 @@ from app.models import (
     RoleRoute,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
-from app.services.registration_provider import (
-    RegistrationProviderError,
-    RegistrationTokenInvalid,
-    get_registration_provider,
-)
 from app.services.access_control_service import (
     can_delegate_permissions,
     has_permission,
     permission_required,
+)
+from app.services.registration_provider import (
+    RegistrationProviderError,
+    RegistrationTokenInvalid,
+    get_registration_provider,
 )
 from app.services.routing_service import (
     delete_role_route,
@@ -61,17 +61,17 @@ from app.web.forms import (
     AssignForm,
     ChangePasswordForm,
     ClientForm,
-    ClientRegistrationForm,
     DialogForm,
     DialogRouteForm,
     EmployeeForm,
     EmployeeRolesForm,
     LoginForm,
     MessageForm,
-    RegistrationSettingsForm,
-    ClientLoginForm,
     ClientDialogForm,
+    ClientLoginForm,
+    ClientRegistrationForm,
     ClientReplyForm,
+    RegistrationSettingsForm,
     RoleForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
