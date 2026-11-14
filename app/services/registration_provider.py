@@ -106,7 +106,8 @@ class HttpRegistrationProvider:
         )
         try:
             with urlopen(request, timeout=self.timeout) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+                raw_body = response.read()
+                payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
         except HTTPError as error:
             if error.code in {404, 410}:
                 raise RegistrationTokenInvalid("Registration token is invalid or expired") from error
