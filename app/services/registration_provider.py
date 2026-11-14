@@ -110,7 +110,9 @@ class HttpRegistrationProvider:
                 payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
         except HTTPError as error:
             if error.code in {404, 410}:
-                raise RegistrationTokenInvalid("Registration token is invalid or expired") from error
+                raise RegistrationTokenInvalid(
+                    "Registration token is invalid or expired"
+                ) from error
             raise RegistrationProviderError(
                 f"Primary system returned HTTP {error.code}"
             ) from error
