@@ -23,6 +23,29 @@ class LoginForm(FlaskForm):
     submit = SubmitField("Войти")
 
 
+class ClientLoginForm(FlaskForm):
+    """Credentials form for customer accounts."""
+
+    login = StringField("Логин", validators=[DataRequired(), Length(min=3, max=80)])
+    password = PasswordField("Пароль", validators=[DataRequired()])
+    submit = SubmitField("Войти")
+
+
+class ClientDialogForm(FlaskForm):
+    """Form for creating a support request from the customer portal."""
+
+    subject = StringField("Тема обращения", validators=[DataRequired(), Length(max=255)])
+    message = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
+    submit = SubmitField("Создать обращение")
+
+
+class ClientReplyForm(FlaskForm):
+    """Customer reply form without any internal-note controls."""
+
+    text = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
+    submit = SubmitField("Отправить")
+
+
 class ClientRegistrationForm(FlaskForm):
     """Customer registration fields; enabled contact methods are validated by the route."""
 
