@@ -330,6 +330,9 @@ def login() -> ResponseReturnValue:
         "auth/login.html",
         form=form,
         registration_settings=_get_registration_settings(),
+        registration_demo_enabled=(
+            current_app.config["REGISTRATION_PROVIDER_MODE"] == "mock"
+        ),
     )
 
 
