@@ -1,6 +1,6 @@
 """Browser routes split into compact entity blueprints."""
 
-from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
+from flask import Blueprint, abort, current_app, flash, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
@@ -19,6 +19,11 @@ from app.models import (
     RoleRoute,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
+from app.services.registration_provider import (
+    RegistrationProviderError,
+    RegistrationTokenInvalid,
+    get_registration_provider,
+)
 from app.services.access_control_service import (
     can_delegate_permissions,
     has_permission,
@@ -114,21 +119,6 @@ def index() -> ResponseReturnValue:
     return render_template("index.html", stats=stats)
 
 
-# Demo token fixtures simulate one-time credentials issued by the main system.
-# TODO: replace this mapping with a server-to-server integration and hashed, expiring token storage.
-# TODO: exchange the link code for a short-lived profile token; call the profile GET over HTTPS
-# using Authorization headers plus service authentication (mTLS/client credentials), never put
-# API credentials in the URL, validate issuer/audience/expiry, and redact tokens from logs.
-_DEMO_REGISTRATION_TOKENS = {
-    "DEMO-TOKEN-1001": {
-        "external_id": "DEMO-1001",
-        "name": "Демонстрационный клиент",
-        "email": None,
-        "phone": None,
-    },
-}
-
-
 def _get_registration_settings() -> RegistrationSettings:
     """Return the singleton registration settings row, creating defaults if needed."""
     settings = db.session.get(RegistrationSettings, 1)
@@ -139,90 +129,116 @@ def _get_registration_settings() -> RegistrationSettings:
     return settings
 
 
+def _load_external_client(token: str) -> dict[str, str | None]:
+    """Fetch the profile from the configured main-system adapter."""
+    try:
+        profile = get_registration_provider().get_profile(token)
+    except RegistrationTokenInvalid:
+        abort(400, description="Ссылка регистрации недействительна или устарела.")
+    except RegistrationProviderError:
+        current_app.logger.exception("Main-system registration profile request failed")
+        abort(503, description="Сервис основной системы временно недоступен.")
+    return {
+        "external_id": profile.external_id,
+        "name": profile.name,
+        "email": profile.email,
+        "phone": profile.phone,
+    }
+
+
+def _redeem_registration_token(token: str, external_id: str) -> bool:
+    """Redeem after local account creation; the provider operation must be idempotent."""
+    try:
+        get_registration_provider().redeem_token(
+            token,
+            idempotency_key=f"support-client-{external_id}",
+        )
+    except RegistrationTokenInvalid:
+        current_app.logger.warning(
+            "Registration token redemption rejected for external client %s", external_id
+        )
+        return False
+    except RegistrationProviderError:
+        current_app.logger.exception(
+            "Could not redeem registration token for external client %s", external_id
+        )
+        return False
+    return True
+
+
 @auth_bp.route("/register", methods=["GET", "POST"])
 def client_register() -> ResponseReturnValue:
-    """Render manual registration or confirmation of a main-system profile."""
+    """Register a client manually or confirm a profile fetched from the main system."""
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
 
     settings = _get_registration_settings()
     token = (request.args.get("token") or "").strip()
-    external_client = _DEMO_REGISTRATION_TOKENS.get(token) if token else None
     automatic_mode = bool(token)
 
     if automatic_mode and not settings.automatic_enabled:
         abort(404)
     if not automatic_mode and not settings.manual_enabled:
         abort(404)
-    if automatic_mode and external_client is None:
-        abort(400, description="Ссылка регистрации недействительна или устарела.")
 
+    external_client = _load_external_client(token) if automatic_mode else None
     form = ClientRegistrationForm()
-    already_registered = False
+    if external_client and request.method == "GET":
+        form.name.data = external_client["name"] or ""
+        form.email.data = external_client["email"] or ""
+        form.phone.data = external_client["phone"] or ""
+
+    existing_client = None
     if external_client:
-        existing_external = db.session.scalar(
+        existing_client = db.session.scalar(
             db.select(Client).where(Client.external_id == external_client["external_id"])
         )
-        already_registered = existing_external is not None
-        if external_client.get("email"):
-            form.email.data = external_client["email"]
-        if external_client.get("phone"):
-            form.phone.data = external_client["phone"]
-        if external_client.get("name"):
-            form.name.data = external_client["name"]
 
-    if not already_registered and form.validate_on_submit():
-        errors = []
+    if existing_client is not None:
+        if _redeem_registration_token(token, str(external_client["external_id"])):
+            flash("Этот профиль уже зарегистрирован. Ссылка регистрации больше не действует.", "info")
+        else:
+            flash(
+                "Аккаунт уже создан, но подтвердить использование ссылки в основной системе "
+                "не удалось. Повторите попытку позже или обратитесь к администратору.",
+                "warning",
+            )
+        return redirect(url_for("auth.login"))
+
+    if form.validate_on_submit():
+        errors: list[str] = []
         email = (form.email.data or "").strip().lower() if settings.email_enabled else None
         phone = (form.phone.data or "").strip() if settings.phone_enabled else None
         if not email and not phone:
             errors.append("Укажите хотя бы один доступный способ связи.")
-        if email and db.session.scalar(db.select(Client).where(func.lower(Client.email) == email)):
+        if email and db.session.scalar(
+            db.select(Client).where(func.lower(Client.email) == email)
+        ):
             errors.append("Этот email уже используется.")
         if phone and db.session.scalar(db.select(Client).where(Client.phone == phone)):
             errors.append("Этот телефон уже используется.")
+
         login_value = (form.login.data or "").strip().casefold()
-        if db.session.scalar(db.select(Client).where(Client.login == login_value)):
+        if db.session.scalar(db.select(Client).where(func.lower(Client.login) == login_value)):
             errors.append("Этот логин уже используется.")
+
         request_name = (form.name.data or "").strip()
         if settings.collect_request_details and not request_name:
             errors.append("Укажите имя для обращений.")
 
         if errors:
-            form.login.errors = [
-                *form.login.errors,
-                *[error for error in errors if "логин" in error.lower()],
-            ]
-            form.email.errors = [
-                *form.email.errors,
-                *[error for error in errors if "email" in error.lower()],
-            ]
-            form.phone.errors = [
-                *form.phone.errors,
-                *[error for error in errors if "телефон" in error.lower()],
-            ]
-            form.name.errors = [
-                *form.name.errors,
-                *[error for error in errors if "имя" in error.lower()],
-            ]
+            form.login.errors = [*form.login.errors, *[e for e in errors if "логин" in e.lower()]]
+            form.email.errors = [*form.email.errors, *[e for e in errors if "email" in e.lower()]]
+            form.phone.errors = [*form.phone.errors, *[e for e in errors if "телефон" in e.lower()]]
+            form.name.errors = [*form.name.errors, *[e for e in errors if "имя" in e.lower()]]
             if any("способ связи" in e for e in errors):
-                if settings.email_enabled:
-                    form.email.errors = [
-                        *form.email.errors,
-                        "Укажите хотя бы один доступный способ связи.",
-                    ]
-                else:
-                    form.phone.errors = [
-                        *form.phone.errors,
-                        "Укажите хотя бы один доступный способ связи.",
-                    ]
+                target = form.email if settings.email_enabled else form.phone
+                target.errors = [*target.errors, "Укажите хотя бы один доступный способ связи."]
         else:
-            # When request details are disabled, the login is also the local display name.
-            if settings.collect_request_details:
-                name = request_name
-            else:
-                name = login_value
+            if automatic_mode and not external_client:
+                abort(400)
 
+            name = request_name if settings.collect_request_details else login_value
             client = Client(
                 name=name,
                 login=login_value,
@@ -232,18 +248,24 @@ def client_register() -> ResponseReturnValue:
             )
             client.set_password(form.password.data)
             db.session.add(client)
-            db.session.commit()
-            # TODO: send contact verification (email/SMS) before activating the account.
-            # TODO: add client login/session support; current Flask-Login loader handles employees.
-            flash(
-                "Аккаунт клиента создан. Авторизация клиента будет подключена следующим этапом.",
-                "success",
-            )
-            return redirect(
-                url_for("auth.client_register", token=token)
-                if automatic_mode
-                else url_for("auth.client_register")
-            )
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+                raise
+
+            if automatic_mode and not _redeem_registration_token(
+                token, str(external_client["external_id"])
+            ):
+                flash(
+                    "Аккаунт создан, но основная система пока не подтвердила использование "
+                    "ссылки. Не создавайте повторный аккаунт; обратитесь к администратору.",
+                    "warning",
+                )
+            else:
+                flash("Аккаунт клиента создан. Теперь можно войти в клиентский кабинет.", "success")
+            # Do not keep the bearer token in the address bar after the POST.
+            return redirect(url_for("auth.login"))
 
     response = make_response(
         render_template(
@@ -252,12 +274,13 @@ def client_register() -> ResponseReturnValue:
             settings=settings,
             external_client=external_client,
             automatic_mode=automatic_mode,
-            already_registered=already_registered,
+            already_registered=False,
         )
     )
-    # Registration URLs may contain temporary credentials; avoid caching and Referer leakage.
-    response.headers["Cache-Control"] = "no-store"
+    response.headers["Cache-Control"] = "no-store, private"
+    response.headers["Pragma"] = "no-cache"
     response.headers["Referrer-Policy"] = "no-referrer"
+    response.headers["X-Content-Type-Options"] = "nosniff"
     return response
 
 
