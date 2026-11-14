@@ -1,6 +1,7 @@
 """Browser routes split into compact entity blueprints."""
 
 from collections.abc import Callable
+from datetime import UTC, datetime
 from functools import wraps
 from typing import Any
 
@@ -448,6 +449,7 @@ def dialog_create() -> ResponseReturnValue:
         )
         db.session.add(dialog)
         db.session.flush()
+        dialog.updated_at = datetime.now(UTC)
         db.session.add(
             Message(
                 dialog_id=dialog.id,
@@ -481,6 +483,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         if dialog.status == DialogStatus.CLOSED:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
+            dialog.updated_at = datetime.now(UTC)
             db.session.add(
                 Message(
                     dialog_id=dialog.id,
