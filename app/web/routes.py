@@ -165,6 +165,8 @@ def client_register() -> ResponseReturnValue:
             form.email.data = external_client["email"]
         if external_client.get("phone"):
             form.phone.data = external_client["phone"]
+        if external_client.get("name"):
+            form.name.data = external_client["name"]
 
     if not already_registered and form.validate_on_submit():
         errors = []
@@ -185,7 +187,16 @@ def client_register() -> ResponseReturnValue:
             form.email.errors = [*form.email.errors, *[e for e in errors if "email" in e.lower()]]
             form.phone.errors = [*form.phone.errors, *[e for e in errors if "телефон" in e.lower()]]
             if any("способ связи" in e for e in errors):
-                form.email.errors = [*form.email.errors, "Укажите хотя бы один доступный способ связи."]
+                if settings.email_enabled:
+                    form.email.errors = [
+                        *form.email.errors,
+                        "Укажите хотя бы один доступный способ связи.",
+                    ]
+                else:
+                    form.phone.errors = [
+                        *form.phone.errors,
+                        "Укажите хотя бы один доступный способ связи.",
+                    ]
         else:
             # When request details are disabled, the login is also the local display name.
             if settings.collect_request_details:
