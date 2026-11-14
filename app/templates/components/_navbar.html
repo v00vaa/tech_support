@@ -48,7 +48,7 @@
           )
         %}
         <li class="nav-item">
-          <a class="nav-link" href="{{ url_for('settings.settings_index') }}">Настройки</a>
+          <a class="nav-link" href="{% if has_permission(current_user, 'settings.view') %}{{ url_for('settings.settings_index') }}{% else %}{{ url_for('settings.role_list') }}{% endif %}">Настройки</a>
         </li>
         {% endif %}
 
