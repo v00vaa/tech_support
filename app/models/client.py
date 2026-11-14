@@ -36,6 +36,10 @@ class Client(Base):
     )
 
     @property
+    def account_type(self) -> str:
+        return "client"
+
+    @property
     def is_authenticated(self) -> bool:
         return True
 
