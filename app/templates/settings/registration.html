@@ -1,0 +1,72 @@
+{% extends "layout.html" %}
+
+{% block title %}Настройки регистрации · Support Desk{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <aside class="col-md-3 col-lg-2">
+    <h1 class="h4 mb-3">Настройки</h1>
+    <div class="list-group">
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_index') }}">Общие</a>
+      <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.registration_settings') }}">Регистрация</a>
+      {% if has_permission(current_user, 'roles.view') %}
+        <a class="list-group-item list-group-item-action" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% endif %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section='integrations') }}">Интеграции</a>
+    </div>
+  </aside>
+  <section class="col-md-9 col-lg-8">
+    <div class="mb-4">
+      <p class="text-uppercase text-primary small fw-semibold mb-2">Клиентские аккаунты</p>
+      <h2 class="h3 mb-2">Настройки регистрации</h2>
+      <p class="text-muted mb-0">Выберите доступные способы создания учётных записей и контактные данные клиентов.</p>
+    </div>
+    <form method="post" novalidate>
+      {{ form.hidden_tag() }}
+      <div class="card mb-4">
+        <div class="card-header bg-transparent"><h3 class="h6 mb-0">Режимы регистрации</h3></div>
+        <div class="card-body">
+          <div class="form-check form-switch mb-3">
+            {{ form.automatic_enabled(class_="form-check-input", role="switch") }}
+            {{ form.automatic_enabled.label(class_="form-check-label fw-semibold") }}
+            <div class="form-text">Переход по ссылке из основной системы с токеном и предварительно полученными данными клиента.</div>
+          </div>
+          <div class="form-check form-switch">
+            {{ form.manual_enabled(class_="form-check-input", role="switch") }}
+            {{ form.manual_enabled.label(class_="form-check-label fw-semibold") }}
+            <div class="form-text">Самостоятельное создание аккаунта на странице Support Desk.</div>
+          </div>
+          <div class="form-text mt-3">Оба режима можно включить одновременно. Если оба отключены, новые регистрации будут недоступны.</div>
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header bg-transparent"><h3 class="h6 mb-0">Способы связи</h3></div>
+        <div class="card-body">
+          <p class="text-muted small">Должен быть включён хотя бы один способ связи. Клиенту достаточно заполнить один из включённых способов.</p>
+          <div class="form-check form-switch mb-3">
+            {{ form.email_enabled(class_="form-check-input", role="switch") }}
+            {{ form.email_enabled.label(class_="form-check-label") }}
+          </div>
+          <div class="form-check form-switch">
+            {{ form.phone_enabled(class_="form-check-input", role="switch") }}
+            {{ form.phone_enabled.label(class_="form-check-label") }}
+          </div>
+          {% for error in form.email_enabled.errors %}<div class="text-danger small mt-2" role="alert">{{ error }}</div>{% endfor %}
+          {% for error in form.phone_enabled.errors %}<div class="text-danger small mt-2" role="alert">{{ error }}</div>{% endfor %}
+        </div>
+      </div>
+      <div class="card mb-4">
+        <div class="card-header bg-transparent"><h3 class="h6 mb-0">Данные клиента</h3></div>
+        <div class="card-body">
+          <div class="form-check form-switch">
+            {{ form.collect_request_details(class_="form-check-input", role="switch") }}
+            {{ form.collect_request_details.label(class_="form-check-label fw-semibold") }}
+            <div class="form-text">Если отключено, отдельное имя для обращений не запрашивается: в качестве отображаемого имени используется логин.</div>
+          </div>
+        </div>
+      </div>
+      {{ form.submit(class_="btn btn-primary") }}
+    </form>
+  </section>
+</div>
+{% endblock %}
