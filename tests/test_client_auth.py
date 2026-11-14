@@ -181,3 +181,18 @@ def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None
         assert message is not None
         assert message.author_type == AuthorType.CLIENT
         assert message.is_internal is False
+
+
+
+def test_employee_and_customer_session_ids_are_namespaced() -> None:
+    customer = Client(id=7, name="Customer", login="customer")
+    employee = Employee(
+        id=7,
+        name="Employee",
+        email="employee@example.com",
+        position="Support",
+        password_hash="hash",
+    )
+
+    assert customer.get_id() == "client:7"
+    assert employee.get_id() == "employee:7"
