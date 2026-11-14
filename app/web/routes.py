@@ -203,7 +203,7 @@ def client_register() -> ResponseReturnValue:
                 "не удалось. Повторите попытку позже или обратитесь к администратору.",
                 "warning",
             )
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.client_registration_complete"))
 
     if form.validate_on_submit():
         errors: list[str] = []
@@ -263,9 +263,13 @@ def client_register() -> ResponseReturnValue:
                     "warning",
                 )
             else:
-                flash("Аккаунт клиента создан. Теперь можно войти в клиентский кабинет.", "success")
+                flash(
+                    "Аккаунт клиента создан. Вход в клиентский кабинет будет доступен "
+                    "после подключения клиентской авторизации.",
+                    "success",
+                )
             # Do not keep the bearer token in the address bar after the POST.
-            return redirect(url_for("auth.login"))
+            return redirect(url_for("auth.client_registration_complete"))
 
     response = make_response(
         render_template(
@@ -281,6 +285,15 @@ def client_register() -> ResponseReturnValue:
     response.headers["Pragma"] = "no-cache"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@auth_bp.get("/register/complete")
+def client_registration_complete() -> ResponseReturnValue:
+    """Show registration result without redirecting customers to employee login."""
+    response = make_response(render_template("auth/registration_complete.html"))
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
     return response
 
 
