@@ -47,6 +47,10 @@ class Employee(Base):
     )
 
     @property
+    def account_type(self) -> str:
+        return "employee"
+
+    @property
     def is_authenticated(self) -> bool:
         return True
 
