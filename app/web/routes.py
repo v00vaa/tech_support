@@ -5,6 +5,7 @@ from flask import (
     abort,
     current_app,
     flash,
+    get_flashed_messages,
     make_response,
     redirect,
     render_template,
@@ -307,7 +308,12 @@ def client_register() -> ResponseReturnValue:
 @auth_bp.get("/register/complete")
 def client_registration_complete() -> ResponseReturnValue:
     """Show registration result without redirecting customers to employee login."""
-    response = make_response(render_template("auth/registration_complete.html"))
+    messages = get_flashed_messages(with_categories=True)
+    if not messages:
+        return redirect(url_for("auth.login"))
+    response = make_response(
+        render_template("auth/registration_complete.html", messages=messages)
+    )
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
