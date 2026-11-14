@@ -69,6 +69,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         if isinstance(user, Client):
             allowed = {
                 "auth.client_login",
+                "auth.login",
                 "auth.client_register",
                 "auth.client_registration_complete",
                 "auth.logout",
