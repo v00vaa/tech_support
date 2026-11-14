@@ -55,7 +55,7 @@ class Employee(Base):
         return False
 
     def get_id(self) -> str:
-        return str(self.id)
+        return f"employee:{self.id}"
 
     def set_password(self, password: str) -> None:
         self.password_hash = generate_password_hash(password)
