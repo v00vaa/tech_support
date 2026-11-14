@@ -6,7 +6,7 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Message
+from app.models import AuthorType, Client, Dialog, Employee, Message
 
 
 @pytest.fixture
@@ -18,7 +18,14 @@ def customer_records(app: Flask) -> Iterator[tuple[int, int]]:
         customer.set_password("correct-horse-battery")
         other = Client(name="Customer Two", login="customer-two", email="two@example.com")
         other.set_password("another-correct-password")
-        db.session.add_all([customer, other])
+        employee = Employee(
+            name="Support Employee",
+            email="employee@example.com",
+            position="Support",
+            password_hash="",
+        )
+        employee.set_password("employee-password")
+        db.session.add_all([customer, other, employee])
         db.session.flush()
 
         dialog = Dialog(client_id=other.id, subject="Private request", channel="Web")
@@ -85,3 +92,14 @@ def test_customer_login_rejects_invalid_password(client, customer_records) -> No
 
     assert response.status_code == 200
     assert b"Неверный логин или пароль" in response.data
+
+
+
+def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
+    response = client.post(
+        "/login",
+        data={"email": "employee@example.com", "password": "employee-password"},
+    )
+
+    assert response.status_code == 302
+    assert client.get("/portal/").status_code == 403
