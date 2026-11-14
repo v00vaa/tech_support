@@ -48,18 +48,21 @@
           {{ form.submit(class_="btn btn-primary btn-lg w-100") }}
         </form>
 
+        {% if registration_settings.manual_enabled or registration_settings.automatic_enabled %}
         <div class="border-top mt-4 pt-4 text-center">
           <p class="fw-semibold mb-1">Вы клиент?</p>
-          <p class="text-muted small mb-3">
-            Перейдите из основной системы по ссылке технической поддержки, чтобы создать аккаунт.
-          </p>
-          <a
-            class="btn btn-outline-primary w-100"
-            href="{{ url_for('auth.client_register', external_id='DEMO-1001') }}"
-          >
-            Открыть демонстрационную регистрацию
-          </a>
+          {% if registration_settings.manual_enabled %}
+            <a class="btn btn-outline-primary w-100 mb-2" href="{{ url_for('auth.client_register') }}">
+              Создать аккаунт вручную
+            </a>
+          {% endif %}
+          {% if registration_settings.automatic_enabled %}
+            <a class="small" href="{{ url_for('auth.client_register', token='DEMO-TOKEN-1001') }}">
+              Открыть демонстрационный переход из основной системы
+            </a>
+          {% endif %}
         </div>
+        {% endif %}
       </div>
     </div>
 
