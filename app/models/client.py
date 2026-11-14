@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import String, UniqueConstraint
+from sqlalchemy import Boolean, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -29,10 +29,23 @@ class Client(Base):
     password_hash: Mapped[str | None] = mapped_column(String(255))
     # External identity is supplied by the main-system registration link.
     external_id: Mapped[str | None] = mapped_column(String(128))
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     dialogs: Mapped[list[Dialog]] = relationship(
         back_populates="client", cascade="all, delete-orphan"
     )
+
+    @property
+    def is_authenticated(self) -> bool:
+        return True
+
+    @property
+    def is_anonymous(self) -> bool:
+        return False
+
+    def get_id(self) -> str:
+        """Return a namespaced Flask-Login identity to avoid employee ID collisions."""
+        return f"client:{self.id}"
 
     def set_password(self, password: str) -> None:
         """Store a password hash; never persist the raw password."""
