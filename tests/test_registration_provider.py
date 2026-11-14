@@ -42,7 +42,8 @@ def test_http_provider_sends_both_credentials_and_parses_profile() -> None:
     assert isinstance(request, Request)
     assert request.get_method() == "GET"
     assert request.get_header("Authorization") == "Bearer service-secret"
-    assert request.headers["X-registration-token"] == "one-time-token"
+    assert request.unredirected_hdrs["X-registration-token"] == "one-time-token"
+    assert request.unredirected_hdrs["Authorization"] == "Bearer service-secret"
     assert profile.external_id == "customer-42"
 
 
@@ -59,5 +60,6 @@ def test_http_provider_redeems_with_idempotency_key_and_accepts_empty_body() -> 
         provider.redeem_token("one-time-token", idempotency_key="support-client-42")
     request = opener.call_args.args[0]
     assert request.get_method() == "POST"
-    assert request.headers["Idempotency-key"] == "support-client-42"
+    assert request.unredirected_hdrs["Idempotency-key"] == "support-client-42"
+    assert request.unredirected_hdrs["X-registration-token"] == "one-time-token"
     assert request.data == b"{}"
