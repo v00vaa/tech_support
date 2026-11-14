@@ -1,0 +1,40 @@
+{% extends "layout.html" %}
+
+{% block title %}{{ dialog.subject }} · Support Desk{% endblock %}
+
+{% block content %}
+<section class="mb-3 d-flex justify-content-between align-items-start gap-3">
+  <div>
+    <a href="{{ url_for('portal.index') }}" class="small text-decoration-none">← Мои обращения</a>
+    <h1 class="h3 mt-2 mb-1">{{ dialog.subject }}</h1>
+    <span class="badge text-bg-primary">{{ dialog.status.value.replace('_', ' ') }}</span>
+  </div>
+</section>
+
+<div class="card chat-card">
+  <div class="card-header">Переписка со службой поддержки</div>
+  <div class="card-body chat-log">
+    {% for message in messages %}
+      <div class="chat-message {{ message.author_type.value|lower }}">
+        <div class="small fw-bold">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Сотрудник поддержки' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
+        <div>{{ message.text }}</div>
+        <div class="small text-muted">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+      </div>
+    {% else %}
+      <p class="text-muted">Сообщений пока нет.</p>
+    {% endfor %}
+  </div>
+  {% if dialog.status.value != 'CLOSED' %}
+    <div class="card-footer">
+      <form method="post" novalidate>
+        {{ form.hidden_tag() }}
+        {{ form.text(class_="form-control mb-2", rows="3", placeholder="Введите сообщение…") }}
+        {% for error in form.text.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
+        {{ form.submit(class_="btn btn-primary") }}
+      </form>
+    </div>
+  {% else %}
+    <div class="card-footer text-muted">Обращение закрыто. Создайте новое обращение, если нужна помощь.</div>
+  {% endif %}
+</div>
+{% endblock %}
