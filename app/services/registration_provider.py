@@ -89,8 +89,7 @@ class HttpRegistrationProvider:
     ) -> dict[str, object]:
         headers = {
             "Accept": "application/json",
-            "Authorization": f"Bearer {self.service_token}",
-            "X-Registration-Token": handoff_token,
+            "Cache-Control": "no-store",
         }
         body = None
         if method == "POST":
@@ -104,6 +103,11 @@ class HttpRegistrationProvider:
             headers=headers,
             method=method,
         )
+        # Keep credentials out of redirect forwarding by urllib's redirect handler.
+        request.add_unredirected_header("Authorization", f"Bearer {self.service_token}")
+        request.add_unredirected_header("X-Registration-Token", handoff_token)
+        if idempotency_key:
+            request.add_unredirected_header("Idempotency-Key", idempotency_key)
         try:
             with urlopen(request, timeout=self.timeout) as response:
                 raw_body = response.read()
