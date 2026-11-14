@@ -56,7 +56,7 @@
               Создать аккаунт вручную
             </a>
           {% endif %}
-          {% if registration_settings.automatic_enabled %}
+          {% if registration_settings.automatic_enabled and registration_demo_enabled %}
             <a class="small" href="{{ url_for('auth.client_register', token='DEMO-TOKEN-1001') }}">
               Открыть демонстрационный переход из основной системы
             </a>
