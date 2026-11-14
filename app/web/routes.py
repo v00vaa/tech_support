@@ -183,7 +183,9 @@ def client_register() -> ResponseReturnValue:
         return redirect(url_for("main.index"))
 
     settings = _get_registration_settings()
-    token = (request.args.get("token") or "").strip()
+    token = (
+        request.args.get("token") or request.form.get("registration_token") or ""
+    ).strip()
     automatic_mode = bool(token)
 
     if automatic_mode and not settings.automatic_enabled:
@@ -292,6 +294,7 @@ def client_register() -> ResponseReturnValue:
             external_client=external_client,
             automatic_mode=automatic_mode,
             already_registered=False,
+            registration_token=token if automatic_mode else "",
         )
     )
     response.headers["Cache-Control"] = "no-store, private"
