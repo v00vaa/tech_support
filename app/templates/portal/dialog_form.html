@@ -1,0 +1,32 @@
+{% extends "layout.html" %}
+
+{% block title %}Новое обращение · Support Desk{% endblock %}
+
+{% block content %}
+<section class="row justify-content-center py-4">
+  <div class="col-12 col-lg-8">
+    <div class="card">
+      <div class="card-body p-4">
+        <h1 class="h3 mb-4">Новое обращение</h1>
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.subject.label(class_="form-label") }}
+            {{ form.subject(class_="form-control", maxlength="255") }}
+            {% for error in form.subject.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="mb-4">
+            {{ form.message.label(class_="form-label") }}
+            {{ form.message(class_="form-control", rows="6") }}
+            {% for error in form.message.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="d-flex gap-2">
+            {{ form.submit(class_="btn btn-primary") }}
+            <a class="btn btn-outline-secondary" href="{{ url_for('portal.index') }}">Отмена</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</section>
+{% endblock %}
