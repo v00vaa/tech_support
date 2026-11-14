@@ -33,13 +33,15 @@ class Settings(BaseSettings):
         """Avoid enabling Flask debug mode in a production process."""
         if self.environment == "production" and self.debug:
             raise ValueError("SUPPORT_DEBUG cannot be enabled in production")
-        if self.environment == "production":
-            if self.registration_provider != "http":
-                raise ValueError("Production requires SUPPORT_REGISTRATION_PROVIDER=http")
+        if self.registration_provider == "http":
             if not self.registration_api_base_url or not self.registration_service_token:
                 raise ValueError(
-                    "Production registration integration requires API URL and service token"
+                    "HTTP registration integration requires API URL and service token"
                 )
+            if not self.registration_api_base_url.startswith("https://"):
+                raise ValueError("Registration API must use HTTPS")
+        if self.environment == "production" and self.registration_provider != "http":
+            raise ValueError("Production requires SUPPORT_REGISTRATION_PROVIDER=http")
         if self.registration_timeout_seconds <= 0:
             raise ValueError("SUPPORT_REGISTRATION_TIMEOUT_SECONDS must be positive")
         return self
