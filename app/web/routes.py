@@ -16,6 +16,7 @@ from app.models import (
     Permission,
     Role,
     RoleRoute,
+    RegistrationSettings,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
 from app.services.access_control_service import (
@@ -41,6 +42,7 @@ from app.web.forms import (
     ChangePasswordForm,
     ClientForm,
     ClientRegistrationForm,
+    RegistrationSettingsForm,
     DialogForm,
     EmployeeForm,
     EmployeeRolesForm,
@@ -112,62 +114,109 @@ def index() -> ResponseReturnValue:
     return render_template("index.html", stats=stats)
 
 
-# Prototype fixture standing in for a lookup in the customer's main system.
-# TODO: replace this static fixture with a configured integration adapter (API or read-only DB).
-_DEMO_EXTERNAL_CLIENTS = {
-    "DEMO-1001": {"external_id": "DEMO-1001", "name": "Демонстрационный клиент"},
+# Demo token fixtures simulate one-time credentials issued by the main system.
+# TODO: replace this mapping with a server-to-server integration and hashed, expiring token storage.
+_DEMO_REGISTRATION_TOKENS = {
+    "DEMO-TOKEN-1001": {
+        "external_id": "DEMO-1001",
+        "name": "Демонстрационный клиент",
+        "email": None,
+        "phone": None,
+    },
 }
+
+
+def _get_registration_settings() -> RegistrationSettings:
+    """Return the singleton registration settings row, creating defaults if needed."""
+    settings = db.session.get(RegistrationSettings, 1)
+    if settings is None:
+        settings = RegistrationSettings(id=1)
+        db.session.add(settings)
+        db.session.commit()
+    return settings
 
 
 @auth_bp.route("/register", methods=["GET", "POST"])
 def client_register() -> ResponseReturnValue:
-    """Create a local customer account using a profile from the demo main system."""
+    """Render manual registration or confirmation of a main-system profile."""
     if current_user.is_authenticated:
         return redirect(url_for("main.index"))
 
-    external_id = (request.args.get("external_id") or "").strip()
-    external_client = _DEMO_EXTERNAL_CLIENTS.get(external_id)
+    settings = _get_registration_settings()
+    token = (request.args.get("token") or "").strip()
+    external_client = _DEMO_REGISTRATION_TOKENS.get(token) if token else None
+    automatic_mode = bool(token)
+
+    if automatic_mode and not settings.automatic_enabled:
+        abort(404)
+    if not automatic_mode and not settings.manual_enabled:
+        abort(404)
+    if automatic_mode and external_client is None:
+        abort(400, description="Ссылка регистрации недействительна или устарела.")
+
     form = ClientRegistrationForm()
     already_registered = False
-
-    # TODO: accept and verify a short-lived, single-use signed token instead of trusting
-    # an external_id query parameter. The current lookup is intentionally demo-only.
-    # TODO: add the automatic provisioning path when the source provides all required
-    # profile data and a safe password-setup mechanism; this route is semi-automatic only.
     if external_client:
         existing_external = db.session.scalar(
-            db.select(Client).where(Client.external_id == external_id)
+            db.select(Client).where(Client.external_id == external_client["external_id"])
         )
-        if existing_external:
-            already_registered = True
-        elif form.validate_on_submit():
-            existing_email = db.session.scalar(
-                db.select(Client).where(Client.email == form.email.data)
-            )
-            if existing_email:
-                form.email.errors = [*form.email.errors, "Этот email уже используется."]
+        already_registered = existing_external is not None
+        if external_client.get("email"):
+            form.email.data = external_client["email"]
+        if external_client.get("phone"):
+            form.phone.data = external_client["phone"]
+
+    if not already_registered and form.validate_on_submit():
+        errors = []
+        email = (form.email.data or "").strip().lower() if settings.email_enabled else None
+        phone = (form.phone.data or "").strip() if settings.phone_enabled else None
+        if not email and not phone:
+            errors.append("Укажите хотя бы один доступный способ связи.")
+        if email and db.session.scalar(db.select(Client).where(Client.email == email)):
+            errors.append("Этот email уже используется.")
+        if phone and db.session.scalar(db.select(Client).where(Client.phone == phone)):
+            errors.append("Этот телефон уже используется.")
+        login_value = (form.login.data or "").strip()
+        if db.session.scalar(db.select(Client).where(Client.login == login_value)):
+            errors.append("Этот логин уже используется.")
+
+        if errors:
+            form.login.errors = [*form.login.errors, *[e for e in errors if "логин" in e.lower()]]
+            form.email.errors = [*form.email.errors, *[e for e in errors if "email" in e.lower()]]
+            form.phone.errors = [*form.phone.errors, *[e for e in errors if "телефон" in e.lower()]]
+            if any("способ связи" in e for e in errors):
+                form.email.errors = [*form.email.errors, "Укажите хотя бы один доступный способ связи."]
+        else:
+            # When request details are disabled, the login is also the local display name.
+            if settings.collect_request_details:
+                name = (form.name.data or "").strip() or login_value
             else:
-                assert form.email.data is not None
-                client = Client(
-                    name=external_client["name"],
-                    email=form.email.data.strip().lower(),
-                    phone=form.phone.data or None,
-                    external_id=external_id,
-                )
-                client.set_password(form.password.data)
-                db.session.add(client)
-                db.session.commit()
-                # TODO: implement client-specific login, password recovery, and the customer portal.
-                flash(
-                    "Аккаунт клиента создан. Вход в клиентский кабинет будет добавлен отдельно.",
-                    "success",
-                )
-                return redirect(url_for("auth.client_register", external_id=external_id))
+                name = external_client["name"] if external_client else login_value
+
+            client = Client(
+                name=name,
+                login=login_value,
+                email=email,
+                phone=phone,
+                external_id=external_client["external_id"] if external_client else None,
+            )
+            client.set_password(form.password.data)
+            db.session.add(client)
+            db.session.commit()
+            # TODO: send contact verification (email/SMS) before activating the account.
+            # TODO: add client login/session support; current Flask-Login loader handles employees.
+            flash(
+                "Аккаунт клиента создан. Авторизация клиента будет подключена следующим этапом.",
+                "success",
+            )
+            return redirect(url_for("auth.client_register"))
 
     return render_template(
         "auth/register.html",
         form=form,
+        settings=settings,
         external_client=external_client,
+        automatic_mode=automatic_mode,
         already_registered=already_registered,
     )
 
