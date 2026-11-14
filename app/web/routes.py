@@ -1,7 +1,8 @@
 """Browser routes split into compact entity blueprints."""
 
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable
+from typing import Any
 
 from flask import (
     Blueprint,
@@ -318,7 +319,7 @@ def client_registration_complete() -> ResponseReturnValue:
     """Show registration result without redirecting customers to employee login."""
     messages = get_flashed_messages(with_categories=True)
     if not messages:
-        return redirect(url_for("auth.login"))
+        return redirect(url_for("auth.client_login"))
     response = make_response(
         render_template("auth/registration_complete.html", messages=messages)
     )
