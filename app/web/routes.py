@@ -1,6 +1,6 @@
 """Browser routes split into compact entity blueprints."""
 
-from flask import Blueprint, abort, flash, redirect, render_template, request, url_for
+from flask import Blueprint, abort, flash, make_response, redirect, render_template, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
@@ -116,6 +116,9 @@ def index() -> ResponseReturnValue:
 
 # Demo token fixtures simulate one-time credentials issued by the main system.
 # TODO: replace this mapping with a server-to-server integration and hashed, expiring token storage.
+# TODO: exchange the link code for a short-lived profile token; call the profile GET over HTTPS
+# using Authorization headers plus service authentication (mTLS/client credentials), never put
+# API credentials in the URL, validate issuer/audience/expiry, and redact tokens from logs.
 _DEMO_REGISTRATION_TOKENS = {
     "DEMO-TOKEN-1001": {
         "external_id": "DEMO-1001",
@@ -242,14 +245,20 @@ def client_register() -> ResponseReturnValue:
                 else url_for("auth.client_register")
             )
 
-    return render_template(
-        "auth/register.html",
-        form=form,
-        settings=settings,
-        external_client=external_client,
-        automatic_mode=automatic_mode,
-        already_registered=already_registered,
+    response = make_response(
+        render_template(
+            "auth/register.html",
+            form=form,
+            settings=settings,
+            external_client=external_client,
+            automatic_mode=automatic_mode,
+            already_registered=already_registered,
+        )
     )
+    # Registration URLs may contain temporary credentials; avoid caching and Referer leakage.
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @auth_bp.route("/login", methods=["GET", "POST"])
