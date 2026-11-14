@@ -1,6 +1,6 @@
 """Application factory for the support system."""
 
-from flask import Flask, redirect, request, url_for
+from flask import Flask, abort, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
 
@@ -18,8 +18,8 @@ from app.web.routes import (
     employees_bp,
     main_bp,
     messages_bp,
-    settings_bp,
     portal_bp,
+    settings_bp,
 )
 
 
@@ -79,8 +79,6 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "static",
             }
             if endpoint not in allowed:
-                from flask import abort
-
                 abort(403)
             return None
 
