@@ -289,8 +289,7 @@ def client_register() -> ResponseReturnValue:
                 )
             else:
                 flash(
-                    "Аккаунт клиента создан. Вход в клиентский кабинет будет доступен "
-                    "после подключения клиентской авторизации.",
+                    "Аккаунт клиента создан. Теперь можно войти в клиентский кабинет.",
                     "success",
                 )
             # Do not keep the bearer token in the address bar after the POST.
