@@ -1,6 +1,16 @@
 """Browser routes split into compact entity blueprints."""
 
-from flask import Blueprint, abort, current_app, flash, make_response, redirect, render_template, request, url_for
+from flask import (
+    Blueprint,
+    abort,
+    current_app,
+    flash,
+    make_response,
+    redirect,
+    render_template,
+    request,
+    url_for,
+)
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func
@@ -196,7 +206,10 @@ def client_register() -> ResponseReturnValue:
 
     if existing_client is not None:
         if _redeem_registration_token(token, str(external_client["external_id"])):
-            flash("Этот профиль уже зарегистрирован. Ссылка регистрации больше не действует.", "info")
+            flash(
+                "Этот профиль уже зарегистрирован. Ссылка регистрации больше не действует.",
+                "info",
+            )
         else:
             flash(
                 "Аккаунт уже создан, но подтвердить использование ссылки в основной системе "
