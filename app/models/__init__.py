@@ -6,8 +6,8 @@ from app.models.dialog import Dialog, DialogStatus
 from app.models.employee import Employee
 from app.models.message import AuthorType, Message
 from app.models.role import Permission, Role
-from app.models.role_route import RoleRoute
 from app.models.registration_settings import RegistrationSettings
+from app.models.role_route import RoleRoute
 
 __all__ = [
     "Attachment",
