@@ -17,7 +17,7 @@
             </div>
         {% endfor %}
         <p class="small text-muted mb-0">
-          Авторизация клиентов и личный кабинет будут подключены отдельным этапом.
+          <a href="{{ url_for('auth.client_login') }}" class="btn btn-primary mt-3">Перейти ко входу</a>
         </p>
       </div>
     </div>
