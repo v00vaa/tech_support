@@ -10,7 +10,7 @@ from app.models import AuthorType, Client, Dialog, Employee, Message
 
 
 @pytest.fixture
-def customer_records(app: Flask) -> Iterator[tuple[int, int]]:
+def customer_records(app: Flask) -> Iterator[tuple[int, int, int]]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
     with app.app_context():
         db.create_all()
@@ -31,17 +31,36 @@ def customer_records(app: Flask) -> Iterator[tuple[int, int]]:
         dialog = Dialog(client_id=other.id, subject="Private request", channel="Web")
         db.session.add(dialog)
         db.session.flush()
-        db.session.add(
-            Message(
-                dialog_id=dialog.id,
-                author_type=AuthorType.EMPLOYEE,
-                author_id=None,
-                text="INTERNAL-ONLY-CONTENT",
-                is_internal=True,
-            )
+        own_dialog = Dialog(client_id=customer.id, subject="My request", channel="Web")
+        db.session.add(own_dialog)
+        db.session.flush()
+        db.session.add_all(
+            [
+                Message(
+                    dialog_id=dialog.id,
+                    author_type=AuthorType.EMPLOYEE,
+                    author_id=None,
+                    text="OTHER-CUSTOMER-INTERNAL-CONTENT",
+                    is_internal=True,
+                ),
+                Message(
+                    dialog_id=own_dialog.id,
+                    author_type=AuthorType.EMPLOYEE,
+                    author_id=None,
+                    text="PUBLIC-ANSWER",
+                    is_internal=False,
+                ),
+                Message(
+                    dialog_id=own_dialog.id,
+                    author_type=AuthorType.EMPLOYEE,
+                    author_id=None,
+                    text="INTERNAL-ONLY-CONTENT",
+                    is_internal=True,
+                ),
+            ]
         )
         db.session.commit()
-        ids = (customer.id, dialog.id)
+        ids = (customer.id, dialog.id, own_dialog.id)
         yield ids
         db.session.remove()
         db.drop_all()
@@ -73,7 +92,7 @@ def test_customer_cannot_open_staff_pages(client, customer_records) -> None:
 
 
 def test_customer_cannot_read_another_customers_dialog(client, customer_records) -> None:
-    _, other_dialog_id = customer_records
+    _, other_dialog_id, _ = customer_records
     client.post(
         "/client/login",
         data={"login": "customer-one", "password": "correct-horse-battery"},
@@ -103,3 +122,62 @@ def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
 
     assert response.status_code == 302
     assert client.get("/portal/").status_code == 403
+
+
+
+def test_customer_sees_public_messages_but_not_internal_notes(client, customer_records) -> None:
+    _, _, own_dialog_id = customer_records
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+
+    response = client.get(f"/portal/dialogs/{own_dialog_id}")
+
+    assert response.status_code == 200
+    assert b"PUBLIC-ANSWER" in response.data
+    assert b"INTERNAL-ONLY-CONTENT" not in response.data
+
+
+def test_customer_can_create_a_support_dialog(client, customer_records, app) -> None:
+    from app.extensions import db
+    from app.models import Dialog
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "New request", "message": "Please help"},
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        dialog = db.session.scalar(db.select(Dialog).where(Dialog.subject == "New request"))
+        assert dialog is not None
+        assert dialog.channel == "Web"
+
+
+def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None:
+    from app.extensions import db
+    from app.models import Message
+
+    _, _, own_dialog_id = customer_records
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        f"/portal/dialogs/{own_dialog_id}",
+        data={"text": "Additional details"},
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        message = db.session.scalar(
+            db.select(Message).where(Message.text == "Additional details")
+        )
+        assert message is not None
+        assert message.author_type == AuthorType.CLIENT
+        assert message.is_internal is False
