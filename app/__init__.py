@@ -31,6 +31,12 @@ def create_app(settings: Settings | None = None) -> Flask:
         SQLALCHEMY_DATABASE_URI=resolved_settings.database_url,
         SQLALCHEMY_ECHO=resolved_settings.database_echo,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        REGISTRATION_PROVIDER_MODE=resolved_settings.registration_provider,
+        REGISTRATION_API_BASE_URL=resolved_settings.registration_api_base_url,
+        REGISTRATION_SERVICE_TOKEN=resolved_settings.registration_service_token,
+        REGISTRATION_PROFILE_PATH=resolved_settings.registration_profile_path,
+        REGISTRATION_REDEEM_PATH=resolved_settings.registration_redeem_path,
+        REGISTRATION_TIMEOUT_SECONDS=resolved_settings.registration_timeout_seconds,
     )
 
     db.init_app(app)
