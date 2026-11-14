@@ -113,7 +113,6 @@ def test_customer_login_rejects_invalid_password(client, customer_records) -> No
     assert b"Неверный логин или пароль" in response.data
 
 
-
 def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
     response = client.post(
         "/login",
@@ -122,7 +121,6 @@ def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
 
     assert response.status_code == 302
     assert client.get("/portal/").status_code == 403
-
 
 
 def test_customer_sees_public_messages_but_not_internal_notes(client, customer_records) -> None:
@@ -140,9 +138,6 @@ def test_customer_sees_public_messages_but_not_internal_notes(client, customer_r
 
 
 def test_customer_can_create_a_support_dialog(client, customer_records, app) -> None:
-    from app.extensions import db
-    from app.models import Dialog
-
     client.post(
         "/client/login",
         data={"login": "customer-one", "password": "correct-horse-battery"},
@@ -160,9 +155,6 @@ def test_customer_can_create_a_support_dialog(client, customer_records, app) -> 
 
 
 def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None:
-    from app.extensions import db
-    from app.models import Message
-
     _, _, own_dialog_id = customer_records
     client.post(
         "/client/login",
@@ -181,7 +173,6 @@ def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None
         assert message is not None
         assert message.author_type == AuthorType.CLIENT
         assert message.is_internal is False
-
 
 
 def test_employee_and_customer_session_ids_are_namespaced() -> None:
