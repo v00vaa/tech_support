@@ -8,6 +8,7 @@ from app.api.routes import api_bp
 from app.core.config import Settings
 from app.core.errors import register_error_handlers
 from app.extensions import db, login_manager, migrate
+from app.models.client import Client
 from app.models.employee import Employee
 from app.services.access_control_service import has_permission
 from app.web.routes import (
@@ -18,6 +19,7 @@ from app.web.routes import (
     main_bp,
     messages_bp,
     settings_bp,
+    portal_bp,
 )
 
 
@@ -52,17 +54,40 @@ def create_app(settings: Settings | None = None) -> Flask:
         dialogs_bp,
         messages_bp,
         settings_bp,
+        portal_bp,
         api_bp,
     ):
         app.register_blueprint(blueprint)
 
     @app.before_request
-    def require_initial_password_change() -> ResponseReturnValue | None:
-        if (
-            current_user.is_authenticated
-            and getattr(current_user, "must_change_password", False)
-            and request.endpoint not in {"auth.change_password", "auth.logout", "static"}
-        ):
+    def enforce_account_boundaries() -> ResponseReturnValue | None:
+        if not current_user.is_authenticated:
+            return None
+
+        user = current_user._get_current_object()
+        endpoint = request.endpoint or ""
+        if isinstance(user, Client):
+            allowed = {
+                "auth.client_login",
+                "auth.client_register",
+                "auth.client_registration_complete",
+                "auth.logout",
+                "portal.index",
+                "portal.dialog_create",
+                "portal.dialog_detail",
+                "static",
+            }
+            if endpoint not in allowed:
+                from flask import abort
+
+                abort(403)
+            return None
+
+        if getattr(user, "must_change_password", False) and endpoint not in {
+            "auth.change_password",
+            "auth.logout",
+            "static",
+        }:
             return redirect(url_for("auth.change_password"))
         return None
 
@@ -76,10 +101,18 @@ def create_app(settings: Settings | None = None) -> Flask:
 
 
 @login_manager.user_loader
-def load_user(user_id: str) -> Employee | None:
-    """Load an authenticated employee by their database ID."""
+def load_user(user_id: str) -> Employee | Client | None:
+    """Load an employee or customer using a namespaced, collision-safe identity."""
     try:
-        employee_id = int(user_id)
-    except (TypeError, ValueError):
+        account_type, raw_id = user_id.split(":", maxsplit=1)
+        account_id = int(raw_id)
+    except (AttributeError, TypeError, ValueError):
         return None
-    return db.session.get(Employee, employee_id)
+
+    if account_type == "employee":
+        employee = db.session.get(Employee, account_id)
+        return employee if employee and employee.is_active else None
+    if account_type == "client":
+        client = db.session.get(Client, account_id)
+        return client if client and client.is_active and client.password_hash else None
+    return None
