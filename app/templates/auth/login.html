@@ -51,6 +51,9 @@
         {% if registration_settings.manual_enabled or registration_settings.automatic_enabled %}
         <div class="border-top mt-4 pt-4 text-center">
           <p class="fw-semibold mb-1">Вы клиент?</p>
+          <a class="btn btn-outline-primary w-100 mb-2" href="{{ url_for('auth.client_login') }}">
+            Войти в клиентский кабинет
+          </a>
           {% if registration_settings.manual_enabled %}
             <a class="btn btn-outline-primary w-100 mb-2" href="{{ url_for('auth.client_register') }}">
               Создать аккаунт вручную
