@@ -237,7 +237,7 @@ def login() -> ResponseReturnValue:
                 return redirect(url_for("auth.change_password"))
             return redirect(url_for("main.index"))
         flash("Неверный email или пароль.", "danger")
-    return render_template("auth/login.html", form=form)
+    return render_template("auth/login.html", form=form, registration_settings=_get_registration_settings())
 
 
 @auth_bp.route("/change-password", methods=["GET", "POST"])
