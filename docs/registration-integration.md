@@ -22,7 +22,7 @@ GET получения профиля не должен погашать ток�
 - `X-Registration-Token: <handoff-token>` — временное разрешение получить профиль конкретного пользователя.
 - `Accept: application/json`.
 
-Успешный ответ HTTP 200:
+Успешный ответ HTTP 200 с заголовком `Cache-Control: no-store`:
 
 ```json
 {
@@ -94,7 +94,8 @@ SUPPORT_REGISTRATION_TIMEOUT_SECONDS=5
 - Service credential и handoff-токен проверяются независимо.
 - Ограничить частоту запросов получения профиля и погашения.
 - Не включать query string регистрации, Authorization и X-Registration-Token в access/application logs, traces и error reports.
-- Для страницы регистрации выставлять `Cache-Control: no-store` и `Referrer-Policy: no-referrer`; не загружать сторонние ресурсы до очистки URL от токена.
+- Для ответа API профиля и страницы регистрации выставлять `Cache-Control: no-store`.
+- Для страницы регистрации выставлять `Referrer-Policy: no-referrer`; браузерная страница удаляет query-параметр токена до загрузки внешних ресурсов, а токен отправляется в теле POST. Не загружать сторонний JavaScript на странице регистрации.
 - Не помещать сервисный секрет в браузер, HTML, JavaScript или URL.
 - Сопоставлять `external_id` с локальным клиентом и запрещать повторное создание профиля.
 
