@@ -224,7 +224,11 @@ def client_register() -> ResponseReturnValue:
                 "Аккаунт клиента создан. Авторизация клиента будет подключена следующим этапом.",
                 "success",
             )
-            return redirect(url_for("auth.client_register"))
+            return redirect(
+                url_for("auth.client_register", token=token)
+                if automatic_mode
+                else url_for("auth.client_register")
+            )
 
     return render_template(
         "auth/register.html",
