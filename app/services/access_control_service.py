@@ -17,7 +17,7 @@ F = TypeVar("F", bound=Callable[..., Any])
 
 def permission_codes(employee: Employee) -> set[str]:
     """Return all permission codes granted to an employee by active roles."""
-    if not employee.is_active:
+    if not isinstance(employee, Employee) or not employee.is_active:
         return set()
     return {
         permission.code
