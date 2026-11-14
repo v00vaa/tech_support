@@ -43,18 +43,18 @@ from app.web.forms import (
     ClientForm,
     ClientRegistrationForm,
     DialogForm,
+    DialogRouteForm,
     EmployeeForm,
     EmployeeRolesForm,
-    RegistrationSettingsForm,
     LoginForm,
     MessageForm,
+    RegistrationSettingsForm,
     RoleForm,
-    RolePermissionsForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
-    RoleRouteForm,
+    RolePermissionsForm,
     RoleRouteDeleteForm,
-    DialogRouteForm,
+    RoleRouteForm,
     StatusForm,
 )
 
@@ -186,10 +186,22 @@ def client_register() -> ResponseReturnValue:
             errors.append("Укажите имя для обращений.")
 
         if errors:
-            form.login.errors = [*form.login.errors, *[e for e in errors if "логин" in e.lower()]]
-            form.email.errors = [*form.email.errors, *[e for e in errors if "email" in e.lower()]]
-            form.phone.errors = [*form.phone.errors, *[e for e in errors if "телефон" in e.lower()]]
-            form.name.errors = [*form.name.errors, *[e for e in errors if "имя" in e.lower()]]
+            form.login.errors = [
+                *form.login.errors,
+                *[error for error in errors if "логин" in error.lower()],
+            ]
+            form.email.errors = [
+                *form.email.errors,
+                *[error for error in errors if "email" in error.lower()],
+            ]
+            form.phone.errors = [
+                *form.phone.errors,
+                *[error for error in errors if "телефон" in error.lower()],
+            ]
+            form.name.errors = [
+                *form.name.errors,
+                *[error for error in errors if "имя" in error.lower()],
+            ]
             if any("способ связи" in e for e in errors):
                 if settings.email_enabled:
                     form.email.errors = [
