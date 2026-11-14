@@ -1,5 +1,8 @@
 """Browser routes split into compact entity blueprints."""
 
+from functools import wraps
+from typing import Any, Callable
+
 from flask import (
     Blueprint,
     abort,
@@ -65,6 +68,9 @@ from app.web.forms import (
     LoginForm,
     MessageForm,
     RegistrationSettingsForm,
+    ClientLoginForm,
+    ClientDialogForm,
+    ClientReplyForm,
     RoleForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
@@ -81,6 +87,7 @@ employees_bp = Blueprint("employees", __name__, url_prefix="/employees")
 dialogs_bp = Blueprint("dialogs", __name__, url_prefix="/dialogs")
 messages_bp = Blueprint("messages", __name__, url_prefix="/messages")
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
+portal_bp = Blueprint("portal", __name__, url_prefix="/portal")
 
 
 def _dialog_form(form: DialogForm) -> None:
@@ -181,6 +188,8 @@ def _redeem_registration_token(token: str, external_id: str) -> bool:
 def client_register() -> ResponseReturnValue:
     """Register a client manually or confirm a profile fetched from the main system."""
     if current_user.is_authenticated:
+        if isinstance(current_user._get_current_object(), Client):
+            return redirect(url_for("portal.index"))
         return redirect(url_for("main.index"))
 
     settings = _get_registration_settings()
@@ -319,9 +328,49 @@ def client_registration_complete() -> ResponseReturnValue:
     return response
 
 
+def client_required(view: Callable[..., Any]) -> Callable[..., Any]:
+    """Require a logged-in customer, never an employee account."""
+    @wraps(view)
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        if not current_user.is_authenticated:
+            return redirect(url_for("auth.client_login"))
+        if not isinstance(current_user._get_current_object(), Client):
+            abort(403)
+        if not current_user.is_active:
+            abort(403)
+        return view(*args, **kwargs)
+
+    return wrapped
+
+
+@auth_bp.route("/client/login", methods=["GET", "POST"])
+def client_login() -> ResponseReturnValue:
+    """Authenticate a customer by their local username and password."""
+    if current_user.is_authenticated:
+        if isinstance(current_user._get_current_object(), Client):
+            return redirect(url_for("portal.index"))
+        return redirect(url_for("main.index"))
+
+    form = ClientLoginForm()
+    if form.validate_on_submit():
+        login_value = (form.login.data or "").strip().casefold()
+        client = db.session.scalar(
+            db.select(Client).where(func.lower(Client.login) == login_value)
+        )
+        if client and client.is_active and client.check_password(form.password.data):
+            login_user(client, remember=False, fresh=True)
+            flash("Вы успешно вошли в клиентский кабинет.", "success")
+            return redirect(url_for("portal.index"))
+        flash("Неверный логин или пароль.", "danger")
+
+    return render_template("auth/client_login.html", form=form)
+
+
 @auth_bp.route("/login", methods=["GET", "POST"])
 def login() -> ResponseReturnValue:
     if current_user.is_authenticated:
+        if isinstance(current_user._get_current_object(), Client):
+            return redirect(url_for("portal.index"))
         if getattr(current_user, "must_change_password", False):
             return redirect(url_for("auth.change_password"))
         return redirect(url_for("main.index"))
@@ -367,9 +416,97 @@ def change_password() -> ResponseReturnValue:
 @auth_bp.post("/logout")
 @login_required
 def logout() -> ResponseReturnValue:
+    was_client = isinstance(current_user._get_current_object(), Client)
     logout_user()
     flash("Вы вышли из системы.", "info")
-    return redirect(url_for("main.index"))
+    return redirect(url_for("auth.client_login" if was_client else "auth.login"))
+
+
+@portal_bp.get("/")
+@client_required
+def index() -> ResponseReturnValue:
+    """Show only the current customer's support requests."""
+    dialogs = db.session.scalars(
+        db.select(Dialog)
+        .where(Dialog.client_id == current_user.id)
+        .order_by(Dialog.updated_at.desc())
+    ).all()
+    return render_template("portal/index.html", dialogs=dialogs)
+
+
+@portal_bp.route("/dialogs/new", methods=["GET", "POST"])
+@client_required
+def dialog_create() -> ResponseReturnValue:
+    """Create a new customer-owned dialog and its first public message."""
+    form = ClientDialogForm()
+    if form.validate_on_submit():
+        dialog = Dialog(
+            client_id=current_user.id,
+            subject=(form.subject.data or "").strip(),
+            channel="Web",
+            status=DialogStatus.OPEN,
+        )
+        db.session.add(dialog)
+        db.session.flush()
+        db.session.add(
+            Message(
+                dialog_id=dialog.id,
+                author_type=AuthorType.CLIENT,
+                author_id=current_user.id,
+                text=(form.message.data or "").strip(),
+                is_internal=False,
+            )
+        )
+        db.session.commit()
+        flash("Обращение создано.", "success")
+        return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+    return render_template("portal/dialog_form.html", form=form)
+
+
+@portal_bp.route("/dialogs/<int:dialog_id>", methods=["GET", "POST"])
+@client_required
+def dialog_detail(dialog_id: int) -> ResponseReturnValue:
+    """Read and reply only to a dialog owned by the authenticated customer."""
+    dialog = db.session.scalar(
+        db.select(Dialog).where(
+            Dialog.id == dialog_id,
+            Dialog.client_id == current_user.id,
+        )
+    )
+    if dialog is None:
+        abort(404)
+
+    form = ClientReplyForm()
+    if request.method == "POST":
+        if dialog.status == DialogStatus.CLOSED:
+            abort(403, description="Закрытое обращение нельзя продолжить.")
+        if form.validate_on_submit():
+            db.session.add(
+                Message(
+                    dialog_id=dialog.id,
+                    author_type=AuthorType.CLIENT,
+                    author_id=current_user.id,
+                    text=(form.text.data or "").strip(),
+                    is_internal=False,
+                )
+            )
+            if dialog.status == DialogStatus.WAITING_CLIENT:
+                dialog.status = DialogStatus.IN_PROGRESS
+            db.session.commit()
+            flash("Сообщение отправлено.", "success")
+            return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+
+    visible_messages = [
+        message
+        for message in dialog.messages
+        if not message.is_internal and message.deleted_at is None
+    ]
+    return render_template(
+        "portal/dialog_detail.html",
+        dialog=dialog,
+        messages=visible_messages,
+        form=form,
+    )
 
 
 @clients_bp.get("")
