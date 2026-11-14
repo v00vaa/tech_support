@@ -24,19 +24,29 @@ class LoginForm(FlaskForm):
 
 
 class ClientRegistrationForm(FlaskForm):
-    """Fields entered by a customer after arriving from the main system."""
+    """Customer registration fields; enabled contact methods are validated by the route."""
 
-    email = StringField("Email для связи", validators=[DataRequired(), Email(), Length(max=255)])
-    phone = StringField("Телефон", validators=[Optional(), Length(max=40)])
-    password = PasswordField(
-        "Пароль",
-        validators=[DataRequired(), Length(min=12, max=128)],
-    )
+    login = StringField("Логин", validators=[DataRequired(), Length(min=3, max=80)])
+    name = StringField("Имя для обращений", validators=[Optional(), Length(max=120)])
+    email = StringField("Email для связи", validators=[Optional(), Email(), Length(max=255)])
+    phone = StringField("Телефон для связи", validators=[Optional(), Length(max=40)])
+    password = PasswordField("Пароль", validators=[DataRequired(), Length(min=12, max=128)])
     confirm_password = PasswordField(
         "Повторите пароль",
         validators=[DataRequired(), EqualTo("password", message="Пароли не совпадают.")],
     )
     submit = SubmitField("Создать аккаунт")
+
+
+class RegistrationSettingsForm(FlaskForm):
+    """Administrator-controlled customer registration options."""
+
+    automatic_enabled = BooleanField("Автоматическая регистрация")
+    manual_enabled = BooleanField("Ручная регистрация")
+    email_enabled = BooleanField("Электронная почта")
+    phone_enabled = BooleanField("Телефон")
+    collect_request_details = BooleanField("Запрашивать дополнительные данные для обращений")
+    submit = SubmitField("Сохранить настройки")
 
 
 class ChangePasswordForm(FlaskForm):
