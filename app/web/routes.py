@@ -968,6 +968,33 @@ def role_edit(role_id: int) -> ResponseReturnValue:
     return render_template("settings/roles/form.html", form=form, role=role)
 
 
+@settings_bp.route("/registration", methods=["GET", "POST"])
+@login_required
+@permission_required("settings.view")
+def registration_settings() -> ResponseReturnValue:
+    """Configure customer registration modes and contact channels."""
+    settings = _get_registration_settings()
+    form = RegistrationSettingsForm(obj=settings)
+
+    if form.validate_on_submit():
+        if not form.email_enabled.data and not form.phone_enabled.data:
+            form.email_enabled.errors = [
+                *form.email_enabled.errors,
+                "Нужно оставить включенным хотя бы один способ связи.",
+            ]
+        else:
+            settings.automatic_enabled = form.automatic_enabled.data
+            settings.manual_enabled = form.manual_enabled.data
+            settings.email_enabled = form.email_enabled.data
+            settings.phone_enabled = form.phone_enabled.data
+            settings.collect_request_details = form.collect_request_details.data
+            db.session.commit()
+            flash("Настройки регистрации сохранены.", "success")
+            return redirect(url_for("settings.registration_settings"))
+
+    return render_template("settings/registration.html", form=form, settings=settings)
+
+
 @settings_bp.get("")
 @login_required
 @permission_required("settings.view")
