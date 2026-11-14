@@ -7,6 +7,7 @@
       {% if has_permission(current_user, 'roles.view') or current_user.roles|selectattr('role_type', 'equalto', 'HR')|list or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list %}
       <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
       {% endif %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.registration_settings') }}">Регистрация клиентов</a>
       {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
       <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
       {% endfor %}
@@ -14,7 +15,12 @@
   </aside>
   <section class="col-md-9 col-lg-10">
     <h2 class="h3">Общие настройки</h2>
-    <p class="text-muted">Выберите раздел в навигации слева. Управление ролями и составом сотрудников доступно в разделе «Роли».</p>
+    <p class="text-muted">Настройте способы регистрации клиентов, интеграции и рабочие процессы. Управление ролями и составом сотрудников доступно в разделе «Роли».</p>
+    <div class="card mt-4"><div class="card-body">
+      <h3 class="h5">Регистрация клиентов</h3>
+      <p class="text-muted">Включение автоматического и ручного режимов, выбор способов связи и состава регистрационных данных.</p>
+      <a class="btn btn-primary" href="{{ url_for('settings.registration_settings') }}">Настроить регистрацию</a>
+    </div></div>
   </section>
 </div>
 {% endblock %}
