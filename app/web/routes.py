@@ -14,9 +14,9 @@ from app.models import (
     Employee,
     Message,
     Permission,
+    RegistrationSettings,
     Role,
     RoleRoute,
-    RegistrationSettings,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
 from app.services.access_control_service import (
@@ -42,8 +42,8 @@ from app.web.forms import (
     ChangePasswordForm,
     ClientForm,
     ClientRegistrationForm,
-    RegistrationSettingsForm,
     DialogForm,
+    RegistrationSettingsForm,
     EmployeeForm,
     EmployeeRolesForm,
     LoginForm,
@@ -178,14 +178,18 @@ def client_register() -> ResponseReturnValue:
             errors.append("Этот email уже используется.")
         if phone and db.session.scalar(db.select(Client).where(Client.phone == phone)):
             errors.append("Этот телефон уже используется.")
-        login_value = (form.login.data or "").strip()
+        login_value = (form.login.data or "").strip().casefold()
         if db.session.scalar(db.select(Client).where(Client.login == login_value)):
             errors.append("Этот логин уже используется.")
+        request_name = (form.name.data or "").strip()
+        if settings.collect_request_details and not request_name:
+            errors.append("Укажите имя для обращений.")
 
         if errors:
             form.login.errors = [*form.login.errors, *[e for e in errors if "логин" in e.lower()]]
             form.email.errors = [*form.email.errors, *[e for e in errors if "email" in e.lower()]]
             form.phone.errors = [*form.phone.errors, *[e for e in errors if "телефон" in e.lower()]]
+            form.name.errors = [*form.name.errors, *[e for e in errors if "имя" in e.lower()]]
             if any("способ связи" in e for e in errors):
                 if settings.email_enabled:
                     form.email.errors = [
@@ -200,9 +204,9 @@ def client_register() -> ResponseReturnValue:
         else:
             # When request details are disabled, the login is also the local display name.
             if settings.collect_request_details:
-                name = (form.name.data or "").strip() or login_value
+                name = request_name
             else:
-                name = external_client["name"] if external_client else login_value
+                name = login_value
 
             client = Client(
                 name=name,
@@ -248,7 +252,11 @@ def login() -> ResponseReturnValue:
                 return redirect(url_for("auth.change_password"))
             return redirect(url_for("main.index"))
         flash("Неверный email или пароль.", "danger")
-    return render_template("auth/login.html", form=form, registration_settings=_get_registration_settings())
+    return render_template(
+        "auth/login.html",
+        form=form,
+        registration_settings=_get_registration_settings(),
+    )
 
 
 @auth_bp.route("/change-password", methods=["GET", "POST"])
