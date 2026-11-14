@@ -177,7 +177,7 @@ def client_register() -> ResponseReturnValue:
         phone = (form.phone.data or "").strip() if settings.phone_enabled else None
         if not email and not phone:
             errors.append("Укажите хотя бы один доступный способ связи.")
-        if email and db.session.scalar(db.select(Client).where(Client.email == email)):
+        if email and db.session.scalar(db.select(Client).where(func.lower(Client.email) == email)):
             errors.append("Этот email уже используется.")
         if phone and db.session.scalar(db.select(Client).where(Client.phone == phone)):
             errors.append("Этот телефон уже используется.")
