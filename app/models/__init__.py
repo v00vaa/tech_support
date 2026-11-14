@@ -7,6 +7,7 @@ from app.models.employee import Employee
 from app.models.message import AuthorType, Message
 from app.models.role import Permission, Role
 from app.models.role_route import RoleRoute
+from app.models.registration_settings import RegistrationSettings
 
 __all__ = [
     "Attachment",
@@ -19,4 +20,5 @@ __all__ = [
     "Permission",
     "Role",
     "RoleRoute",
+    "RegistrationSettings",
 ]
