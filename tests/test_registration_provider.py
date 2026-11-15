@@ -3,6 +3,7 @@
 import json
 from io import BytesIO
 from unittest.mock import patch
+from urllib.error import HTTPError
 from urllib.request import Request
 
 import pytest
@@ -79,53 +80,59 @@ def _http_provider() -> HttpRegistrationProvider:
 
 @pytest.mark.parametrize("status", [404, 410])
 def test_http_provider_maps_missing_profile_to_invalid_token(status: int) -> None:
-    from urllib.error import HTTPError
-
     error = HTTPError("https://main.example.com/profile", status, "missing", {}, None)
-    with patch("app.services.registration_provider.urlopen", side_effect=error):
-        with pytest.raises(RegistrationTokenInvalid):
-            _http_provider().get_profile("expired-token")
+    with (
+        patch("app.services.registration_provider.urlopen", side_effect=error),
+        pytest.raises(RegistrationTokenInvalid),
+    ):
+        _http_provider().get_profile("expired-token")
 
 
 def test_http_provider_maps_server_errors_to_provider_error() -> None:
-    from urllib.error import HTTPError
-
     from app.services.registration_provider import RegistrationProviderError
 
     error = HTTPError("https://main.example.com/profile", 503, "unavailable", {}, None)
-    with patch("app.services.registration_provider.urlopen", side_effect=error):
-        with pytest.raises(RegistrationProviderError, match="HTTP 503"):
-            _http_provider().get_profile("token")
+    with (
+        patch("app.services.registration_provider.urlopen", side_effect=error),
+        pytest.raises(RegistrationProviderError, match="HTTP 503"),
+    ):
+        _http_provider().get_profile("token")
 
 
 @pytest.mark.parametrize("failure", [OSError("network down"), TimeoutError("timeout")])
 def test_http_provider_maps_transport_errors(failure: Exception) -> None:
     from app.services.registration_provider import RegistrationProviderError
 
-    with patch("app.services.registration_provider.urlopen", side_effect=failure):
-        with pytest.raises(RegistrationProviderError, match="request failed"):
-            _http_provider().get_profile("token")
+    with (
+        patch("app.services.registration_provider.urlopen", side_effect=failure),
+        pytest.raises(RegistrationProviderError, match="request failed"),
+    ):
+        _http_provider().get_profile("token")
 
 
 @pytest.mark.parametrize("body", [b"not-json", b"[]", b'{"external_id": 123}'])
 def test_http_provider_rejects_invalid_profile_responses(body: bytes) -> None:
     from app.services.registration_provider import RegistrationProviderError
 
-    with patch(
-        "app.services.registration_provider.urlopen",
-        return_value=BytesIO(body),
+    with (
+        patch(
+            "app.services.registration_provider.urlopen",
+            return_value=BytesIO(body),
+        ),
+        pytest.raises(RegistrationProviderError),
     ):
-        with pytest.raises(RegistrationProviderError):
-            _http_provider().get_profile("token")
+        _http_provider().get_profile("token")
 
 
 def test_http_provider_rejects_non_string_optional_profile_fields() -> None:
     from app.services.registration_provider import RegistrationProviderError
 
     response = BytesIO(b'{"external_id": "customer-1", "email": 42}')
-    with patch("app.services.registration_provider.urlopen", return_value=response):
-        with pytest.raises(RegistrationProviderError, match="schema is invalid"):
-            _http_provider().get_profile("token")
+    with (
+        patch("app.services.registration_provider.urlopen", return_value=response),
+        pytest.raises(RegistrationProviderError, match="schema is invalid"),
+    ):
+        _http_provider().get_profile("token")
 
 
 def test_registration_provider_factory_supports_injection_and_modes(app) -> None:
