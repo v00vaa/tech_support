@@ -545,3 +545,27 @@ def test_public_message_requires_reply_permission(
 def test_registration_settings_page_is_accessible(support_system: dict[str, object]) -> None:
     response = _client(support_system).get("/settings/registration")
     assert response.status_code == 200
+
+
+def test_registration_settings_update_requires_contact_channel(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    invalid = client.post(
+        "/settings/registration",
+        data={"automatic_enabled": "y", "manual_enabled": "y", "submit": "Save"},
+    )
+    assert invalid.status_code == 200
+
+    saved = client.post(
+        "/settings/registration",
+        data={
+            "automatic_enabled": "y",
+            "manual_enabled": "y",
+            "email_enabled": "y",
+            "phone_enabled": "y",
+            "collect_request_details": "y",
+            "submit": "Save",
+        },
+    )
+    assert saved.status_code == 302
