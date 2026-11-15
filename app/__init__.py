@@ -78,7 +78,7 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     # Flask-Limiter decorates this endpoint after blueprint registration so
     # the existing login implementation remains in its original auth module.
-    app.view_functions["auth.client_login"] = limiter.limit("5 per minute")(
+    app.view_functions["auth.client_login"] = limiter.limit("5 per minute", methods=["POST"])(
         app.view_functions["auth.client_login"]
     )
 
