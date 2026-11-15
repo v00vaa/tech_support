@@ -1,8 +1,6 @@
 """Tests for role-based dialog routing and automatic forwarding."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import patch
-
 import pytest
 
 from app.extensions import db
@@ -159,9 +157,7 @@ def test_route_dialog_requires_allowed_route_and_open_status(app):
             is_default=False,
             auto_forward_after_minutes=None,
         )
-        with patch("app.services.routing_service.datetime") as clock:
-            clock.now.return_value = datetime(2026, 11, 15, tzinfo=UTC)
-            route_dialog_to_role(actor, dialog, target)
+        route_dialog_to_role(actor, dialog, target)
         assert dialog.assigned_role_id == target.id
         assert dialog.responsible_employee_id is None
         assert dialog.role_assigned_at is not None
