@@ -167,9 +167,7 @@ def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None
 
     assert response.status_code == 302
     with app.app_context():
-        message = db.session.scalar(
-            db.select(Message).where(Message.text == "Additional details")
-        )
+        message = db.session.scalar(db.select(Message).where(Message.text == "Additional details"))
         assert message is not None
         assert message.author_type == AuthorType.CLIENT
         assert message.is_internal is False

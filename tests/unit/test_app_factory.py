@@ -24,7 +24,6 @@ def test_create_app_registers_transport_and_database() -> None:
             app.extensions["database"].engine.dispose()
 
 
-
 def test_client_account_is_blocked_from_employee_routes(app) -> None:
     from app.extensions import db
     from app.models import Client

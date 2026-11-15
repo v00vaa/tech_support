@@ -83,9 +83,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     # the existing login implementation remains in its original auth module.
     app.view_functions["auth.client_login"] = cast(
         Callable[..., ResponseReturnValue],
-        limiter.limit("5 per minute", methods=["POST"])(
-            app.view_functions["auth.client_login"]
-        ),
+        limiter.limit("5 per minute", methods=["POST"])(app.view_functions["auth.client_login"]),
     )
 
     @app.before_request

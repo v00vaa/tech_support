@@ -279,8 +279,10 @@ def client_register() -> ResponseReturnValue:
                 db.session.rollback()
                 raise
 
-            if automatic_mode and external_client is not None and not _redeem_registration_token(
-                token, str(external_client["external_id"])
+            if (
+                automatic_mode
+                and external_client is not None
+                and not _redeem_registration_token(token, str(external_client["external_id"]))
             ):
                 flash(
                     "Аккаунт создан, но основная система пока не подтвердила использование "
@@ -708,11 +710,15 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         ).all()
     else:
         assigned_role = dialog.assigned_role
-        route_targets = [
-            route.target_role
-            for route in assigned_role.outgoing_routes
-            if route.target_role.is_active
-        ] if assigned_role is not None else []
+        route_targets = (
+            [
+                route.target_role
+                for route in assigned_role.outgoing_routes
+                if route.target_role.is_active
+            ]
+            if assigned_role is not None
+            else []
+        )
     route_form.target_role_id.choices = [(item.id, item.name) for item in route_targets]
     return render_template(
         "dialogs/detail.html",

@@ -67,7 +67,6 @@ def test_http_provider_redeems_with_idempotency_key_and_accepts_empty_body() -> 
     assert request.data == b"{}"
 
 
-
 def _http_provider() -> HttpRegistrationProvider:
     return HttpRegistrationProvider(
         base_url="https://main.example.com",

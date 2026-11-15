@@ -541,7 +541,6 @@ def test_public_message_requires_reply_permission(
     assert response.status_code == 403
 
 
-
 def test_registration_settings_page_is_accessible(support_system: dict[str, object]) -> None:
     response = _client(support_system).get("/settings/registration")
     assert response.status_code == 200
