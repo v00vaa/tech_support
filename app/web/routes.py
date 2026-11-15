@@ -217,6 +217,7 @@ def client_register() -> ResponseReturnValue:
         )
 
     if existing_client is not None:
+        assert external_client is not None
         if _redeem_registration_token(token, str(external_client["external_id"])):
             flash(
                 "Этот профиль уже зарегистрирован. Ссылка регистрации больше не действует.",
@@ -260,6 +261,7 @@ def client_register() -> ResponseReturnValue:
         else:
             if automatic_mode and not external_client:
                 abort(400)
+            assert form.password.data is not None
 
             name = request_name if settings.collect_request_details else login_value
             client = Client(
@@ -277,7 +279,7 @@ def client_register() -> ResponseReturnValue:
                 db.session.rollback()
                 raise
 
-            if automatic_mode and not _redeem_registration_token(
+            if automatic_mode and external_client is not None and not _redeem_registration_token(
                 token, str(external_client["external_id"])
             ):
                 flash(
@@ -414,9 +416,9 @@ def logout() -> ResponseReturnValue:
     return redirect(url_for("auth.client_login" if was_client else "auth.login"))
 
 
-@portal_bp.get("/")
+@portal_bp.get("/", endpoint="index")
 @client_required
-def index() -> ResponseReturnValue:
+def portal_index() -> ResponseReturnValue:
     """Show only the current customer's support requests."""
     dialogs = db.session.scalars(
         db.select(Dialog)
@@ -426,9 +428,9 @@ def index() -> ResponseReturnValue:
     return render_template("portal/index.html", dialogs=dialogs)
 
 
-@portal_bp.route("/dialogs/new", methods=["GET", "POST"])
+@portal_bp.route("/dialogs/new", methods=["GET", "POST"], endpoint="dialog_create")
 @client_required
-def dialog_create() -> ResponseReturnValue:
+def portal_dialog_create() -> ResponseReturnValue:
     """Create a new customer-owned dialog and its first public message."""
     form = ClientDialogForm()
     if form.validate_on_submit():
@@ -456,9 +458,9 @@ def dialog_create() -> ResponseReturnValue:
     return render_template("portal/dialog_form.html", form=form)
 
 
-@portal_bp.route("/dialogs/<int:dialog_id>", methods=["GET", "POST"])
+@portal_bp.route("/dialogs/<int:dialog_id>", methods=["GET", "POST"], endpoint="dialog_detail")
 @client_required
-def dialog_detail(dialog_id: int) -> ResponseReturnValue:
+def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
     """Read and reply only to a dialog owned by the authenticated customer."""
     dialog = db.session.scalar(
         db.select(Dialog).where(
@@ -698,7 +700,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         if not message.is_internal or has_permission(current_user, "dialogs.add_internal_note")
     ]
     route_form = DialogRouteForm()
-    if dialog.assigned_role_id is None:
+    if dialog.assigned_role is None:
         route_targets = db.session.scalars(
             db.select(Role)
             .where(Role.role_type == "MAIN", Role.is_active, Role.code != "administrator")
@@ -779,7 +781,8 @@ def dialog_route(dialog_id: int) -> ResponseReturnValue:
             )
         ).all()
     else:
-        targets = [item.target_role for item in dialog.assigned_role.outgoing_routes]
+        assigned_role = dialog.assigned_role
+        targets = [item.target_role for item in assigned_role.outgoing_routes] if assigned_role else []
     form.target_role_id.choices = [(item.id, item.name) for item in targets]
     if form.validate_on_submit():
         target = db.get_or_404(Role, form.target_role_id.data)
