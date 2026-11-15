@@ -7,6 +7,12 @@ services:
       SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
       SUPPORT_RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
       SUPPORT_PUBLIC_BASE_URL: http://localhost:5000
+      SUPPORT_SMTP_HOST: ${SUPPORT_SMTP_HOST:-}
+      SUPPORT_SMTP_PORT: ${SUPPORT_SMTP_PORT:-587}
+      SUPPORT_SMTP_USERNAME: ${SUPPORT_SMTP_USERNAME:-}
+      SUPPORT_SMTP_PASSWORD: ${SUPPORT_SMTP_PASSWORD:-}
+      SUPPORT_SMTP_SENDER: ${SUPPORT_SMTP_SENDER:-}
+      SUPPORT_SMTP_USE_TLS: ${SUPPORT_SMTP_USE_TLS:-true}
     ports:
       - "5000:8000"
     depends_on:
@@ -23,16 +29,16 @@ services:
       SUPPORT_SECRET_KEY: development-only-change-me
       SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
     depends_on:
-      redis:
+      db:
+        condition: service_healthy
+
+  redis:
     image: redis:7-alpine
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 10
-
-  db:
-        condition: service_healthy
 
   db:
     image: postgres:16-alpine
