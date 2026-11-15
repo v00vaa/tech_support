@@ -16,7 +16,11 @@ from app.services.password_reset_service import (
 
 
 def _customer() -> Client:
-    customer = Client(name="Reset Service Customer", login="reset-service", email="reset@example.com")
+    customer = Client(
+        name="Reset Service Customer",
+        login="reset-service",
+        email="reset@example.com",
+    )
     customer.set_password("original-password-long")
     db.session.add(customer)
     db.session.commit()
