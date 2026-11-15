@@ -1,6 +1,6 @@
 """Tests for customer password-reset flow and enumeration resistance."""
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Client
 
 
@@ -73,7 +73,9 @@ def test_reset_request_does_not_send_for_client_without_email(app, client, custo
 
 
 def test_client_login_is_rate_limited(app, client, customer_records):
-    app.config["RATELIMIT_ENABLED"] = True
+    # Flask-Limiter reads RATELIMIT_ENABLED during init_app; enable the
+    # extension itself because the app fixture was created in testing mode.
+    limiter.enabled = True
     responses = [
         client.post(
             "/client/login",
