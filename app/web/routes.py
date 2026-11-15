@@ -707,11 +707,12 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
             .order_by(Role.name)
         ).all()
     else:
+        assigned_role = dialog.assigned_role
         route_targets = [
             route.target_role
-            for route in dialog.assigned_role.outgoing_routes
+            for route in assigned_role.outgoing_routes
             if route.target_role.is_active
-        ]
+        ] if assigned_role is not None else []
     route_form.target_role_id.choices = [(item.id, item.name) for item in route_targets]
     return render_template(
         "dialogs/detail.html",
