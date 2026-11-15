@@ -68,9 +68,10 @@ def send_password_reset_email(client: Client, token: str) -> None:
         url_for("client_password_reset.reset_password", token=token).lstrip("/"),
     )
     subject = "Восстановление пароля Support Desk"
+    lifetime_minutes = current_app.config["PASSWORD_RESET_TOKEN_MAX_AGE"] // 60
     body = (
         f"Здравствуйте, {client.name}!\n\n"
-        "Для задания нового пароля перейдите по ссылке (она действует 30 минут):\n"
+        f"Для задания нового пароля перейдите по ссылке (она действует {lifetime_minutes} мин.):\n"
         f"{reset_url}\n\n"
         "Если вы не запрашивали восстановление, просто проигнорируйте это письмо."
     )
