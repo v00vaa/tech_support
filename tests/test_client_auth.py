@@ -110,7 +110,7 @@ def test_customer_login_rejects_invalid_password(client, customer_records) -> No
     )
 
     assert response.status_code == 200
-    assert b"Неверный логин или пароль" in response.data
+    assert "Неверный логин или пароль".encode() in response.data
 
 
 def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
