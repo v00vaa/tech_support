@@ -63,9 +63,19 @@ def send_password_reset_email(client: Client, token: str) -> None:
     injected: Callable[[str, str, str], None] | None = current_app.config.get(
         "PASSWORD_RESET_EMAIL_SENDER"
     )
+    host = current_app.config.get("SMTP_HOST")
+    sender = current_app.config.get("SMTP_SENDER")
+    if injected is None and (not host or not sender or not client.email):
+        raise RuntimeError("Password-reset email delivery is not configured")
+
+    reset_path = url_for(
+        "client_password_reset.reset_password",
+        token=token,
+        _external=False,
+    )
     reset_url = urljoin(
         current_app.config["PUBLIC_BASE_URL"].rstrip("/") + "/",
-        url_for("client_password_reset.reset_password", token=token).lstrip("/"),
+        reset_path.lstrip("/"),
     )
     subject = "Восстановление пароля Support Desk"
     lifetime_minutes = current_app.config["PASSWORD_RESET_TOKEN_MAX_AGE"] // 60
@@ -78,11 +88,6 @@ def send_password_reset_email(client: Client, token: str) -> None:
     if injected is not None:
         injected(client.email or "", subject, body)
         return
-
-    host = current_app.config.get("SMTP_HOST")
-    sender = current_app.config.get("SMTP_SENDER")
-    if not host or not sender or not client.email:
-        raise RuntimeError("Password-reset email delivery is not configured")
 
     message = EmailMessage()
     message["Subject"] = subject
