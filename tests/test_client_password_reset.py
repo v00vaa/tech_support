@@ -4,7 +4,7 @@ from app.extensions import db
 from app.models import Client
 
 
-def test_reset_request_has_generic_response_for_unknown_email(client):
+def test_reset_request_has_generic_response_for_unknown_email(client, customer_records):
     response = client.post(
         "/client/password-reset",
         data={"email": "missing@example.com"},
