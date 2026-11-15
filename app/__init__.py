@@ -7,10 +7,11 @@ from flask_login import current_user
 from app.api.routes import api_bp
 from app.core.config import Settings
 from app.core.errors import register_error_handlers
-from app.extensions import db, login_manager, migrate
+from app.extensions import db, limiter, login_manager, migrate
 from app.models.client import Client
 from app.models.employee import Employee
 from app.services.access_control_service import has_permission
+from app.web.client_password_reset import client_password_reset_bp
 from app.web.routes import (
     auth_bp,
     clients_bp,
@@ -36,6 +37,16 @@ def create_app(settings: Settings | None = None) -> Flask:
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=resolved_settings.environment == "production",
+        RATELIMIT_STORAGE_URI=resolved_settings.rate_limit_storage_uri,
+        PASSWORD_RESET_TOKEN_MAX_AGE=resolved_settings.password_reset_token_max_age_seconds,
+        PUBLIC_BASE_URL=resolved_settings.public_base_url,
+        SMTP_HOST=resolved_settings.smtp_host,
+        SMTP_PORT=resolved_settings.smtp_port,
+        SMTP_USERNAME=resolved_settings.smtp_username,
+        SMTP_PASSWORD=resolved_settings.smtp_password,
+        SMTP_SENDER=resolved_settings.smtp_sender,
+        SMTP_USE_TLS=resolved_settings.smtp_use_tls,
+        SMTP_TIMEOUT_SECONDS=resolved_settings.smtp_timeout_seconds,
         REGISTRATION_PROVIDER_MODE=resolved_settings.registration_provider,
         REGISTRATION_API_BASE_URL=resolved_settings.registration_api_base_url,
         REGISTRATION_SERVICE_TOKEN=resolved_settings.registration_service_token,
@@ -48,6 +59,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app.extensions["database"] = db
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    limiter.init_app(app)
 
     for blueprint in (
         main_bp,
@@ -58,9 +70,16 @@ def create_app(settings: Settings | None = None) -> Flask:
         messages_bp,
         settings_bp,
         portal_bp,
+        client_password_reset_bp,
         api_bp,
     ):
         app.register_blueprint(blueprint)
+
+    # Flask-Limiter decorates this endpoint after blueprint registration so
+    # the existing login implementation remains in its original auth module.
+    app.view_functions["auth.client_login"] = limiter.limit("5 per minute")(
+        app.view_functions["auth.client_login"]
+    )
 
     @app.before_request
     def enforce_account_boundaries() -> ResponseReturnValue | None:
@@ -79,6 +98,8 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "portal.index",
                 "portal.dialog_create",
                 "portal.dialog_detail",
+                "client_password_reset.request_password_reset",
+                "client_password_reset.reset_password",
                 "static",
             }
             if endpoint not in allowed:
