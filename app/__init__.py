@@ -128,7 +128,13 @@ def create_app(settings: Settings | None = None) -> Flask:
 def load_user(user_id: str) -> Employee | Client | None:
     """Load an employee or customer using a namespaced, collision-safe identity."""
     try:
-        account_type, raw_id = user_id.split(":", maxsplit=1)
+        if ":" in user_id:
+            account_type, raw_id = user_id.split(":", maxsplit=1)
+        else:
+            # Backward compatibility for employee sessions created before
+            # namespaced IDs were introduced. Numeric IDs are employee-only;
+            # customer sessions must always use the explicit client: prefix.
+            account_type, raw_id = "employee", user_id
         account_id = int(raw_id)
     except (AttributeError, TypeError, ValueError):
         return None
