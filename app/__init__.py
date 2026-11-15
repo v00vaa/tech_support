@@ -1,5 +1,8 @@
 """Application factory for the support system."""
 
+from collections.abc import Callable
+from typing import cast
+
 from flask import Flask, abort, redirect, request, url_for
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
@@ -78,8 +81,11 @@ def create_app(settings: Settings | None = None) -> Flask:
 
     # Flask-Limiter decorates this endpoint after blueprint registration so
     # the existing login implementation remains in its original auth module.
-    app.view_functions["auth.client_login"] = limiter.limit("5 per minute", methods=["POST"])(
-        app.view_functions["auth.client_login"]
+    app.view_functions["auth.client_login"] = cast(
+        Callable[..., ResponseReturnValue],
+        limiter.limit("5 per minute", methods=["POST"])(
+            app.view_functions["auth.client_login"]
+        ),
     )
 
     @app.before_request
