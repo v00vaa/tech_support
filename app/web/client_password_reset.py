@@ -36,9 +36,7 @@ def request_password_reset() -> ResponseReturnValue:
                 token = generate_password_reset_token(client)
                 send_password_reset_email(client, token)
             except Exception:
-                current_app.logger.exception(
-                    "Could not send a customer password-reset email"
-                )
+                current_app.logger.exception("Could not send a customer password-reset email")
         flash(
             "Если активный аккаунт с таким email существует, инструкция отправлена.",
             "info",
@@ -47,9 +45,7 @@ def request_password_reset() -> ResponseReturnValue:
     return render_template("auth/client_password_reset_request.html", form=form)
 
 
-@client_password_reset_bp.route(
-    "/client/password-reset/<string:token>", methods=["GET", "POST"]
-)
+@client_password_reset_bp.route("/client/password-reset/<string:token>", methods=["GET", "POST"])
 @limiter.limit("10 per hour", methods=["POST"])
 def reset_password(token: str) -> ResponseReturnValue:
     """Set a new password once; changing it invalidates the token."""

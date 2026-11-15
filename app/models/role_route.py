@@ -45,4 +45,3 @@ class RoleRoute(Base):
     target_role: Mapped[Role] = relationship(
         back_populates="incoming_routes", foreign_keys=[target_role_id]
     )
-

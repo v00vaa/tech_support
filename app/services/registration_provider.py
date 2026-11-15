@@ -117,9 +117,7 @@ class HttpRegistrationProvider:
                 raise RegistrationTokenInvalid(
                     "Registration token is invalid or expired"
                 ) from error
-            raise RegistrationProviderError(
-                f"Primary system returned HTTP {error.code}"
-            ) from error
+            raise RegistrationProviderError(f"Primary system returned HTTP {error.code}") from error
         except (URLError, TimeoutError, OSError) as error:
             raise RegistrationProviderError("Primary system request failed") from error
         except (UnicodeDecodeError, json.JSONDecodeError) as error:

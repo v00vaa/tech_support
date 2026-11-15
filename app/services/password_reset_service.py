@@ -5,8 +5,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import smtplib
+from collections.abc import Callable
 from email.message import EmailMessage
-from typing import Callable
 from urllib.parse import urljoin
 
 from flask import current_app, url_for

@@ -26,9 +26,11 @@ def test_mock_provider_rejects_unknown_token() -> None:
 
 
 def test_http_provider_sends_both_credentials_and_parses_profile() -> None:
-    response = BytesIO(json.dumps({
-        "external_id": "customer-42", "name": "Test", "email": None, "phone": "+100"
-    }).encode())
+    response = BytesIO(
+        json.dumps(
+            {"external_id": "customer-42", "name": "Test", "email": None, "phone": "+100"}
+        ).encode()
+    )
     provider = HttpRegistrationProvider(
         base_url="https://main.example.com",
         service_token="service-secret",

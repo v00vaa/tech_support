@@ -283,7 +283,6 @@ def delete_employee_safely(employee: Employee) -> None:
     db.session.commit()
 
 
-
 def update_role_permissions(
     actor: Employee,
     role: Role,
@@ -298,9 +297,7 @@ def update_role_permissions(
 
     requested_codes = set(permission_codes)
     permissions = (
-        db.session.scalars(
-            select(Permission).where(Permission.code.in_(requested_codes))
-        ).all()
+        db.session.scalars(select(Permission).where(Permission.code.in_(requested_codes))).all()
         if requested_codes
         else []
     )

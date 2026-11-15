@@ -49,9 +49,7 @@ class Settings(BaseSettings):
             raise ValueError("SUPPORT_DEBUG cannot be enabled in production")
         if self.registration_provider == "http":
             if not self.registration_api_base_url or not self.registration_service_token:
-                raise ValueError(
-                    "HTTP registration integration requires API URL and service token"
-                )
+                raise ValueError("HTTP registration integration requires API URL and service token")
             if not self.registration_api_base_url.startswith("https://"):
                 raise ValueError("Registration API must use HTTPS")
         if self.environment == "production" and self.registration_provider != "http":

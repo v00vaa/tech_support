@@ -1,7 +1,8 @@
 """Flask CLI commands for database bootstrap and demo data."""
 
-import click
 import time
+
+import click
 from flask import Flask
 
 from app.extensions import db

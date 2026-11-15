@@ -45,18 +45,18 @@ from app.services.registration_provider import (
     RegistrationTokenInvalid,
     get_registration_provider,
 )
-from app.services.routing_service import (
-    delete_role_route,
-    route_dialog_to_role,
-    save_role_route,
-)
 from app.services.role_service import (
     assign_employee_roles,
     can_manage_role_members,
     manage_role_members,
     save_role,
-    update_role_permissions,
     update_employee_active_state,
+    update_role_permissions,
+)
+from app.services.routing_service import (
+    delete_role_route,
+    route_dialog_to_role,
+    save_role_route,
 )
 from app.web.forms import (
     AssignForm,
@@ -195,9 +195,7 @@ def client_register() -> ResponseReturnValue:
         return redirect(url_for("main.index"))
 
     settings = _get_registration_settings()
-    token = (
-        request.args.get("token") or request.form.get("registration_token") or ""
-    ).strip()
+    token = (request.args.get("token") or request.form.get("registration_token") or "").strip()
     automatic_mode = bool(token)
 
     if automatic_mode and not settings.automatic_enabled:
@@ -238,9 +236,7 @@ def client_register() -> ResponseReturnValue:
         phone = (form.phone.data or "").strip() if settings.phone_enabled else None
         if not email and not phone:
             errors.append("Укажите хотя бы один доступный способ связи.")
-        if email and db.session.scalar(
-            db.select(Client).where(func.lower(Client.email) == email)
-        ):
+        if email and db.session.scalar(db.select(Client).where(func.lower(Client.email) == email)):
             errors.append("Этот email уже используется.")
         if phone and db.session.scalar(db.select(Client).where(Client.phone == phone)):
             errors.append("Этот телефон уже используется.")
@@ -321,9 +317,7 @@ def client_registration_complete() -> ResponseReturnValue:
     messages = get_flashed_messages(with_categories=True)
     if not messages:
         return redirect(url_for("auth.client_login"))
-    response = make_response(
-        render_template("auth/registration_complete.html", messages=messages)
-    )
+    response = make_response(render_template("auth/registration_complete.html", messages=messages))
     response.headers["Cache-Control"] = "no-store"
     response.headers["Referrer-Policy"] = "no-referrer"
     return response
@@ -331,6 +325,7 @@ def client_registration_complete() -> ResponseReturnValue:
 
 def client_required(view: Callable[..., Any]) -> Callable[..., Any]:
     """Require a logged-in customer, never an employee account."""
+
     @wraps(view)
     def wrapped(*args: Any, **kwargs: Any) -> Any:
         if not current_user.is_authenticated:
@@ -355,9 +350,7 @@ def client_login() -> ResponseReturnValue:
     form = ClientLoginForm()
     if form.validate_on_submit():
         login_value = (form.login.data or "").strip().casefold()
-        client = db.session.scalar(
-            db.select(Client).where(func.lower(Client.login) == login_value)
-        )
+        client = db.session.scalar(db.select(Client).where(func.lower(Client.login) == login_value))
         if client and client.is_active and client.check_password(form.password.data):
             login_user(client, remember=False, fresh=True)
             flash("Вы успешно вошли в клиентский кабинет.", "success")
@@ -389,9 +382,7 @@ def login() -> ResponseReturnValue:
         "auth/login.html",
         form=form,
         registration_settings=_get_registration_settings(),
-        registration_demo_enabled=(
-            current_app.config["REGISTRATION_PROVIDER_MODE"] == "mock"
-        ),
+        registration_demo_enabled=(current_app.config["REGISTRATION_PROVIDER_MODE"] == "mock"),
     )
 
 
@@ -709,13 +700,14 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     route_form = DialogRouteForm()
     if dialog.assigned_role_id is None:
         route_targets = db.session.scalars(
-            db.select(Role).where(
-                Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
-            ).order_by(Role.name)
+            db.select(Role)
+            .where(Role.role_type == "MAIN", Role.is_active, Role.code != "administrator")
+            .order_by(Role.name)
         ).all()
     else:
         route_targets = [
-            route.target_role for route in dialog.assigned_role.outgoing_routes
+            route.target_role
+            for route in dialog.assigned_role.outgoing_routes
             if route.target_role.is_active
         ]
     route_form.target_role_id.choices = [(item.id, item.name) for item in route_targets]
@@ -1008,9 +1000,9 @@ def role_routing(role_id: int, direction: str) -> ResponseReturnValue:
         abort(403)
     form = RoleRouteForm()
     main_roles = db.session.scalars(
-        db.select(Role).where(
-            Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
-        ).order_by(Role.name)
+        db.select(Role)
+        .where(Role.role_type == "MAIN", Role.is_active, Role.code != "administrator")
+        .order_by(Role.name)
     ).all()
     form.target_role_id.choices = [
         (item.id, item.name) for item in main_roles if item.id != source_role.id
@@ -1092,8 +1084,7 @@ def role_permissions_edit(role_id: int) -> ResponseReturnValue:
     form.permissions.choices = [(item.code, item.name) for item in permissions]
     current_codes = {item.code for item in role.permissions}
     delegable_codes = {
-        item.code for item in permissions
-        if can_delegate_permissions(current_user, {item.code})
+        item.code for item in permissions if can_delegate_permissions(current_user, {item.code})
     }
 
     if form.validate_on_submit():

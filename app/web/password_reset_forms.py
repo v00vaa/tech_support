@@ -11,9 +11,7 @@ class ClientPasswordResetRequestForm(FlaskForm):
 
 
 class ClientPasswordResetForm(FlaskForm):
-    password = PasswordField(
-        "Новый пароль", validators=[DataRequired(), Length(min=12, max=128)]
-    )
+    password = PasswordField("Новый пароль", validators=[DataRequired(), Length(min=12, max=128)])
     confirm_password = PasswordField(
         "Повторите пароль",
         validators=[DataRequired(), EqualTo("password", message="Пароли не совпадают.")],
