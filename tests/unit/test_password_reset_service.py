@@ -37,7 +37,7 @@ def test_verification_rejects_malformed_expired_and_unknown_customer_tokens(app)
 
         token = generate_password_reset_token(customer)
         with pytest.raises(InvalidPasswordResetToken):
-            verify_password_reset_token(token, max_age=0)
+            verify_password_reset_token(token, max_age=-1)
 
         unknown_token = URLSafeTimedSerializer(
             app.config["SECRET_KEY"], salt="client-password-reset-v1"
