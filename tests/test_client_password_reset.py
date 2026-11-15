@@ -73,7 +73,8 @@ def test_reset_request_does_not_send_for_client_without_email(app, client, custo
 
 
 
-def test_client_login_is_rate_limited(client, customer_records):
+def test_client_login_is_rate_limited(app, client, customer_records):
+    app.config["RATELIMIT_ENABLED"] = True
     responses = [
         client.post(
             "/client/login",
