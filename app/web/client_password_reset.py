@@ -11,7 +11,7 @@ from app.services.password_reset_service import (
     send_password_reset_email,
     verify_password_reset_token,
 )
-from app.web.forms import ClientPasswordResetRequestForm, ClientPasswordResetForm
+from app.web.password_reset_forms import ClientPasswordResetForm, ClientPasswordResetRequestForm
 
 client_password_reset_bp = Blueprint("client_password_reset", __name__)
 
