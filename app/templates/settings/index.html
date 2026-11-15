@@ -8,6 +8,7 @@
       <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
       {% endif %}
       <a class="list-group-item list-group-item-action" href="{{ url_for('settings.registration_settings') }}">Регистрация клиентов</a>
+      {# TODO(UI): The following links currently lead to the shared "in development" screen. Convert each link into a dedicated settings form before treating it as an available configuration option. #}
       {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
       <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
       {% endfor %}
