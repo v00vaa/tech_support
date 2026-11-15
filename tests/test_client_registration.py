@@ -1,7 +1,19 @@
 """Tests for manual and primary-system customer registration."""
 
+import pytest
+
 from app.extensions import db
 from app.models import Client
+
+
+@pytest.fixture(autouse=True)
+def registration_database(app):
+    """Create all model tables required by registration routes."""
+    with app.app_context():
+        db.create_all()
+        yield
+        db.session.remove()
+        db.drop_all()
 
 
 def test_manual_registration_creates_customer_account(app, client):
