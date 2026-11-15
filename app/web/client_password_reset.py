@@ -63,6 +63,7 @@ def reset_password(token: str) -> ResponseReturnValue:
 
     form = ClientPasswordResetForm()
     if form.validate_on_submit():
+        assert form.password.data is not None
         client.set_password(form.password.data)
         db.session.commit()
         flash("Пароль изменен. Теперь можно войти в клиентский кабинет.", "success")
