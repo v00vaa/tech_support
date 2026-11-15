@@ -569,3 +569,43 @@ def test_registration_settings_update_requires_contact_channel(
         },
     )
     assert saved.status_code == 302
+
+
+def test_role_routing_configuration_routes(support_system: dict[str, object]) -> None:
+    from app.models import RoleRoute
+
+    client = _client(support_system)
+    ids = _ids(support_system)
+    source_id = ids["role"]
+    target_id = ids["support_role"]
+
+    assert client.get(f"/settings/roles/{source_id}/routing/outgoing").status_code == 200
+    assert client.get(f"/settings/roles/{target_id}/routing/incoming").status_code == 200
+    assert client.get(f"/settings/roles/{source_id}/routing/unknown").status_code == 404
+
+    response = client.post(
+        f"/settings/roles/{source_id}/routing/add",
+        data={
+            "target_role_id": str(target_id),
+            "is_default": "y",
+            "auto_forward_after_minutes": "15",
+            "submit": "Save",
+        },
+    )
+    assert response.status_code == 302
+
+    with client.application.app_context():
+        route = db.session.scalar(
+            db.select(RoleRoute).where(
+                RoleRoute.source_role_id == source_id,
+                RoleRoute.target_role_id == target_id,
+            )
+        )
+        assert route is not None
+        route_id = route.id
+
+    deleted = client.post(
+        f"/settings/roles/{source_id}/routing/{route_id}/delete",
+        data={"submit": "Delete"},
+    )
+    assert deleted.status_code == 302
