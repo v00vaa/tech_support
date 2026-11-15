@@ -73,9 +73,10 @@ def test_reset_request_does_not_send_for_client_without_email(app, client, custo
 
 
 def test_client_login_is_rate_limited(app, client, customer_records):
-    # Flask-Limiter reads RATELIMIT_ENABLED during init_app; enable the
-    # extension itself because the app fixture was created in testing mode.
-    limiter.enabled = True
+    # The app fixture initializes Flask-Limiter with limiting disabled.
+    # Re-initialize it after enabling the config so its request hooks are registered.
+    app.config["RATELIMIT_ENABLED"] = True
+    limiter.init_app(app)
     responses = [
         client.post(
             "/client/login",
