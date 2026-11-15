@@ -38,6 +38,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=resolved_settings.environment == "production",
         RATELIMIT_STORAGE_URI=resolved_settings.rate_limit_storage_uri,
+        RATELIMIT_ENABLED=resolved_settings.environment != "testing",
         PASSWORD_RESET_TOKEN_MAX_AGE=resolved_settings.password_reset_token_max_age_seconds,
         PUBLIC_BASE_URL=resolved_settings.public_base_url,
         SMTP_HOST=resolved_settings.smtp_host,
