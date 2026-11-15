@@ -609,3 +609,35 @@ def test_role_routing_configuration_routes(support_system: dict[str, object]) ->
         data={"submit": "Delete"},
     )
     assert deleted.status_code == 302
+
+
+def test_role_membership_and_permission_routes(support_system: dict[str, object]) -> None:
+    client = _client(support_system)
+    ids = _ids(support_system)
+    role_id = ids["role"]
+    employee_id = ids["employee"]
+
+    added = client.post(
+        f"/settings/roles/{role_id}/members/add",
+        data={"employee_id": str(employee_id), "submit": "Add"},
+    )
+    assert added.status_code == 302
+
+    removed = client.post(
+        f"/settings/roles/{role_id}/members/{employee_id}/remove",
+        data={"employee_id": str(employee_id), "submit": "Remove"},
+    )
+    assert removed.status_code == 302
+
+    page = client.get(f"/settings/roles/{role_id}/permissions")
+    assert page.status_code == 200
+    updated = client.post(
+        f"/settings/roles/{role_id}/permissions",
+        data={"permissions": ["dialogs.view"], "submit": "Save"},
+    )
+    assert updated.status_code == 302
+
+    with client.application.app_context():
+        role = db.session.get(Role, role_id)
+        assert role is not None
+        assert {permission.code for permission in role.permissions} == {"dialogs.view"}
