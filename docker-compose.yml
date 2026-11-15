@@ -5,11 +5,15 @@ services:
       SUPPORT_ENVIRONMENT: development
       SUPPORT_SECRET_KEY: development-only-change-me
       SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
+      SUPPORT_RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
+      SUPPORT_PUBLIC_BASE_URL: http://localhost:5000
     ports:
       - "5000:8000"
     depends_on:
       migrate:
         condition: service_completed_successfully
+      redis:
+        condition: service_healthy
 
   migrate:
     build: .
@@ -19,7 +23,15 @@ services:
       SUPPORT_SECRET_KEY: development-only-change-me
       SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
     depends_on:
-      db:
+      redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  db:
         condition: service_healthy
 
   db:
