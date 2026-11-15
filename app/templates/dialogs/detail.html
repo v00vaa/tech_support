@@ -1,4 +1,5 @@
 {% extends "layout.html" %}{% block content %}
+{# TODO(UI): Complete the conversation workspace with attachment upload/download and previews, message pagination or lazy loading, and clear visual separation/filtering of internal notes. Add a confirmation step for destructive actions. #}
 <div class="d-flex justify-content-between align-items-start"><div><h1>Диалог #{{ dialog.id }}</h1><h2 class="h4 text-muted">{{ dialog.subject }}</h2></div>{% if has_permission(current_user, 'dialogs.manage') %}<a class="btn btn-outline-secondary" href="{{ url_for('dialogs.dialog_edit', dialog_id=dialog.id) }}">Изменить</a>{% endif %}</div>
 <div class="card mb-3"><div class="card-body row g-3">
 <div class="col-md-4"><strong>Клиент:</strong> <a href="{{ url_for('clients.client_detail', client_id=dialog.client.id) }}">{{ dialog.client.name }}</a></div>
