@@ -73,11 +73,12 @@ def test_smtp_delivery_uses_tls_and_optional_authentication(app):
             PASSWORD_RESET_EMAIL_SENDER=None,
         )
         smtp = MagicMock()
+        smtp_factory = MagicMock(return_value=smtp)
         smtp_context = smtp.__enter__.return_value
-        with patch("app.services.password_reset_service.smtplib.SMTP", return_value=smtp):
+        with patch("app.services.password_reset_service.smtplib.SMTP", smtp_factory):
             send_password_reset_email(customer, "signed-token")
 
-        smtp.assert_called_once_with("smtp.example.test", 587, timeout=3)
+        smtp_factory.assert_called_once_with("smtp.example.test", 587, timeout=3)
         smtp_context.starttls.assert_called_once_with()
         smtp_context.login.assert_called_once_with("smtp-user", "smtp-password")
         smtp_context.send_message.assert_called_once()
