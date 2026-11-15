@@ -36,6 +36,8 @@
         <div class="border-top mt-4 pt-3 text-center small">
           <a href="{{ url_for('auth.client_register') }}">Создать аккаунт</a>
           <span class="text-muted mx-2">·</span>
+          <a href="{{ url_for('client_password_reset.request_password_reset') }}">Забыли пароль?</a>
+          <span class="text-muted mx-2">·</span>
           <a href="{{ url_for('auth.login') }}">Вход для сотрудников</a>
         </div>
       </div>
