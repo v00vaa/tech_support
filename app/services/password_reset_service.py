@@ -12,6 +12,7 @@ from urllib.parse import urljoin
 from flask import current_app, url_for
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
+from app.extensions import db
 from app.models.client import Client
 
 
@@ -45,7 +46,7 @@ def verify_password_reset_token(token: str, *, max_age: int) -> Client:
         raise InvalidPasswordResetToken from error
     if not isinstance(payload, dict) or not isinstance(payload.get("client_id"), int):
         raise InvalidPasswordResetToken
-    client = Client.query.get(payload["client_id"])
+    client = db.session.get(Client, payload["client_id"])
     if (
         client is None
         or not client.is_active
