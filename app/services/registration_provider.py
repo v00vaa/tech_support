@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 from urllib.error import HTTPError, URLError
 from urllib.parse import urljoin
 from urllib.request import Request, urlopen
@@ -163,7 +163,7 @@ def get_registration_provider() -> RegistrationProvider:
     """Build the configured adapter; tests may inject an implementation in Flask config."""
     injected = current_app.config.get("REGISTRATION_PROVIDER_INSTANCE")
     if injected is not None:
-        return injected
+        return cast(RegistrationProvider, injected)
     mode = current_app.config["REGISTRATION_PROVIDER_MODE"]
     if mode == "mock":
         return MockRegistrationProvider()
