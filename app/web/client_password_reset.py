@@ -18,7 +18,7 @@ client_password_reset_bp = Blueprint("client_password_reset", __name__)
 
 
 @client_password_reset_bp.route("/client/password-reset", methods=["GET", "POST"])
-@limiter.limit("3 per hour")
+@limiter.limit("3 per hour", methods=["POST"])
 def request_password_reset() -> ResponseReturnValue:
     """Always show the same result to avoid disclosing registered email addresses."""
     form = ClientPasswordResetRequestForm()
@@ -50,7 +50,7 @@ def request_password_reset() -> ResponseReturnValue:
 @client_password_reset_bp.route(
     "/client/password-reset/<string:token>", methods=["GET", "POST"]
 )
-@limiter.limit("10 per hour")
+@limiter.limit("10 per hour", methods=["POST"])
 def reset_password(token: str) -> ResponseReturnValue:
     """Set a new password once; changing it invalidates the token."""
     try:
