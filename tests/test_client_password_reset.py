@@ -70,3 +70,16 @@ def test_reset_request_does_not_send_for_client_without_email(app, client, custo
         db.session.commit()
     client.post("/client/password-reset", data={"email": "one@example.com"})
     assert sent == []
+
+
+
+def test_client_login_is_rate_limited(client, customer_records):
+    responses = [
+        client.post(
+            "/client/login",
+            data={"login": "unknown-user", "password": "wrong-password"},
+        )
+        for _ in range(6)
+    ]
+    assert all(response.status_code == 200 for response in responses[:5])
+    assert responses[5].status_code == 429
