@@ -57,6 +57,12 @@ class Settings(BaseSettings):
         if self.environment == "production" and self.registration_provider != "http":
             raise ValueError("Production requires SUPPORT_REGISTRATION_PROVIDER=http")
         if self.environment == "production":
+            if self.secret_key == "development-only-change-me":
+                raise ValueError("Production requires a unique SUPPORT_SECRET_KEY")
+            if not self.smtp_use_tls:
+                raise ValueError("Production SMTP connections must use TLS")
+            if bool(self.smtp_username) != bool(self.smtp_password):
+                raise ValueError("SMTP username and password must be configured together")
             if not self.rate_limit_storage_uri.startswith(("redis://", "rediss://")):
                 raise ValueError("Production requires shared Redis rate-limit storage")
             if not self.public_base_url.startswith("https://"):
