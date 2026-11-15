@@ -2,6 +2,7 @@
 
 from flask import Blueprint, abort, current_app, flash, redirect, render_template, url_for
 from flask.typing import ResponseReturnValue
+from sqlalchemy import func
 
 from app.extensions import db, limiter
 from app.models.client import Client
@@ -26,7 +27,7 @@ def request_password_reset() -> ResponseReturnValue:
         client = db.session.scalar(
             db.select(Client).where(
                 Client.email.is_not(None),
-                db.func.lower(Client.email) == email,
+                func.lower(Client.email) == email,
                 Client.is_active.is_(True),
             )
         )
