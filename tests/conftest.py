@@ -5,11 +5,10 @@ from collections.abc import Iterator
 import pytest
 from flask import Flask
 
-from app.extensions import db
-from app.models import Client
-
 from app import create_app
 from app.core.config import Settings
+from app.extensions import db
+from app.models import Client
 
 
 @pytest.fixture
