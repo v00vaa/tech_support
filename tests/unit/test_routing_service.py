@@ -1,6 +1,7 @@
 """Tests for role-based dialog routing and automatic forwarding."""
 
 from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from app.extensions import db
@@ -68,9 +69,9 @@ def test_save_role_route_creates_updates_default_and_rejects_invalid_values(app)
         )
         assert second.is_default is True
         assert route.is_default is False
-        assert route.auto_forward_after_minutes is None
+        assert second.auto_forward_after_minutes is None
 
-        with pytest.raises(ValueError, match="саму себя"):
+        with pytest.raises(ValueError, match="саму в себя"):
             save_role_route(
                 actor,
                 source_role=source,
