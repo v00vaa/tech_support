@@ -9,7 +9,7 @@ from collections.abc import Callable
 from email.message import EmailMessage
 from urllib.parse import urljoin
 
-from flask import current_app, url_for
+from flask import current_app
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 
 from app.extensions import db
@@ -68,10 +68,9 @@ def send_password_reset_email(client: Client, token: str) -> None:
     if injected is None and (not host or not sender or not client.email):
         raise RuntimeError("Password-reset email delivery is not configured")
 
-    reset_path = url_for(
+    reset_path = current_app.url_map.bind("localhost").build(
         "client_password_reset.reset_password",
-        token=token,
-        _external=False,
+        {"token": token},
     )
     reset_url = urljoin(
         current_app.config["PUBLIC_BASE_URL"].rstrip("/") + "/",
@@ -88,6 +87,9 @@ def send_password_reset_email(client: Client, token: str) -> None:
     if injected is not None:
         injected(client.email or "", subject, body)
         return
+
+    if not isinstance(host, str):
+        raise RuntimeError("Password-reset email delivery is not configured")
 
     message = EmailMessage()
     message["Subject"] = subject
