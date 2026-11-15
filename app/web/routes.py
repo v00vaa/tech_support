@@ -783,7 +783,11 @@ def dialog_route(dialog_id: int) -> ResponseReturnValue:
         ).all()
     else:
         assigned_role = dialog.assigned_role
-        targets = [item.target_role for item in assigned_role.outgoing_routes] if assigned_role else []
+        targets = (
+            [item.target_role for item in assigned_role.outgoing_routes]
+            if assigned_role is not None
+            else []
+        )
     form.target_role_id.choices = [(item.id, item.name) for item in targets]
     if form.validate_on_submit():
         target = db.get_or_404(Role, form.target_role_id.data)
