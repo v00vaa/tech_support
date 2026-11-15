@@ -33,7 +33,7 @@ def test_reset_request_sends_link_for_existing_account(app, client, customer_rec
 def test_password_reset_token_changes_password_once(app, client, customer_records):
     from app.services.password_reset_service import generate_password_reset_token
 
-    customer_id, _, _ = customer_records
+    customer_id = customer_records
     with app.app_context():
         customer = db.session.get(Client, customer_id)
         assert customer is not None
