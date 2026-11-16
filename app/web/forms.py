@@ -162,11 +162,15 @@ class RoleForm(FlaskForm):
 
 class DialogForm(FlaskForm):
     client_id = SelectField("Клиент", coerce=int, validators=[DataRequired()])
+    assigned_role_id = SelectField("Очередь", coerce=int, validators=[Optional()])
     responsible_employee_id = SelectField("Ответственный", coerce=int, validators=[Optional()])
     subject = StringField("Тема", validators=[DataRequired(), Length(max=255)])
-    channel = SelectField(
-        "Канал", choices=[("Web", "Web"), ("API", "Внешний API"), ("Widget", "Виджет")]
+    channel = SelectField("Канал", validators=[DataRequired()])
+    first_message = TextAreaField(
+        "Первое сообщение",
+        validators=[Optional(), Length(max=10000)],
     )
+    attachments = MultipleFileField("Файлы и изображения")
     submit = SubmitField("Сохранить")
 
 
