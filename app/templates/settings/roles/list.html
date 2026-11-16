@@ -40,6 +40,16 @@
         <div id="role-{{ role.id }}" class="accordion-collapse collapse"
              aria-labelledby="heading-{{ role.id }}" data-bs-parent="#rolesAccordion">
           <div class="accordion-body">
+            {% if can_configure_first_line and role.role_type == 'MAIN' and role.code != 'administrator' %}
+            <form method="post" action="{{ url_for('settings.role_first_line_update', role_id=role.id) }}"
+                  class="form-check mb-3">
+              {{ first_line_forms[role.id].hidden_tag() }}
+              {{ first_line_forms[role.id].is_first_line(class_='form-check-input', onchange='this.form.submit()', disabled=not role.is_active) }}
+              <label class="form-check-label" for="{{ first_line_forms[role.id].is_first_line.id }}">
+                Первый уровень поддержки
+              </label>
+            </form>
+            {% endif %}
             <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Разделы роли">
               <button type="button" class="btn btn-primary btn-sm" aria-current="page">Сотрудники</button>
               {% if has_permission(current_user, 'roles.manage_routing') %}
