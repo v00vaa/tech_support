@@ -56,6 +56,14 @@
         <article class="client-message {{ message.author_type.value|lower }}">
           <div class="small fw-semibold mb-1">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Служба поддержки' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
           <div>{{ message.text }}</div>
+          {% for attachment in message.attachments %}
+            <div class="mt-2">
+              <a href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" class="d-inline-flex align-items-center gap-2 text-decoration-none" target="_blank" rel="noopener">
+                {% if attachment.content_type.startswith('image/') %}<img src="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" alt="{{ attachment.filename }}" loading="lazy" style="max-width:220px;max-height:160px;border-radius:.5rem;object-fit:contain">{% else %}<span class="badge text-bg-light">Файл</span>{% endif %}
+                <span class="small">{{ attachment.filename }}</span>
+              </a>
+            </div>
+          {% endfor %}
           <div class="small opacity-75 mt-2">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
         </article>
       {% else %}<p class="text-muted text-center my-auto">Сообщений пока нет.</p>{% endfor %}
@@ -63,9 +71,11 @@
 
     {% if dialog.status.value != 'CLOSED' %}
       <div class="p-3 border-top">
-        <form method="post" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate>
           {{ form.hidden_tag() }}
           {{ form.text(class_="form-control mb-2", rows="3", placeholder="Напишите сообщение…") }}
+          {{ form.attachments(class_="form-control form-control-sm mb-2", multiple=true, accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip") }}
+          <div class="small text-muted mb-2">До 5 файлов, не более 10 МБ каждый.</div>
           {% for error in form.text.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
           <div class="d-flex justify-content-end">{{ form.submit(class_="btn btn-primary") }}</div>
         </form>
