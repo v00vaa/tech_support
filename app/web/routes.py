@@ -668,18 +668,6 @@ def employee_delete(employee_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.view")
 def dialog_list() -> ResponseReturnValue:
     """Show only the employee's own dialogs and queues belonging to their roles."""
-    role_ids = [
-        role.id for role in current_user.roles
-        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
-    ]
-    visibility = [Dialog.responsible_employee_id == current_user.id]
-    if role_ids:
-        visibility.append(
-            and_(
-                Dialog.assigned_role_id.in_(role_ids),
-                Dialog.responsible_employee_id.is_(None),
-            )
-        )
     own_dialogs = db.session.scalars(
         db.select(Dialog)
         .where(Dialog.responsible_employee_id == current_user.id)
@@ -720,7 +708,6 @@ def dialog_list() -> ResponseReturnValue:
         }
     return render_template(
         "dialogs/list.html",
-        dialogs=dialogs,
         own_dialogs=own_dialogs,
         queue_roles=queue_roles,
         queue_dialogs=queue_dialogs,
