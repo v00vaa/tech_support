@@ -33,6 +33,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     app = Flask(__name__)
     app.config.update(
         DEBUG=resolved_settings.debug,
+        MAX_CONTENT_LENGTH=20 * 1024 * 1024,
         SECRET_KEY=resolved_settings.secret_key,
         SQLALCHEMY_DATABASE_URI=resolved_settings.database_url,
         SQLALCHEMY_ECHO=resolved_settings.database_echo,
