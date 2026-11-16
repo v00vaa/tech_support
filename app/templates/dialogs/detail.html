@@ -150,6 +150,14 @@
         <article class="messenger-message {{ message.author_type.value|lower }}">
           <div class="small fw-semibold mb-1">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Сотрудник' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
           <div>{{ message.text }}</div>
+          {% for attachment in message.attachments %}
+            <div class="mt-2">
+              <a href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" class="d-inline-flex align-items-center gap-2 text-decoration-none" target="_blank" rel="noopener">
+                {% if attachment.content_type.startswith('image/') %}<img src="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" alt="{{ attachment.filename }}" loading="lazy" style="max-width:220px;max-height:160px;border-radius:.5rem;object-fit:contain">{% else %}<span class="badge text-bg-light">Файл</span>{% endif %}
+                <span class="small">{{ attachment.filename }}</span>
+              </a>
+            </div>
+          {% endfor %}
           <div class="small opacity-75 mt-2">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
         </article>
       {% else %}<p class="text-muted text-center my-auto">Сообщений пока нет.</p>{% endfor %}
@@ -157,9 +165,12 @@
 
     {% if has_permission(current_user, 'dialogs.reply') or has_permission(current_user, 'dialogs.add_internal_note') %}
       <div class="messenger-composer">
-        <form method="post" action="{{ url_for('dialogs.message_create', dialog_id=dialog.id) }}">
+        <form method="post" enctype="multipart/form-data" action="{{ url_for('dialogs.message_create', dialog_id=dialog.id) }}">
           {{ message_form.hidden_tag() }}
           {{ message_form.text(class_='form-control mb-2', rows='3', placeholder='Напишите сообщение…') }}
+          {{ message_form.attachments(class_='form-control form-control-sm mb-2', multiple=true, accept='.png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip') }}
+          <div class="small text-muted mb-2">До 5 файлов, не более 10 МБ каждый. Внутренние вложения доступны только сотрудникам с правом просмотра заметок.</div>
+          {% for error in message_form.text.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
           {% if has_permission(current_user, 'dialogs.add_internal_note') %}
             <div class="form-check mb-2">{{ message_form.is_internal(class_='form-check-input') }}{{ message_form.is_internal.label(class_='form-check-label') }}</div>
           {% endif %}
