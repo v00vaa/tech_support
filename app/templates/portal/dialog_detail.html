@@ -2,40 +2,86 @@
 
 {% block title %}{{ dialog.subject }} · Support Desk{% endblock %}
 
-{% block content %}
-{# TODO(UI): Add customer-side attachment upload/download and previews, while ensuring internal notes and employee-only data can never be exposed. Consider lazy loading for long conversations. #}
-<section class="mb-3 d-flex justify-content-between align-items-start gap-3">
-  <div>
-    <a href="{{ url_for('portal.index') }}" class="small text-decoration-none">← Мои обращения</a>
-    <h1 class="h3 mt-2 mb-1">{{ dialog.subject }}</h1>
-    <span class="badge text-bg-primary">{{ dialog.status.value.replace('_', ' ') }}</span>
-  </div>
-</section>
+{% block styles %}
+<style>
+  .client-messenger { display:grid; grid-template-columns:minmax(250px,320px) minmax(0,1fr); gap:1rem; min-height:min(78vh,900px); }
+  .client-messenger-list,.client-messenger-chat { min-width:0; border:1px solid var(--support-color-border); border-radius:var(--support-radius-md); background:var(--support-color-surface); box-shadow:var(--support-shadow-sm); overflow:hidden; }
+  .client-messenger-list { display:flex; flex-direction:column; }
+  .client-ticket { display:block; padding:.85rem 1rem; color:inherit; text-decoration:none; border-bottom:1px solid var(--support-color-border); }
+  .client-ticket:hover,.client-ticket.active { background:#f1f5ff; }
+  .client-messenger-chat { display:flex; flex-direction:column; }
+  .client-chat-log { display:flex; flex:1; min-height:380px; max-height:65vh; flex-direction:column; gap:.85rem; overflow-y:auto; padding:1.25rem; background:#f7f9fc; }
+  .client-message { max-width:min(78%,48rem); padding:.75rem 1rem; border-radius:1rem; overflow-wrap:anywhere; }
+  .client-message.client { align-self:flex-end; color:#174b35; background:#dcf3e6; border-bottom-right-radius:.25rem; }
+  .client-message.employee { align-self:flex-start; color:#193b69; background:#e6efff; border-bottom-left-radius:.25rem; }
+  .client-message.system { align-self:center; max-width:90%; color:#465466; background:#e9edf2; text-align:center; font-size:.875rem; }
+  @media(max-width:767.98px) { .client-messenger { grid-template-columns:1fr; } .client-ticket-list { max-height:250px; overflow-y:auto; } .client-chat-log { min-height:320px; } .client-message { max-width:92%; } }
+</style>
+{% endblock %}
 
-<div class="card chat-card">
-  <div class="card-header">Переписка со службой поддержки</div>
-  <div class="card-body chat-log">
-    {% for message in messages %}
-      <div class="chat-message {{ message.author_type.value|lower }}">
-        <div class="small fw-bold">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Сотрудник поддержки' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
-        <div>{{ message.text }}</div>
-        <div class="small text-muted">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+{% block content %}
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+  <div><div class="small text-muted">Клиентский кабинет</div><h1 class="h3 mb-0">Мои обращения</h1></div>
+  <a class="btn btn-primary" href="{{ url_for('portal.dialog_create') }}">Создать обращение</a>
+</div>
+
+<div class="client-messenger">
+  <aside class="client-messenger-list">
+    <div class="p-3 border-bottom">
+      <strong>Ваши обращения</strong>
+      <div class="small text-muted">История общения со службой поддержки</div>
+    </div>
+    <div class="client-ticket-list">
+      {% for item in client_dialogs %}
+        <a class="client-ticket {% if item.id == dialog.id %}active{% endif %}" href="{{ url_for('portal.dialog_detail', dialog_id=item.id) }}">
+          <div class="d-flex justify-content-between gap-2">
+            <strong class="text-truncate">#{{ item.id }} · {{ item.subject }}</strong>
+            <span class="badge text-bg-light">{{ item.status.value.replace('_',' ') }}</span>
+          </div>
+          <div class="small text-muted mt-1">Обновлено {{ item.updated_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        </a>
+      {% else %}<p class="text-muted small p-3">У вас пока нет обращений.</p>{% endfor %}
+    </div>
+  </aside>
+
+  <main class="client-messenger-chat">
+    <header class="p-3 border-bottom">
+      <div class="small text-muted">Обращение #{{ dialog.id }}</div>
+      <h2 class="h5 mb-1">{{ dialog.subject }}</h2>
+      <span class="badge text-bg-primary">{{ dialog.status.value.replace('_', ' ') }}</span>
+    </header>
+
+    <div class="client-chat-log" id="client-chat-log" aria-live="polite">
+      {% for message in messages %}
+        <article class="client-message {{ message.author_type.value|lower }}">
+          <div class="small fw-semibold mb-1">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Служба поддержки' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
+          <div>{{ message.text }}</div>
+          <div class="small opacity-75 mt-2">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        </article>
+      {% else %}<p class="text-muted text-center my-auto">Сообщений пока нет.</p>{% endfor %}
+    </div>
+
+    {% if dialog.status.value != 'CLOSED' %}
+      <div class="p-3 border-top">
+        <form method="post" novalidate>
+          {{ form.hidden_tag() }}
+          {{ form.text(class_="form-control mb-2", rows="3", placeholder="Напишите сообщение…") }}
+          {% for error in form.text.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
+          <div class="d-flex justify-content-end">{{ form.submit(class_="btn btn-primary") }}</div>
+        </form>
       </div>
     {% else %}
-      <p class="text-muted">Сообщений пока нет.</p>
-    {% endfor %}
-  </div>
-  {% if dialog.status.value != 'CLOSED' %}
-    <div class="card-footer">
-      <form method="post" novalidate>
-        {{ form.hidden_tag() }}
-        {{ form.text(class_="form-control mb-2", rows="3", placeholder="Введите сообщение…") }}
-        {% for error in form.text.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
-        {{ form.submit(class_="btn btn-primary") }}
-      </form>
-    </div>
-  {% else %}
-    <div class="card-footer text-muted">Обращение закрыто. Создайте новое обращение, если нужна помощь.</div>
-  {% endif %}
+      <div class="p-3 border-top text-muted">Обращение закрыто. Если нужна помощь, создайте новое обращение.</div>
+    {% endif %}
+  </main>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (() => {
+    const log = document.getElementById('client-chat-log');
+    if (log) log.scrollTop = log.scrollHeight;
+  })();
+</script>
 {% endblock %}
