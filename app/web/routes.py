@@ -1086,22 +1086,14 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     )
     route_form = DialogRouteForm()
     if dialog.assigned_role is None:
-        route_targets = db.session.scalars(
-            db.select(Role)
-            .where(Role.role_type == "MAIN", Role.is_active, Role.code != "administrator")
-            .order_by(Role.name)
-        ).all()
+        route_targets = []
     else:
         assigned_role = dialog.assigned_role
-        route_targets = (
-            [
-                route.target_role
-                for route in assigned_role.outgoing_routes
-                if route.target_role.is_active
-            ]
-            if assigned_role is not None
-            else []
-        )
+        route_targets = [
+            route.target_role
+            for route in assigned_role.outgoing_routes
+            if route.target_role.is_active
+        ]
     route_form.target_role_id.choices = [(item.id, item.name) for item in route_targets]
     return render_template(
         "dialogs/detail.html",
@@ -1191,18 +1183,14 @@ def dialog_route(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     form = DialogRouteForm()
     if dialog.assigned_role_id is None:
-        targets = db.session.scalars(
-            db.select(Role).where(
-                Role.role_type == "MAIN", Role.is_active, Role.code != "administrator"
-            )
-        ).all()
+        targets = []
     else:
         assigned_role = dialog.assigned_role
-        targets = (
-            [item.target_role for item in assigned_role.outgoing_routes]
-            if assigned_role is not None
-            else []
-        )
+        targets = [
+            item.target_role
+            for item in assigned_role.outgoing_routes
+            if item.target_role.is_active
+        ]
     form.target_role_id.choices = [(item.id, item.name) for item in targets]
     if form.validate_on_submit():
         target = db.get_or_404(Role, form.target_role_id.data)
