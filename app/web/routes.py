@@ -633,6 +633,16 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
     ).all()
     has_older_messages = len(message_batch) > 50
     visible_messages = list(reversed(message_batch[:50]))
+    dialog_attachments = db.session.scalars(
+        db.select(Attachment)
+        .join(Message, Attachment.message_id == Message.id)
+        .where(
+            Message.dialog_id == dialog.id,
+            Message.is_internal.is_(False),
+            Message.deleted_at.is_(None),
+        )
+        .order_by(Message.id.desc(), Attachment.id.desc())
+    ).all()
     client_dialogs = db.session.scalars(
         db.select(Dialog)
         .where(Dialog.client_id == current_user.id)
@@ -644,6 +654,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         messages=visible_messages,
         form=form,
         client_dialogs=client_dialogs,
+        dialog_attachments=dialog_attachments,
         has_older_messages=has_older_messages,
     )
 
@@ -970,14 +981,32 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     has_older_messages = len(message_batch) > 50
     visible_messages = list(reversed(message_batch[:50]))
     internal_notes = (
-        [
-            message
-            for message in dialog.messages
-            if message.is_internal and message.deleted_at is None
-        ]
+        db.session.scalars(
+            db.select(Message)
+            .where(
+                Message.dialog_id == dialog.id,
+                Message.is_internal.is_(True),
+                Message.deleted_at.is_(None),
+            )
+            .order_by(Message.id.desc())
+            .limit(50)
+        ).all()
         if can_view_notes
         else []
     )
+    attachment_query = (
+        db.select(Attachment)
+        .join(Message, Attachment.message_id == Message.id)
+        .where(
+            Message.dialog_id == dialog.id,
+            Message.deleted_at.is_(None),
+        )
+    )
+    if not can_view_notes:
+        attachment_query = attachment_query.where(Message.is_internal.is_(False))
+    dialog_attachments = db.session.scalars(
+        attachment_query.order_by(Message.id.desc(), Attachment.id.desc())
+    ).all()
     own_dialogs = db.session.scalars(
         db.select(Dialog)
         .where(Dialog.responsible_employee_id == current_user.id)
@@ -1066,6 +1095,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         queue_stats=queue_stats,
         queue_dialogs=queue_dialogs,
         internal_notes=internal_notes,
+        dialog_attachments=dialog_attachments,
         can_view_notes=can_view_notes,
         can_claim=can_claim,
         has_older_messages=has_older_messages,
