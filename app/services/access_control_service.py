@@ -38,8 +38,10 @@ def can_delegate_permissions(employee: Employee, codes: Iterable[str]) -> bool:
 
 
 def is_active_administrator(employee: Employee) -> bool:
-    """Return whether the employee currently has the built-in administrator role."""
-    return employee.is_active and any(
+    """Return whether the authenticated principal is an active administrator."""
+    if not isinstance(employee, Employee) or not employee.is_active:
+        return False
+    return any(
         role.is_active and role.code == "administrator" for role in employee.roles
     )
 
