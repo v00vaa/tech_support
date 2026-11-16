@@ -1,6 +1,8 @@
 services:
   app:
     build: .
+    volumes:
+      - support_uploads:/service/instance/uploads
     environment:
       SUPPORT_ENVIRONMENT: development
       SUPPORT_SECRET_KEY: development-only-change-me
@@ -70,5 +72,6 @@ services:
       - pgadmin_data:/var/lib/pgadmin
 
 volumes:
+  support_uploads:
   postgres_data:
   pgadmin_data:
