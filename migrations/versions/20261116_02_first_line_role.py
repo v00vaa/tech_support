@@ -17,7 +17,7 @@ depends_on = None
 def upgrade() -> None:
     op.add_column(
         "roles",
-        sa.Column("is_first_line", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("is_first_line", sa.Boolean(), nullable=False, server_default=sa.text("false")),
     )
     # Preserve the previous default queue for installations that already have it.
     op.execute(
