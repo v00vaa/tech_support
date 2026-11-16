@@ -12,6 +12,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.extensions import Base, db
 
 if TYPE_CHECKING:
+    from app.models.attachment import Attachment
     from app.models.dialog import Dialog
 
 
@@ -36,3 +37,6 @@ class Message(Base):
     )
     deleted_at: Mapped[datetime | None] = mapped_column()
     dialog: Mapped[Dialog] = relationship(back_populates="messages")
+    attachments: Mapped[list[Attachment]] = relationship(
+        back_populates="message", cascade="all, delete-orphan"
+    )
