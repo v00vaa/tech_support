@@ -8,6 +8,7 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
+from app.models.message import AuthorType, Message
 from app.models.employee import Employee
 from app.models.role import Role
 from app.models.role_route import RoleRoute
@@ -85,18 +86,35 @@ def route_dialog_to_role(
     _validate_operational_role(target_role)
     if dialog.status in {DialogStatus.RESOLVED, DialogStatus.CLOSED}:
         raise ValueError("Нельзя передать закрытый или решенный диалог.")
-    if dialog.assigned_role_id is not None:
-        route = db.session.scalar(
-            select(RoleRoute).where(
-                RoleRoute.source_role_id == dialog.assigned_role_id,
-                RoleRoute.target_role_id == target_role.id,
-            )
+    source_role = dialog.assigned_role
+    if source_role is None:
+        raise ValueError("У обращения не настроена исходная очередь.")
+    if not any(role.id == source_role.id and role.is_active for role in actor.roles):
+        raise ValueError("Передавать обращение может только сотрудник текущей роли.")
+    route = db.session.scalar(
+        select(RoleRoute).where(
+            RoleRoute.source_role_id == source_role.id,
+            RoleRoute.target_role_id == target_role.id,
         )
-        if route is None:
-            raise ValueError("Для этих ролей не настроено направление передачи.")
+    )
+    if route is None:
+        raise ValueError("Для этих ролей не настроено направление передачи.")
+
+    now = datetime.now(UTC)
     dialog.assigned_role = target_role
-    dialog.role_assigned_at = datetime.now(UTC)
+    dialog.role_assigned_at = now
     dialog.responsible_employee_id = None
+    dialog.status = DialogStatus.OPEN
+    dialog.updated_at = now
+    db.session.add(
+        Message(
+            dialog_id=dialog.id,
+            author_type=AuthorType.SYSTEM,
+            author_id=None,
+            text=f"Обращение передано из роли «{source_role.name}» в роль «{target_role.name}».",
+            is_internal=False,
+        )
+    )
     db.session.commit()
     return dialog
 
@@ -141,6 +159,20 @@ def process_due_auto_forwards(*, now: datetime | None = None, limit: int = 100) 
             if assigned_at <= threshold:
                 dialog.assigned_role = route.target_role
                 dialog.role_assigned_at = current_time
+                dialog.status = DialogStatus.OPEN
+                dialog.updated_at = current_time
+                db.session.add(
+                    Message(
+                        dialog_id=dialog.id,
+                        author_type=AuthorType.SYSTEM,
+                        author_id=None,
+                        text=(
+                            "Обращение автоматически передано из роли "
+                            f"«{route.source_role.name}» в роль «{route.target_role.name}»."
+                        ),
+                        is_internal=False,
+                    )
+                )
                 transferred += 1
     if transferred:
         db.session.commit()
