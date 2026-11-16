@@ -34,7 +34,6 @@ def upgrade() -> None:
         postgresql_where=sa.text("is_first_line IS TRUE"),
         sqlite_where=sa.text("is_first_line = 1"),
     )
-    op.alter_column("roles", "is_first_line", server_default=None)
 
 
 def downgrade() -> None:
