@@ -162,6 +162,31 @@ def test_customer_can_create_a_support_dialog(client, customer_records, app) -> 
         assert dialog.role_assigned_at is not None
 
 
+def test_customer_cannot_create_dialog_without_first_line_configuration(
+    client, customer_records, app
+) -> None:
+    with app.app_context():
+        role = db.session.scalar(db.select(Role).where(Role.code == "test_first_line"))
+        assert role is not None
+        role.is_first_line = False
+        db.session.commit()
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "Unrouted request", "message": "Please help"},
+    )
+
+    assert response.status_code == 503
+    with app.app_context():
+        assert db.session.scalar(
+            db.select(Dialog).where(Dialog.subject == "Unrouted request")
+        ) is None
+
+
 def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None:
     _, _, own_dialog_id = customer_records
     client.post(
