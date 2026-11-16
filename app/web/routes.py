@@ -170,7 +170,6 @@ def _remove_saved_attachments(paths: list[Path]) -> None:
         path.unlink(missing_ok=True)
 
 
-
 def _dialog_form(form: DialogForm) -> None:
     form.client_id.choices = [
         (client.id, client.name)
