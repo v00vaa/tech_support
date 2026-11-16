@@ -19,7 +19,7 @@ from flask import (
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import func
+from sqlalchemy import func, update
 
 from app.extensions import db
 from app.models import (
@@ -661,7 +661,24 @@ def employee_delete(employee_id: int) -> ResponseReturnValue:
 @login_required
 @permission_required("dialogs.view")
 def dialog_list() -> ResponseReturnValue:
-    dialogs = db.session.scalars(db.select(Dialog).order_by(Dialog.updated_at.desc())).all()
+    """Show only the employee's own dialogs and queues belonging to their roles."""
+    role_ids = [
+        role.id for role in current_user.roles
+        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
+    ]
+    visibility = [Dialog.responsible_employee_id == current_user.id]
+    if role_ids:
+        visibility.append(
+            db.and_(
+                Dialog.assigned_role_id.in_(role_ids),
+                Dialog.responsible_employee_id.is_(None),
+            )
+        )
+    dialogs = db.session.scalars(
+        db.select(Dialog)
+        .where(db.or_(*visibility))
+        .order_by(Dialog.updated_at.desc())
+    ).all()
     return render_template("dialogs/list.html", dialogs=dialogs)
 
 
@@ -696,11 +713,52 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     status_form.status.data = dialog.status.value
     assign_form.responsible_employee_id.data = dialog.responsible_employee_id or 0
     _assign_form(assign_form)
+    can_view_notes = has_permission(current_user, "dialogs.add_internal_note")
     visible_messages = [
-        message
-        for message in dialog.messages
-        if not message.is_internal or has_permission(current_user, "dialogs.add_internal_note")
+        message for message in dialog.messages
+        if not message.is_internal and message.deleted_at is None
     ]
+    internal_notes = [
+        message for message in dialog.messages
+        if message.is_internal and message.deleted_at is None
+    ] if can_view_notes else []
+    own_dialogs = db.session.scalars(
+        db.select(Dialog)
+        .where(Dialog.responsible_employee_id == current_user.id)
+        .order_by(Dialog.updated_at.desc())
+        .limit(30)
+    ).all()
+    client_dialogs = db.session.scalars(
+        db.select(Dialog)
+        .where(Dialog.client_id == dialog.client_id)
+        .order_by(Dialog.updated_at.desc())
+    ).all()
+    queue_roles = [
+        role for role in current_user.roles
+        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
+    ]
+    queue_stats = {}
+    for role in queue_roles:
+        queue_stats[role.id] = {
+            "waiting": db.session.scalar(
+                db.select(func.count()).select_from(Dialog).where(
+                    Dialog.assigned_role_id == role.id,
+                    Dialog.responsible_employee_id.is_(None),
+                    Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+                )
+            ) or 0,
+            "active": db.session.scalar(
+                db.select(func.count()).select_from(Dialog).where(
+                    Dialog.assigned_role_id == role.id,
+                    Dialog.status == DialogStatus.IN_PROGRESS,
+                )
+            ) or 0,
+        }
+    can_claim = (
+        dialog.responsible_employee_id is None
+        and dialog.assigned_role_id in {role.id for role in queue_roles}
+        and dialog.status in {DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE}
+    )
     route_form = DialogRouteForm()
     if dialog.assigned_role is None:
         route_targets = db.session.scalars(
@@ -728,6 +786,13 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         status_form=status_form,
         assign_form=assign_form,
         route_form=route_form,
+        own_dialogs=own_dialogs,
+        client_dialogs=client_dialogs,
+        queue_roles=queue_roles,
+        queue_stats=queue_stats,
+        internal_notes=internal_notes,
+        can_view_notes=can_view_notes,
+        can_claim=can_claim,
     )
 
 
@@ -817,6 +882,41 @@ def dialog_assign(dialog_id: int) -> ResponseReturnValue:
     if form.validate_on_submit():
         dialog_service.assign_employee(dialog, form.responsible_employee_id.data or None)
         flash("Сотрудник назначен.", "success")
+    return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
+
+
+@dialogs_bp.post("/<int:dialog_id>/claim")
+@login_required
+@permission_required("dialogs.view")
+def dialog_claim(dialog_id: int) -> ResponseReturnValue:
+    """Atomically claim an unassigned dialog from one of the employee's own role queues."""
+    dialog = db.get_or_404(Dialog, dialog_id)
+    role_ids = [
+        role.id for role in current_user.roles
+        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
+    ]
+    if not role_ids:
+        abort(403)
+    result = db.session.execute(
+        update(Dialog)
+        .where(
+            Dialog.id == dialog.id,
+            Dialog.assigned_role_id.in_(role_ids),
+            Dialog.responsible_employee_id.is_(None),
+            Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+        )
+        .values(
+            responsible_employee_id=current_user.id,
+            status=DialogStatus.IN_PROGRESS,
+            updated_at=datetime.now(UTC),
+        )
+    )
+    if result.rowcount != 1:
+        db.session.rollback()
+        flash("Обращение уже взял другой сотрудник или оно недоступно в вашей очереди.", "warning")
+    else:
+        db.session.commit()
+        flash("Обращение назначено на вас.", "success")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
