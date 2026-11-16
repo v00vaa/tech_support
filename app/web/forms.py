@@ -1,6 +1,7 @@
 """Flask-WTF forms for the browser prototype."""
 
 from flask_wtf import FlaskForm
+from flask_wtf.file import MultipleFileField
 from wtforms import (
     BooleanField,
     HiddenField,
@@ -36,6 +37,7 @@ class ClientDialogForm(FlaskForm):
 
     subject = StringField("Тема обращения", validators=[DataRequired(), Length(max=255)])
     message = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
+    attachments = MultipleFileField("Файлы и изображения")
     submit = SubmitField("Создать обращение")
 
 
@@ -43,6 +45,7 @@ class ClientReplyForm(FlaskForm):
     """Customer reply form without any internal-note controls."""
 
     text = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
+    attachments = MultipleFileField("Файлы и изображения")
     submit = SubmitField("Отправить")
 
 
@@ -169,6 +172,7 @@ class DialogForm(FlaskForm):
 
 class MessageForm(FlaskForm):
     text = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
+    attachments = MultipleFileField("Файлы и изображения")
     is_internal = BooleanField("Внутренняя заметка")
     submit = SubmitField("Отправить")
 
