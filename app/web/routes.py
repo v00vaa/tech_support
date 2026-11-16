@@ -536,6 +536,15 @@ def portal_dialog_create() -> ResponseReturnValue:
         db.session.add(dialog)
         db.session.flush()
         dialog.updated_at = datetime.now(UTC)
+        db.session.add(
+            Message(
+                dialog_id=dialog.id,
+                author_type=AuthorType.SYSTEM,
+                author_id=None,
+                text="Обращение создано.",
+                is_internal=False,
+            )
+        )
         message = Message(
             dialog_id=dialog.id,
             author_type=AuthorType.CLIENT,
@@ -895,6 +904,15 @@ def dialog_create() -> ResponseReturnValue:
                 )
                 db.session.add(dialog)
                 db.session.flush()
+                db.session.add(
+                    Message(
+                        dialog_id=dialog.id,
+                        author_type=AuthorType.SYSTEM,
+                        author_id=None,
+                        text="Обращение создано.",
+                        is_internal=False,
+                    )
+                )
                 message = Message(
                     dialog_id=dialog.id,
                     author_type=AuthorType.EMPLOYEE,
