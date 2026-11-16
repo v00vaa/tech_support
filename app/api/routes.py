@@ -120,8 +120,10 @@ def employees() -> ResponseReturnValue:
     return jsonify(_employee_data(employee)), 201
 
 
-@api_bp.get("/dialogs")
+@api_bp.route("/dialogs", methods=["GET", "POST"])
 def dialogs() -> ResponseReturnValue:
+    if request.method == "POST":
+        abort(403, description="Создание обращений сотрудниками через API отключено.")
     return jsonify(
         [_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]
     ), 200
