@@ -100,7 +100,19 @@ portal_bp = Blueprint("portal", __name__, url_prefix="/portal")
 
 
 _ALLOWED_ATTACHMENT_EXTENSIONS = {
-    "csv", "doc", "docx", "gif", "jpeg", "jpg", "pdf", "png", "txt", "webp", "xls", "xlsx", "zip"
+    "csv",
+    "doc",
+    "docx",
+    "gif",
+    "jpeg",
+    "jpg",
+    "pdf",
+    "png",
+    "txt",
+    "webp",
+    "xls",
+    "xlsx",
+    "zip",
 }
 _MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 _MAX_ATTACHMENTS_PER_MESSAGE = 5
