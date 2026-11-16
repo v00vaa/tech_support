@@ -529,8 +529,28 @@ def portal_dialog_create() -> ResponseReturnValue:
     """Create a new customer-owned dialog and its first public message."""
     form = ClientDialogForm()
     if form.validate_on_submit():
+        first_line_role = db.session.scalar(
+            db.select(Role).where(
+                Role.is_first_line.is_(True),
+                Role.is_active.is_(True),
+                Role.role_type == "MAIN",
+                Role.scope_role_id.is_(None),
+                Role.code != "administrator",
+            )
+        )
+        if first_line_role is None:
+            flash(
+                "Создание обращений временно недоступно: администратор не настроил "
+                "активную роль первого уровня поддержки.",
+                "danger",
+            )
+            return render_template("portal/dialog_form.html", form=form), 503
+
+        now = datetime.now(UTC)
         dialog = Dialog(
             client_id=current_user.id,
+            assigned_role_id=first_line_role.id,
+            role_assigned_at=now,
             subject=(form.subject.data or "").strip(),
             channel="Web",
             status=DialogStatus.OPEN,
