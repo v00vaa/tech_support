@@ -1401,6 +1401,8 @@ def role_first_line_update(role_id: int) -> ResponseReturnValue:
 
     try:
         if form.is_first_line.data:
+            # Serialize concurrent admin selections before clearing the previous flag.
+            db.session.scalars(db.select(Role.id).with_for_update()).all()
             db.session.execute(
                 update(Role)
                 .where(Role.is_first_line.is_(True))
