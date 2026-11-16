@@ -108,6 +108,12 @@ class EmployeeRolesForm(FlaskForm):
     submit = SubmitField("Сохранить роли")
 
 
+class RoleFirstLineForm(FlaskForm):
+    """Select or clear the first-line support role."""
+
+    is_first_line = BooleanField("Первый уровень поддержки")
+
+
 class RoleMemberForm(FlaskForm):
     employee_id = SelectField("Сотрудник", coerce=int, validators=[DataRequired()])
     submit = SubmitField("Добавить")
