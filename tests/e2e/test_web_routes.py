@@ -6,7 +6,16 @@ import pytest
 from flask.testing import FlaskClient
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, Message, Permission, Role
+from app.models import (
+    AuthorType,
+    Client,
+    Dialog,
+    DialogStatus,
+    Employee,
+    Message,
+    Permission,
+    Role,
+)
 from app.services.dialog_service import create_dialog
 from app.services.message_service import create_message
 from app.services.rbac_service import ensure_rbac_catalogue
@@ -687,3 +696,41 @@ def test_non_administrator_cannot_change_first_line_role(
         data={"is_first_line": "y"},
     )
     assert response.status_code == 403
+
+
+
+def test_employee_can_atomically_claim_dialog_from_their_role_queue(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    ids = _ids(support_system)
+    with client.application.app_context():
+        queued_dialog = Dialog(
+            client_id=ids["client"],
+            assigned_role_id=ids["support_role"],
+            subject="Queue claim",
+            status=DialogStatus.OPEN,
+        )
+        db.session.add(queued_dialog)
+        db.session.commit()
+        queued_dialog_id = queued_dialog.id
+
+    with client.session_transaction() as session:
+        session["_user_id"] = f"employee:{ids['employee']}"
+        session["_fresh"] = True
+
+    response = client.post(f"/dialogs/{queued_dialog_id}/claim")
+    assert response.status_code == 302
+
+    with client.application.app_context():
+        claimed = db.session.get(Dialog, queued_dialog_id)
+        assert claimed is not None
+        assert claimed.responsible_employee_id == ids["employee"]
+        assert claimed.status == DialogStatus.IN_PROGRESS
+        event = db.session.scalar(
+            db.select(Message).where(
+                Message.dialog_id == queued_dialog_id,
+                Message.author_type == AuthorType.SYSTEM,
+            )
+        )
+        assert event is not None
