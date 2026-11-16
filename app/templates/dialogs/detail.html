@@ -149,6 +149,8 @@
     </header>
 
     <div class="messenger-log" id="chat-log" aria-live="polite">
+      {% if request.args.get('before') %}<div class="text-center"><a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}">К последним сообщениям</a></div>{% endif %}
+      {% if has_older_messages and messages %}<div class="text-center"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id, before=messages[0].id) }}">Загрузить более ранние сообщения</a></div>{% endif %}
       {% for message in messages %}
         <article class="messenger-message {{ message.author_type.value|lower }}">
           <div class="small fw-semibold mb-1">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Сотрудник' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
