@@ -3,13 +3,12 @@
 {% block title %}Новое обращение · Support Desk{% endblock %}
 
 {% block content %}
-{# TODO(UI): Add optional file attachments to the initial customer message after upload validation, storage limits, and attachment ownership checks are implemented. #}
 <section class="row justify-content-center py-4">
   <div class="col-12 col-lg-8">
     <div class="card">
       <div class="card-body p-4">
         <h1 class="h3 mb-4">Новое обращение</h1>
-        <form method="post" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate>
           {{ form.hidden_tag() }}
           <div class="mb-3">
             {{ form.subject.label(class_="form-label") }}
@@ -20,6 +19,11 @@
             {{ form.message.label(class_="form-label") }}
             {{ form.message(class_="form-control", rows="6") }}
             {% for error in form.message.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+          </div>
+          <div class="mb-4">
+            {{ form.attachments.label(class_="form-label") }}
+            {{ form.attachments(class_="form-control", multiple=true, accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip") }}
+            <div class="form-text">До 5 файлов, не более 10 МБ каждый.</div>
           </div>
           <div class="d-flex gap-2">
             {{ form.submit(class_="btn btn-primary") }}
