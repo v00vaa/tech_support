@@ -144,7 +144,8 @@ def test_route_dialog_requires_allowed_route_and_open_status(app):
             client_id=customer.id,
             assigned_role=source,
             subject="Route me",
-            status=DialogStatus.OPEN,
+            status=DialogStatus.IN_PROGRESS,
+            responsible_employee=actor,
         )
         db.session.add(dialog)
         db.session.commit()
