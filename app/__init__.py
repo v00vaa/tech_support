@@ -10,7 +10,7 @@ from flask_login import current_user
 from app.api.routes import api_bp
 from app.core.config import Settings
 from app.core.errors import register_error_handlers
-from app.extensions import db, limiter, login_manager, migrate
+from app.extensions import csrf, db, limiter, login_manager, migrate
 from app.models.client import Client
 from app.models.employee import Employee
 from app.services.access_control_service import has_permission
@@ -38,6 +38,7 @@ def create_app(settings: Settings | None = None) -> Flask:
         SQLALCHEMY_DATABASE_URI=resolved_settings.database_url,
         SQLALCHEMY_ECHO=resolved_settings.database_echo,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
+        WTF_CSRF_ENABLED=resolved_settings.environment != "testing",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
         SESSION_COOKIE_SECURE=resolved_settings.environment == "production",
@@ -61,6 +62,7 @@ def create_app(settings: Settings | None = None) -> Flask:
     )
 
     db.init_app(app)
+    csrf.init_app(app)
     app.extensions["database"] = db
     migrate.init_app(app, db)
     login_manager.init_app(app)
