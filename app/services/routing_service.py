@@ -89,7 +89,8 @@ def route_dialog_to_role(
     source_role = dialog.assigned_role
     if source_role is None:
         raise ValueError("У обращения не настроена исходная очередь.")
-    if not any(role.id == source_role.id and role.is_active for role in actor.roles):
+    _validate_operational_role(source_role)
+    if not any(role.id == source_role.id for role in actor.roles):
         raise ValueError("Передавать обращение может только сотрудник текущей роли.")
     route = db.session.scalar(
         select(RoleRoute).where(
