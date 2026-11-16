@@ -38,6 +38,7 @@ def _setup():
     target = Role(code="routing_target", name="Target")
     other = Role(code="routing_other", name="Other")
     db.session.add_all([source, target, other])
+    actor.roles.append(source)
     customer = Client(name="Routing Customer", email="routing-customer@example.com")
     db.session.add(customer)
     db.session.commit()
