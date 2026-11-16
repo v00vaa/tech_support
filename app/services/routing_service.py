@@ -8,8 +8,8 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
-from app.models.message import AuthorType, Message
 from app.models.employee import Employee
+from app.models.message import AuthorType, Message
 from app.models.role import Role
 from app.models.role_route import RoleRoute
 from app.services.access_control_service import has_permission
