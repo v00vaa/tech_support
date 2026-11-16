@@ -1153,7 +1153,6 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash("Обращение уже взял другой сотрудник или оно недоступно в вашей очереди.", "warning")
     else:
-        db.session.commit()
         db.session.add(
             Message(
                 dialog_id=dialog.id,
