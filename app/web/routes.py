@@ -45,6 +45,7 @@ from app.services import client_service, dialog_service, employee_service, messa
 from app.services.access_control_service import (
     can_delegate_permissions,
     has_permission,
+    is_active_administrator,
     permission_required,
 )
 from app.services.registration_provider import (
@@ -81,6 +82,7 @@ from app.web.forms import (
     MessageForm,
     RegistrationSettingsForm,
     RoleForm,
+    RoleFirstLineForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
     RolePermissionsForm,
@@ -1452,15 +1454,61 @@ def role_list() -> ResponseReturnValue:
             employee.id: RoleMemberRemoveForm(employee_id=str(employee.id))
             for employee in role.employees
         }
+    first_line_forms = {role.id: RoleFirstLineForm(obj=role) for role in roles}
     global_hr = db.session.scalar(db.select(Role).where(Role.code == "global_hr"))
     return render_template(
         "settings/roles/list.html",
         roles=roles,
         member_forms=member_forms,
         remove_forms=remove_forms,
+        first_line_forms=first_line_forms,
         can_manage_role_members=can_manage_role_members,
         global_hr=global_hr,
     )
+
+
+@settings_bp.post("/roles/<int:role_id>/first-line")
+@login_required
+def role_first_line_update(role_id: int) -> ResponseReturnValue:
+    """Allow an administrator to select the first-line support role."""
+    if not is_active_administrator(current_user):
+        abort(403)
+
+    role = db.get_or_404(Role, role_id)
+    form = RoleFirstLineForm()
+    if not form.validate_on_submit():
+        abort(400)
+    if (
+        role.role_type != "MAIN"
+        or role.scope_role_id is not None
+        or role.code == "administrator"
+        or (form.is_first_line.data and not role.is_active)
+    ):
+        flash("Первым уровнем может быть только активная основная роль.", "danger")
+        return redirect(url_for("settings.role_list"))
+
+    try:
+        if form.is_first_line.data:
+            db.session.execute(
+                update(Role)
+                .where(Role.is_first_line.is_(True))
+                .values(is_first_line=False)
+            )
+        role.is_first_line = bool(form.is_first_line.data)
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        raise
+
+    flash(
+        (
+            f"Роль «{role.name}» назначена первым уровнем поддержки."
+            if role.is_first_line
+            else f"Роль «{role.name}» больше не является первым уровнем поддержки."
+        ),
+        "success",
+    )
+    return redirect(url_for("settings.role_list"))
 
 
 @settings_bp.post("/roles/<int:role_id>/members/add")
