@@ -7,7 +7,7 @@ from sqlalchemy import select
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, Employee, Message
-from app.services import client_service, dialog_service, employee_service, message_service
+from app.services import client_service, employee_service, message_service
 from app.services.access_control_service import has_permission
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
@@ -25,7 +25,7 @@ def enforce_api_permissions() -> None:
         "api.employees": "employees.view"
         if request.method in {"GET", "HEAD"}
         else "employees.create",
-        "api.dialogs": "dialogs.view" if request.method in {"GET", "HEAD"} else "dialogs.create",
+        "api.dialogs": "dialogs.view",
         "api.dialog_detail": "dialogs.view",
         "api.messages": "dialogs.view",
     }
@@ -120,22 +120,11 @@ def employees() -> ResponseReturnValue:
     return jsonify(_employee_data(employee)), 201
 
 
-@api_bp.route("/dialogs", methods=["GET", "POST"])
+@api_bp.get("/dialogs")
 def dialogs() -> ResponseReturnValue:
-    if request.method in {"GET", "HEAD"}:
-        return jsonify(
-            [_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]
-        ), 200
-    data = request.get_json(silent=True) or {}
-    if not data.get("client_id") or not data.get("subject"):
-        return jsonify(error="client_id and subject are required"), 400
-    dialog = dialog_service.create_dialog(
-        int(data["client_id"]),
-        data.get("responsible_employee_id"),
-        str(data["subject"]),
-        str(data.get("channel", "API")),
-    )
-    return jsonify(_dialog_data(dialog)), 201
+    return jsonify(
+        [_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]
+    ), 200
 
 
 @api_bp.get("/dialogs/<int:dialog_id>")
