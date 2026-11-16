@@ -7,7 +7,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 
 from app.extensions import db
-from app.models import AuthorType, Client, Employee
+from app.models import AuthorType, Client, Dialog, Employee
 from app.services.dialog_service import create_dialog
 from app.services.message_service import create_message
 from app.services.rbac_service import ensure_rbac_catalogue
@@ -111,32 +111,27 @@ def test_employees_api_lists_validates_and_creates_records(
     assert created.json["position"] == "Специалист поддержки"
 
 
-def test_dialogs_api_lists_validates_creates_and_returns_details(
+def test_dialogs_api_is_read_only_for_employee_clients(
     api_client: FlaskClient,
 ) -> None:
     listed = api_client.get("/api/v1/dialogs")
     assert listed.status_code == 200
     assert len(listed.get_json()) == 1
 
-    invalid = api_client.post("/api/v1/dialogs", json={"subject": "Missing client"})
-    assert invalid.status_code == 400
+    forbidden = api_client.post(
+        "/api/v1/dialogs",
+        json={"client_id": 1, "subject": "Employee-created request"},
+    )
+    assert forbidden.status_code == 403
 
     with api_client.application.app_context():
-        customer = db.session.scalar(
-            db.select(Client).where(Client.email == "api-customer@example.com")
-        )
-        assert customer is not None
-        customer_id = customer.id
+        dialog = db.session.scalar(db.select(Dialog).where(Dialog.subject == "API dialog"))
+        assert dialog is not None
+        dialog_id = dialog.id
 
-    created = api_client.post(
-        "/api/v1/dialogs",
-        json={"client_id": customer_id, "subject": "Created through API"},
-    )
-    assert created.status_code == 201
-    assert created.json["channel"] == "API"
-    detail = api_client.get(f"/api/v1/dialogs/{created.json['id']}")
+    detail = api_client.get(f"/api/v1/dialogs/{dialog_id}")
     assert detail.status_code == 200
-    assert detail.json["subject"] == "Created through API"
+    assert detail.json["subject"] == "API dialog"
 
 
 def test_messages_api_filters_internal_notes_and_creates_messages(
