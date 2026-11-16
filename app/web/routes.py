@@ -1096,6 +1096,43 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
 
+@messages_bp.get("/attachments/<int:attachment_id>")
+@login_required
+def attachment_download(attachment_id: int) -> ResponseReturnValue:
+    """Serve private attachments only to users allowed to see the parent message."""
+    attachment = db.get_or_404(Attachment, attachment_id)
+    message = attachment.message
+    if message is None or message.deleted_at is not None or not attachment.storage_key:
+        abort(404)
+
+    user = current_user._get_current_object()
+    if isinstance(user, Client):
+        if message.is_internal or message.dialog.client_id != user.id:
+            abort(404)
+    else:
+        if not has_permission(current_user, "dialogs.view"):
+            abort(403)
+        if message.is_internal and not has_permission(current_user, "dialogs.add_internal_note"):
+            abort(403)
+
+    upload_dir = (Path(current_app.instance_path) / "uploads").resolve()
+    file_path = (upload_dir / attachment.storage_key).resolve()
+    if upload_dir not in file_path.parents or not file_path.is_file():
+        abort(404)
+
+    is_image = attachment.content_type.startswith("image/")
+    response = send_file(
+        file_path,
+        mimetype=attachment.content_type,
+        as_attachment=not is_image,
+        download_name=attachment.filename,
+        conditional=True,
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Cache-Control"] = "private, no-store"
+    return response
+
+
 @messages_bp.route("/<int:message_id>/edit", methods=["GET", "POST"])
 @login_required
 @permission_required("dialogs.manage")
