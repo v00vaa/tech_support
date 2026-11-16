@@ -4,7 +4,17 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Table, UniqueConstraint, text
+from sqlalchemy import (
+    Boolean,
+    Column,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Table,
+    UniqueConstraint,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base, db
