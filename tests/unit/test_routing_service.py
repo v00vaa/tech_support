@@ -179,6 +179,45 @@ def test_route_dialog_requires_allowed_route_and_open_status(app):
             route_dialog_to_role(actor, dialog, source)
 
 
+def test_route_dialog_rejects_actor_outside_source_role(app):
+    with app.app_context():
+        db.create_all()
+        administrator, source, target, _, customer = _setup()
+        save_role_route(
+            administrator,
+            source_role=source,
+            target_role=target,
+            is_default=False,
+            auto_forward_after_minutes=None,
+        )
+        actor = _employee("routing-outsider@example.com", [administrator.roles[0]])
+        dialog = Dialog(
+            client_id=customer.id,
+            assigned_role=source,
+            subject="Wrong source role",
+        )
+        db.session.add(dialog)
+        db.session.commit()
+
+        with pytest.raises(ValueError, match="только сотрудник текущей роли"):
+            route_dialog_to_role(actor, dialog, target)
+
+
+def test_route_dialog_rejects_dialog_without_source_role(app):
+    with app.app_context():
+        db.create_all()
+        administrator, _, target, _, customer = _setup()
+        dialog = Dialog(
+            client_id=customer.id,
+            subject="No source role",
+        )
+        db.session.add(dialog)
+        db.session.commit()
+
+        with pytest.raises(ValueError, match="исходная очередь"):
+            route_dialog_to_role(administrator, dialog, target)
+
+
 def test_route_dialog_rejects_actor_without_permission(app):
     with app.app_context():
         db.create_all()
