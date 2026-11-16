@@ -111,7 +111,6 @@ def test_authenticated_employee_can_open_browser_pages(
         f"/employees/{ids['employee']}/edit",
         f"/employees/{ids['employee']}/roles",
         "/dialogs",
-        "/dialogs/create",
         f"/dialogs/{ids['dialog']}",
         f"/dialogs/{ids['dialog']}/edit",
         f"/messages/{ids['message']}/edit",
@@ -235,7 +234,7 @@ def test_dialog_create_edit_status_assignment_and_delete_routes(
             "submit": "Save",
         },
     )
-    assert created.status_code == 302
+    assert created.status_code == 404
 
     dialog_id = ids["dialog"]
     edited = client.post(
@@ -640,3 +639,51 @@ def test_role_membership_and_permission_routes(support_system: dict[str, object]
         role = db.session.get(Role, role_id)
         assert role is not None
         assert {permission.code for permission in role.permissions} == {"dialogs.view"}
+
+
+
+def test_administrator_can_select_only_one_first_line_role(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    ids = _ids(support_system)
+
+    selected = client.post(
+        f"/settings/roles/{ids['role']}/first-line",
+        data={"is_first_line": "y"},
+    )
+    assert selected.status_code == 302
+
+    with client.application.app_context():
+        selected_role = db.session.get(Role, ids["role"])
+        support_role = db.session.get(Role, ids["support_role"])
+        assert selected_role is not None and selected_role.is_first_line is True
+        assert support_role is not None and support_role.is_first_line is False
+
+    restored = client.post(
+        f"/settings/roles/{ids['support_role']}/first-line",
+        data={"is_first_line": "y"},
+    )
+    assert restored.status_code == 302
+
+    with client.application.app_context():
+        selected_role = db.session.get(Role, ids["role"])
+        support_role = db.session.get(Role, ids["support_role"])
+        assert selected_role is not None and selected_role.is_first_line is False
+        assert support_role is not None and support_role.is_first_line is True
+
+
+def test_non_administrator_cannot_change_first_line_role(
+    support_system: dict[str, object],
+) -> None:
+    client = _client(support_system)
+    ids = _ids(support_system)
+    with client.session_transaction() as session:
+        session["_user_id"] = f"employee:{ids['employee']}"
+        session["_fresh"] = True
+
+    response = client.post(
+        f"/settings/roles/{ids['role']}/first-line",
+        data={"is_first_line": "y"},
+    )
+    assert response.status_code == 403
