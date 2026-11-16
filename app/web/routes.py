@@ -19,7 +19,7 @@ from flask import (
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import and_, func, or_, update
+from sqlalchemy import func, update
 
 from app.extensions import db
 from app.models import (
