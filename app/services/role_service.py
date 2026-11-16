@@ -70,6 +70,8 @@ def save_role(
         role.name = name.strip()
         role.description = description
         role.is_active = is_active
+        if not is_active:
+            role.is_first_line = False
     role.permissions = list(known_permissions)
     db.session.commit()
     ensure_special_roles(role)
