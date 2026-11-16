@@ -1462,6 +1462,7 @@ def role_list() -> ResponseReturnValue:
         member_forms=member_forms,
         remove_forms=remove_forms,
         first_line_forms=first_line_forms,
+        can_configure_first_line=is_active_administrator(current_user),
         can_manage_role_members=can_manage_role_members,
         global_hr=global_hr,
     )
