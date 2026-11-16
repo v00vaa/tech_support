@@ -45,6 +45,7 @@
       <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#role-queues" type="button">Очереди</button></li>
       <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#client-dialogs" type="button">Клиент</button></li>
       {% if can_view_notes %}<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes-panel" type="button">Заметки</button></li>{% endif %}
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#attachments-panel" type="button">Файлы <span class="badge text-bg-light">{{ dialog_attachments|length }}</span></button></li>
     </ul>
     <div class="tab-content messenger-list">
       <div class="tab-pane fade show active" id="my-dialogs">
@@ -105,6 +106,17 @@
         {% else %}<p class="small text-muted p-3">Заметок пока нет.</p>{% endfor %}
       </div>
       {% endif %}
+      <div class="tab-pane fade" id="attachments-panel">
+        <div class="p-3 border-bottom"><strong>Вложения обращения</strong><div class="small text-muted">Файлы из сообщений и внутренних заметок, доступные вам</div></div>
+        {% for attachment in dialog_attachments %}
+          <div class="p-3 border-bottom d-flex align-items-center gap-3">
+            {% if attachment.content_type.startswith('image/') %}
+              <a href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" target="_blank" rel="noopener"><img src="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" alt="{{ attachment.filename }}" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:.5rem"></a>
+            {% else %}<span class="badge text-bg-light">Файл</span>{% endif %}
+            <div class="min-w-0 flex-grow-1"><a class="small text-break" href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}">{{ attachment.filename }}</a><div class="small text-muted">{{ (attachment.size_bytes / 1024)|round(1) }} КБ · {{ attachment.created_at.strftime('%d.%m.%Y %H:%M') }}</div></div>
+          </div>
+        {% else %}<p class="small text-muted p-3 mb-0">Вложений пока нет.</p>{% endfor %}
+      </div>
     </div>
   </aside>
 
