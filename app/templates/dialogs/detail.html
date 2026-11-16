@@ -98,6 +98,9 @@
             <div class="small fw-semibold">{{ note.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
             <div class="small text-muted mb-1">{{ 'Сотрудник' if note.author_type.value == 'EMPLOYEE' else 'Система' }}</div>
             <div class="small">{{ note.text }}</div>
+            {% for attachment in note.attachments %}
+              <div class="small mt-2"><a href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}">{{ attachment.filename }}</a></div>
+            {% endfor %}
           </div>
         {% else %}<p class="small text-muted p-3">Заметок пока нет.</p>{% endfor %}
       </div>
