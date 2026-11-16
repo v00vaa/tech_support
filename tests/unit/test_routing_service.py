@@ -263,7 +263,7 @@ def test_process_due_auto_forwards_respects_timeout_status_activity_and_limit(ap
             client_id=customer.id,
             assigned_role=source,
             subject="Due",
-            status=DialogStatus.OPEN,
+            status=DialogStatus.IN_PROGRESS,
             role_assigned_at=now - timedelta(minutes=11),
         )
         recent = Dialog(
