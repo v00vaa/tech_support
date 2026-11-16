@@ -1,9 +1,12 @@
 """Browser routes split into compact entity blueprints."""
 
+import mimetypes
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
-from typing import Any
+from pathlib import Path
+from typing import Any, cast
+from uuid import uuid4
 
 from flask import (
     Blueprint,
@@ -15,14 +18,17 @@ from flask import (
     redirect,
     render_template,
     request,
+    send_file,
     url_for,
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func, update
+from sqlalchemy.engine import CursorResult
 
 from app.extensions import db
 from app.models import (
+    Attachment,
     AuthorType,
     Client,
     Dialog,
@@ -58,6 +64,8 @@ from app.services.routing_service import (
     route_dialog_to_role,
     save_role_route,
 )
+from werkzeug.utils import secure_filename
+
 from app.web.forms import (
     AssignForm,
     ChangePasswordForm,
@@ -90,6 +98,58 @@ dialogs_bp = Blueprint("dialogs", __name__, url_prefix="/dialogs")
 messages_bp = Blueprint("messages", __name__, url_prefix="/messages")
 settings_bp = Blueprint("settings", __name__, url_prefix="/settings")
 portal_bp = Blueprint("portal", __name__, url_prefix="/portal")
+
+
+_ALLOWED_ATTACHMENT_EXTENSIONS = {
+    "csv", "doc", "docx", "gif", "jpeg", "jpg", "pdf", "png", "txt", "webp", "xls", "xlsx", "zip"
+}
+_MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
+_MAX_ATTACHMENTS_PER_MESSAGE = 5
+
+
+def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Path]:
+    """Persist validated uploads under private instance storage, never the public static folder."""
+    selected = [upload for upload in uploads if upload and upload.filename]
+    if len(selected) > _MAX_ATTACHMENTS_PER_MESSAGE:
+        raise ValueError(f"Можно прикрепить не более {_MAX_ATTACHMENTS_PER_MESSAGE} файлов.")
+
+    storage_dir = Path(current_app.instance_path) / "uploads"
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    saved_paths: list[Path] = []
+
+    for upload in selected:
+        filename = secure_filename(upload.filename or "")
+        suffix = Path(filename).suffix.lower()
+        extension = suffix.removeprefix(".")
+        if not filename or extension not in _ALLOWED_ATTACHMENT_EXTENSIONS:
+            raise ValueError("Недопустимый тип файла.")
+
+        upload.stream.seek(0, 2)
+        size_bytes = upload.stream.tell()
+        upload.stream.seek(0)
+        if size_bytes <= 0 or size_bytes > _MAX_ATTACHMENT_SIZE:
+            raise ValueError("Размер каждого файла должен быть от 1 байта до 10 МБ.")
+
+        storage_key = f"{uuid4().hex}{suffix}"
+        path = storage_dir / storage_key
+        upload.save(path)
+        saved_paths.append(path)
+        db.session.add(
+            Attachment(
+                message_id=message.id,
+                filename=filename[:255],
+                storage_key=storage_key,
+                content_type=mimetypes.guess_type(filename)[0] or "application/octet-stream",
+                size_bytes=size_bytes,
+            )
+        )
+    return saved_paths
+
+
+def _remove_saved_attachments(paths: list[Path]) -> None:
+    for path in paths:
+        path.unlink(missing_ok=True)
+
 
 
 def _dialog_form(form: DialogForm) -> None:
@@ -445,16 +505,28 @@ def portal_dialog_create() -> ResponseReturnValue:
         db.session.add(dialog)
         db.session.flush()
         dialog.updated_at = datetime.now(UTC)
-        db.session.add(
-            Message(
-                dialog_id=dialog.id,
-                author_type=AuthorType.CLIENT,
-                author_id=current_user.id,
-                text=(form.message.data or "").strip(),
-                is_internal=False,
-            )
+        message = Message(
+            dialog_id=dialog.id,
+            author_type=AuthorType.CLIENT,
+            author_id=current_user.id,
+            text=(form.message.data or "").strip(),
+            is_internal=False,
         )
-        db.session.commit()
+        db.session.add(message)
+        db.session.flush()
+        saved_paths: list[Path] = []
+        try:
+            saved_paths = _store_message_attachments(message, form.attachments.data or [])
+            db.session.commit()
+        except ValueError as error:
+            db.session.rollback()
+            _remove_saved_attachments(saved_paths)
+            form.message.errors = [*form.message.errors, str(error)]
+            return render_template("portal/dialog_form.html", form=form), 400
+        except Exception:
+            db.session.rollback()
+            _remove_saved_attachments(saved_paths)
+            raise
         flash("Обращение создано.", "success")
         return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
     return render_template("portal/dialog_form.html", form=form)
@@ -479,18 +551,32 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
             dialog.updated_at = datetime.now(UTC)
-            db.session.add(
-                Message(
-                    dialog_id=dialog.id,
-                    author_type=AuthorType.CLIENT,
-                    author_id=current_user.id,
-                    text=(form.text.data or "").strip(),
-                    is_internal=False,
-                )
+            message = Message(
+                dialog_id=dialog.id,
+                author_type=AuthorType.CLIENT,
+                author_id=current_user.id,
+                text=(form.text.data or "").strip(),
+                is_internal=False,
             )
-            if dialog.status == DialogStatus.WAITING_CLIENT:
-                dialog.status = DialogStatus.IN_PROGRESS
-            db.session.commit()
+            db.session.add(message)
+            db.session.flush()
+            saved_paths: list[Path] = []
+            try:
+                saved_paths = _store_message_attachments(message, form.attachments.data or [])
+                if dialog.status == DialogStatus.WAITING_CLIENT:
+                    dialog.status = DialogStatus.IN_PROGRESS
+                db.session.commit()
+            except ValueError as error:
+                db.session.rollback()
+                _remove_saved_attachments(saved_paths)
+                form.text.errors = [*form.text.errors, str(error)]
+            except Exception:
+                db.session.rollback()
+                _remove_saved_attachments(saved_paths)
+                raise
+            else:
+                flash("Сообщение отправлено.", "success")
+                return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
             flash("Сообщение отправлено.", "success")
             return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
 
@@ -942,7 +1028,7 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
     ]
     if not role_ids:
         abort(403)
-    result = db.session.execute(
+    result = cast(CursorResult[Any], db.session.execute(
         update(Dialog)
         .where(
             Dialog.id == dialog.id,
@@ -955,7 +1041,7 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
             status=DialogStatus.IN_PROGRESS,
             updated_at=datetime.now(UTC),
         )
-    )
+    ))
     if result.rowcount != 1:
         db.session.rollback()
         flash("Обращение уже взял другой сотрудник или оно недоступно в вашей очереди.", "warning")
@@ -981,13 +1067,29 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
             from flask import abort
 
             abort(403)
-        message_service.create_message(
-            dialog.id,
-            AuthorType.EMPLOYEE,
-            current_user.id,
-            form.text.data,
+        message = Message(
+            dialog_id=dialog.id,
+            author_type=AuthorType.EMPLOYEE,
+            author_id=current_user.id,
+            text=form.text.data,
             is_internal=is_internal,
         )
+        db.session.add(message)
+        db.session.flush()
+        saved_paths: list[Path] = []
+        try:
+            saved_paths = _store_message_attachments(message, form.attachments.data or [])
+            db.session.commit()
+        except ValueError as error:
+            db.session.rollback()
+            _remove_saved_attachments(saved_paths)
+            form.text.errors = [*form.text.errors, str(error)]
+            flash(str(error), "danger")
+            return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
+        except Exception:
+            db.session.rollback()
+            _remove_saved_attachments(saved_paths)
+            raise
         flash(
             "Внутренняя заметка добавлена." if is_internal else "Сообщение отправлено.", "success"
         )
