@@ -81,8 +81,8 @@ from app.web.forms import (
     LoginForm,
     MessageForm,
     RegistrationSettingsForm,
-    RoleForm,
     RoleFirstLineForm,
+    RoleForm,
     RoleMemberForm,
     RoleMemberRemoveForm,
     RolePermissionsForm,
@@ -643,9 +643,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
     )
     if before_message_id:
         message_query = message_query.where(Message.id < before_message_id)
-    message_batch = db.session.scalars(
-        message_query.order_by(Message.id.desc()).limit(51)
-    ).all()
+    message_batch = db.session.scalars(message_query.order_by(Message.id.desc()).limit(51)).all()
     has_older_messages = len(message_batch) > 50
     visible_messages = list(reversed(message_batch[:50]))
     dialog_attachments = db.session.scalars(
@@ -901,9 +899,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     )
     if before_message_id:
         message_query = message_query.where(Message.id < before_message_id)
-    message_batch = db.session.scalars(
-        message_query.order_by(Message.id.desc()).limit(51)
-    ).all()
+    message_batch = db.session.scalars(message_query.order_by(Message.id.desc()).limit(51)).all()
     has_older_messages = len(message_batch) > 50
     visible_messages = list(reversed(message_batch[:50]))
     internal_notes = (
@@ -1091,9 +1087,7 @@ def dialog_route(dialog_id: int) -> ResponseReturnValue:
         targets = []
     else:
         targets = [
-            item.target_role
-            for item in assigned_role.outgoing_routes
-            if item.target_role.is_active
+            item.target_role for item in assigned_role.outgoing_routes if item.target_role.is_active
         ]
     form.target_role_id.choices = [(item.id, item.name) for item in targets]
     if form.validate_on_submit():
@@ -1404,9 +1398,7 @@ def role_first_line_update(role_id: int) -> ResponseReturnValue:
             # Serialize concurrent admin selections before clearing the previous flag.
             db.session.scalars(db.select(Role.id).with_for_update()).all()
             db.session.execute(
-                update(Role)
-                .where(Role.is_first_line.is_(True))
-                .values(is_first_line=False)
+                update(Role).where(Role.is_first_line.is_(True)).values(is_first_line=False)
             )
         role.is_first_line = bool(form.is_first_line.data)
         db.session.commit()

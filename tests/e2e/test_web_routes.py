@@ -650,7 +650,6 @@ def test_role_membership_and_permission_routes(support_system: dict[str, object]
         assert {permission.code for permission in role.permissions} == {"dialogs.view"}
 
 
-
 def test_administrator_can_select_only_one_first_line_role(
     support_system: dict[str, object],
 ) -> None:
@@ -696,7 +695,6 @@ def test_non_administrator_cannot_change_first_line_role(
         data={"is_first_line": "y"},
     )
     assert response.status_code == 403
-
 
 
 def test_employee_can_atomically_claim_dialog_from_their_role_queue(

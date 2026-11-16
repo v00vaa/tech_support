@@ -182,9 +182,9 @@ def test_customer_cannot_create_dialog_without_first_line_configuration(
 
     assert response.status_code == 503
     with app.app_context():
-        assert db.session.scalar(
-            db.select(Dialog).where(Dialog.subject == "Unrouted request")
-        ) is None
+        assert (
+            db.session.scalar(db.select(Dialog).where(Dialog.subject == "Unrouted request")) is None
+        )
 
 
 def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None:

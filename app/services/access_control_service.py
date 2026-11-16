@@ -41,9 +41,7 @@ def is_active_administrator(employee: Employee) -> bool:
     """Return whether the authenticated principal is an active administrator."""
     if not isinstance(employee, Employee) or not employee.is_active:
         return False
-    return any(
-        role.is_active and role.code == "administrator" for role in employee.roles
-    )
+    return any(role.is_active and role.code == "administrator" for role in employee.roles)
 
 
 def ensure_another_active_administrator(

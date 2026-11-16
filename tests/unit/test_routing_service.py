@@ -191,9 +191,7 @@ def test_route_dialog_rejects_actor_outside_source_role(app):
             is_default=False,
             auto_forward_after_minutes=None,
         )
-        admin_role = db.session.scalar(
-            db.select(Role).where(Role.code == "administrator")
-        )
+        admin_role = db.session.scalar(db.select(Role).where(Role.code == "administrator"))
         assert admin_role is not None
         actor = _employee("routing-outsider@example.com", [admin_role])
         dialog = Dialog(

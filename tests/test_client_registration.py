@@ -92,7 +92,6 @@ def test_registration_rejects_unknown_primary_system_token(app, client):
     assert response.status_code == 400
 
 
-
 def test_client_registration_is_rate_limited(app, client):
     app.config["WTF_CSRF_ENABLED"] = False
     app.config["RATELIMIT_ENABLED"] = True
