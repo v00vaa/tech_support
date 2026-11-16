@@ -86,6 +86,10 @@ def create_app(settings: Settings | None = None) -> Flask:
         Callable[..., ResponseReturnValue],
         limiter.limit("5 per minute", methods=["POST"])(app.view_functions["auth.client_login"]),
     )
+    app.view_functions["auth.client_register"] = cast(
+        Callable[..., ResponseReturnValue],
+        limiter.limit("5 per hour", methods=["POST"])(app.view_functions["auth.client_register"]),
+    )
 
     @app.before_request
     def enforce_account_boundaries() -> ResponseReturnValue | None:
