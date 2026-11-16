@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from app.extensions import db
-from app.models import Client, Dialog, DialogStatus, Employee, Role
+from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message, Role
 from app.models.role_route import RoleRoute
 from app.services.rbac_service import ensure_rbac_catalogue
 from app.services.routing_service import (
@@ -163,6 +163,15 @@ def test_route_dialog_requires_allowed_route_and_open_status(app):
         assert dialog.assigned_role_id == target.id
         assert dialog.responsible_employee_id is None
         assert dialog.role_assigned_at is not None
+        assert dialog.status == DialogStatus.OPEN
+        transfer_event = db.session.scalar(
+            db.select(Message).where(
+                Message.dialog_id == dialog.id,
+                Message.author_type == AuthorType.SYSTEM,
+                Message.text.like("%передано из роли%"),
+            )
+        )
+        assert transfer_event is not None
 
         dialog.status = DialogStatus.CLOSED
         db.session.commit()
@@ -240,6 +249,15 @@ def test_process_due_auto_forwards_respects_timeout_status_activity_and_limit(ap
 
         assert process_due_auto_forwards(now=now, limit=1) == 1
         assert due.assigned_role_id == target.id
+        assert due.status == DialogStatus.OPEN
+        auto_event = db.session.scalar(
+            db.select(Message).where(
+                Message.dialog_id == due.id,
+                Message.author_type == AuthorType.SYSTEM,
+                Message.text.like("%автоматически передано%"),
+            )
+        )
+        assert auto_event is not None
         assert recent.assigned_role_id == source.id
         assert waiting.assigned_role_id == source.id
         assert assigned.assigned_role_id == source.id
