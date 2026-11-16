@@ -104,6 +104,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "portal.index",
                 "portal.dialog_create",
                 "portal.dialog_detail",
+                "messages.attachment_download",
                 "client_password_reset.request_password_reset",
                 "client_password_reset.reset_password",
                 "static",
