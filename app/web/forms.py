@@ -166,6 +166,16 @@ class RoleForm(FlaskForm):
     submit = SubmitField("Сохранить")
 
 
+class DialogEditForm(FlaskForm):
+    """Edit basic metadata of an existing dialog without changing its queue."""
+
+    client_id = SelectField("Клиент", coerce=int, validators=[DataRequired()])
+    responsible_employee_id = SelectField("Ответственный", coerce=int, validators=[Optional()])
+    subject = StringField("Тема", validators=[DataRequired(), Length(max=255)])
+    channel = SelectField("Канал", validators=[DataRequired()])
+    submit = SubmitField("Сохранить")
+
+
 class MessageForm(FlaskForm):
     text = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
     attachments = MultipleFileField("Файлы и изображения")
