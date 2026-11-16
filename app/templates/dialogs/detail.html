@@ -29,9 +29,6 @@
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
   <div><div class="text-muted small">Рабочее место сотрудника</div><h1 class="h3 mb-0">Обращения</h1></div>
-  {% if has_permission(current_user, 'dialogs.create') %}
-    <a class="btn btn-outline-primary" href="{{ url_for('dialogs.dialog_create') }}">Создать диалог</a>
-  {% endif %}
 </div>
 
 <div class="messenger-shell">
