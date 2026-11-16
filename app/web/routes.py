@@ -611,11 +611,19 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             flash("Сообщение отправлено.", "success")
             return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
 
-    visible_messages = [
-        message
-        for message in dialog.messages
-        if not message.is_internal and message.deleted_at is None
-    ]
+    before_message_id = request.args.get("before", type=int)
+    message_query = db.select(Message).where(
+        Message.dialog_id == dialog.id,
+        Message.is_internal.is_(False),
+        Message.deleted_at.is_(None),
+    )
+    if before_message_id:
+        message_query = message_query.where(Message.id < before_message_id)
+    message_batch = db.session.scalars(
+        message_query.order_by(Message.id.desc()).limit(51)
+    ).all()
+    has_older_messages = len(message_batch) > 50
+    visible_messages = list(reversed(message_batch[:50]))
     client_dialogs = db.session.scalars(
         db.select(Dialog)
         .where(Dialog.client_id == current_user.id)
@@ -627,6 +635,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         messages=visible_messages,
         form=form,
         client_dialogs=client_dialogs,
+        has_older_messages=has_older_messages,
     )
 
 
@@ -929,11 +938,19 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     assign_form.responsible_employee_id.data = dialog.responsible_employee_id or 0
     _assign_form(assign_form)
     can_view_notes = has_permission(current_user, "dialogs.add_internal_note")
-    visible_messages = [
-        message
-        for message in dialog.messages
-        if not message.is_internal and message.deleted_at is None
-    ]
+    before_message_id = request.args.get("before", type=int)
+    message_query = db.select(Message).where(
+        Message.dialog_id == dialog.id,
+        Message.is_internal.is_(False),
+        Message.deleted_at.is_(None),
+    )
+    if before_message_id:
+        message_query = message_query.where(Message.id < before_message_id)
+    message_batch = db.session.scalars(
+        message_query.order_by(Message.id.desc()).limit(51)
+    ).all()
+    has_older_messages = len(message_batch) > 50
+    visible_messages = list(reversed(message_batch[:50]))
     internal_notes = (
         [
             message
@@ -1033,6 +1050,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         internal_notes=internal_notes,
         can_view_notes=can_view_notes,
         can_claim=can_claim,
+        has_older_messages=has_older_messages,
     )
 
 
