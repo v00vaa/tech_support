@@ -1,2 +1,49 @@
-{# TODO(UI): Decide whether staff-created dialogs must include the first message. Replace hard-coded channel choices with the channel settings registry and expose the target role/queue as part of initial routing. #}
-{{ form.hidden_tag() }}{% for field in [form.client_id, form.responsible_employee_id, form.subject, form.channel] %}<div class="mb-3">{{ field.label(class_='form-label') }}{{ field(class_='form-select' if field.type == 'SelectField' else 'form-control') }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}{{ form.submit(class_='btn btn-primary') }} <a class="btn btn-outline-secondary" href="{{ url_for('dialogs.dialog_list') }}">Отмена</a>
+{{ form.hidden_tag() }}
+
+<div class="row g-3">
+  <div class="col-12">
+    {{ form.client_id.label(class_="form-label") }}
+    {{ form.client_id(class_="form-select") }}
+    {% for error in form.client_id.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+  <div class="col-md-6">
+    {{ form.assigned_role_id.label(class_="form-label") }}
+    {{ form.assigned_role_id(class_="form-select") }}
+    <div class="form-text">Очередь определяет, какие сотрудники смогут увидеть обращение в своей рабочей очереди.</div>
+    {% for error in form.assigned_role_id.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+  <div class="col-md-6">
+    {{ form.responsible_employee_id.label(class_="form-label") }}
+    {{ form.responsible_employee_id(class_="form-select") }}
+    <div class="form-text">Можно оставить обращение в очереди без конкретного ответственного.</div>
+    {% for error in form.responsible_employee_id.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+  <div class="col-12">
+    {{ form.subject.label(class_="form-label") }}
+    {{ form.subject(class_="form-control", placeholder="Кратко опишите проблему") }}
+    {% for error in form.subject.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+  <div class="col-md-6">
+    {{ form.channel.label(class_="form-label") }}
+    {{ form.channel(class_="form-select") }}
+    {% for error in form.channel.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+  </div>
+  {% if show_first_message %}
+    <div class="col-12">
+      {{ form.first_message.label(class_="form-label") }}
+      {{ form.first_message(class_="form-control", rows="5", placeholder="Опишите проблему или вопрос клиента…") }}
+      {% for error in form.first_message.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="col-12">
+      {{ form.attachments.label(class_="form-label") }}
+      {{ form.attachments(class_="form-control", multiple=true, accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip") }}
+      <div class="form-text">Можно прикрепить до 5 файлов размером до 10 МБ каждый.</div>
+      {% for error in form.attachments.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
+    </div>
+  {% endif %}
+</div>
+
+<div class="d-flex flex-wrap gap-2 mt-4">
+  {{ form.submit(class_="btn btn-primary", value="Создать обращение" if show_first_message else "Сохранить изменения") }}
+  <a class="btn btn-outline-secondary" href="{{ url_for('dialogs.dialog_list') }}">Отмена</a>
+</div>
