@@ -19,7 +19,7 @@ from flask import (
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import func, update
+from sqlalchemy import and_, func, or_, update
 
 from app.extensions import db
 from app.models import (
@@ -499,11 +499,17 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         for message in dialog.messages
         if not message.is_internal and message.deleted_at is None
     ]
+    client_dialogs = db.session.scalars(
+        db.select(Dialog)
+        .where(Dialog.client_id == current_user.id)
+        .order_by(Dialog.updated_at.desc())
+    ).all()
     return render_template(
         "portal/dialog_detail.html",
         dialog=dialog,
         messages=visible_messages,
         form=form,
+        client_dialogs=client_dialogs,
     )
 
 
@@ -669,14 +675,14 @@ def dialog_list() -> ResponseReturnValue:
     visibility = [Dialog.responsible_employee_id == current_user.id]
     if role_ids:
         visibility.append(
-            db.and_(
+            and_(
                 Dialog.assigned_role_id.in_(role_ids),
                 Dialog.responsible_employee_id.is_(None),
             )
         )
     dialogs = db.session.scalars(
         db.select(Dialog)
-        .where(db.or_(*visibility))
+        .where(or_(*visibility))
         .order_by(Dialog.updated_at.desc())
     ).all()
     return render_template("dialogs/list.html", dialogs=dialogs)
