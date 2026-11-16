@@ -5,6 +5,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
 from pathlib import Path
+import re
 from typing import Any, cast
 from uuid import uuid4
 
@@ -25,8 +26,6 @@ from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func, update
 from sqlalchemy.engine import CursorResult
-from werkzeug.utils import secure_filename
-
 from app.extensions import db
 from app.models import (
     Attachment,
@@ -114,7 +113,8 @@ def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Pat
 
     prepared: list[tuple[Any, str, str, int, str]] = []
     for upload in selected:
-        filename = secure_filename(upload.filename or "")
+        original_name = (upload.filename or "").replace("\\", "/").rsplit("/", maxsplit=1)[-1]
+        filename = re.sub(r"[\\x00-\\x1f\\x7f]", "", original_name).strip()
         suffix = Path(filename).suffix.lower()
         extension = suffix.removeprefix(".")
         if not filename or extension not in _ALLOWED_ATTACHMENT_EXTENSIONS:
