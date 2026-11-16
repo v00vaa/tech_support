@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.extensions import db
+from app.extensions import db, limiter
 from app.models import Client
 
 
@@ -90,3 +90,26 @@ def test_registration_rejects_unknown_primary_system_token(app, client):
     response = client.get("/register?token=unknown-token")
 
     assert response.status_code == 400
+
+
+
+def test_client_registration_is_rate_limited(app, client):
+    app.config["WTF_CSRF_ENABLED"] = False
+    app.config["RATELIMIT_ENABLED"] = True
+    limiter.init_app(app)
+
+    responses = [
+        client.post(
+            "/register",
+            data={
+                "login": "x",
+                "email": "invalid",
+                "password": "short",
+                "confirm_password": "short",
+            },
+        )
+        for _ in range(6)
+    ]
+
+    assert all(response.status_code == 200 for response in responses[:5])
+    assert responses[5].status_code == 429
