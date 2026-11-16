@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from logging.config import fileConfig
+from pathlib import Path
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -15,7 +16,7 @@ flask_app = create_app()
 config = context.config
 config.set_main_option("sqlalchemy.url", flask_app.config["SQLALCHEMY_DATABASE_URI"])
 
-if config.config_file_name is not None:
+if config.config_file_name is not None and Path(config.config_file_name).is_file():
     fileConfig(config.config_file_name)
 
 target_metadata = db.metadata
