@@ -34,6 +34,7 @@
                   aria-controls="role-{{ role.id }}">
             <span class="fw-semibold">{{ role.name }}</span>
             <span class="badge text-bg-secondary ms-2">{{ role.employees|length }} сотрудников</span>
+            {% if role.is_first_line %}<span class="badge text-bg-primary ms-2">Первый уровень</span>{% endif %}
             {% if not role.is_active %}<span class="badge text-bg-warning ms-2">Отключена</span>{% endif %}
           </button>
         </h3>
@@ -44,8 +45,8 @@
             <form method="post" action="{{ url_for('settings.role_first_line_update', role_id=role.id) }}"
                   class="form-check mb-3">
               {{ first_line_forms[role.id].hidden_tag() }}
-              {{ first_line_forms[role.id].is_first_line(class_='form-check-input', onchange='this.form.submit()', disabled=not role.is_active) }}
-              <label class="form-check-label" for="{{ first_line_forms[role.id].is_first_line.id }}">
+              {{ first_line_forms[role.id].is_first_line(id='first-line-' ~ role.id|string, class_='form-check-input', onchange='this.form.submit()', disabled=not role.is_active) }}
+              <label class="form-check-label" for="first-line-{{ role.id }}">
                 Первый уровень поддержки
               </label>
             </form>
