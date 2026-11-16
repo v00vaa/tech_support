@@ -113,10 +113,7 @@ def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Pat
     if len(selected) > _MAX_ATTACHMENTS_PER_MESSAGE:
         raise ValueError(f"Можно прикрепить не более {_MAX_ATTACHMENTS_PER_MESSAGE} файлов.")
 
-    storage_dir = Path(current_app.instance_path) / "uploads"
-    storage_dir.mkdir(parents=True, exist_ok=True)
-    saved_paths: list[Path] = []
-
+    prepared: list[tuple[Any, str, str, int, str]] = []
     for upload in selected:
         filename = secure_filename(upload.filename or "")
         suffix = Path(filename).suffix.lower()
@@ -129,20 +126,30 @@ def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Pat
         upload.stream.seek(0)
         if size_bytes <= 0 or size_bytes > _MAX_ATTACHMENT_SIZE:
             raise ValueError("Размер каждого файла должен быть от 1 байта до 10 МБ.")
+        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        prepared.append((upload, filename, suffix, size_bytes, content_type))
 
-        storage_key = f"{uuid4().hex}{suffix}"
-        path = storage_dir / storage_key
-        upload.save(path)
-        saved_paths.append(path)
-        db.session.add(
-            Attachment(
-                message_id=message.id,
-                filename=filename[:255],
-                storage_key=storage_key,
-                content_type=mimetypes.guess_type(filename)[0] or "application/octet-stream",
-                size_bytes=size_bytes,
+    storage_dir = Path(current_app.instance_path) / "uploads"
+    storage_dir.mkdir(parents=True, exist_ok=True)
+    saved_paths: list[Path] = []
+    try:
+        for upload, filename, suffix, size_bytes, content_type in prepared:
+            storage_key = f"{uuid4().hex}{suffix}"
+            path = storage_dir / storage_key
+            upload.save(path)
+            saved_paths.append(path)
+            db.session.add(
+                Attachment(
+                    message_id=message.id,
+                    filename=filename[:255],
+                    storage_key=storage_key,
+                    content_type=content_type,
+                    size_bytes=size_bytes,
+                )
             )
-        )
+    except Exception:
+        _remove_saved_attachments(saved_paths)
+        raise
     return saved_paths
 
 
