@@ -680,12 +680,52 @@ def dialog_list() -> ResponseReturnValue:
                 Dialog.responsible_employee_id.is_(None),
             )
         )
-    dialogs = db.session.scalars(
+    own_dialogs = db.session.scalars(
         db.select(Dialog)
-        .where(or_(*visibility))
+        .where(Dialog.responsible_employee_id == current_user.id)
         .order_by(Dialog.updated_at.desc())
+        .limit(50)
     ).all()
-    return render_template("dialogs/list.html", dialogs=dialogs)
+    queue_roles = [
+        role for role in current_user.roles
+        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
+    ]
+    queue_dialogs = {}
+    queue_stats = {}
+    for role in queue_roles:
+        queue_dialogs[role.id] = db.session.scalars(
+            db.select(Dialog)
+            .where(
+                Dialog.assigned_role_id == role.id,
+                Dialog.responsible_employee_id.is_(None),
+                Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+            )
+            .order_by(Dialog.updated_at.asc())
+            .limit(50)
+        ).all()
+        queue_stats[role.id] = {
+            "waiting": db.session.scalar(
+                db.select(func.count()).select_from(Dialog).where(
+                    Dialog.assigned_role_id == role.id,
+                    Dialog.responsible_employee_id.is_(None),
+                    Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+                )
+            ) or 0,
+            "active": db.session.scalar(
+                db.select(func.count()).select_from(Dialog).where(
+                    Dialog.assigned_role_id == role.id,
+                    Dialog.status == DialogStatus.IN_PROGRESS,
+                )
+            ) or 0,
+        }
+    return render_template(
+        "dialogs/list.html",
+        dialogs=dialogs,
+        own_dialogs=own_dialogs,
+        queue_roles=queue_roles,
+        queue_dialogs=queue_dialogs,
+        queue_stats=queue_stats,
+    )
 
 
 @dialogs_bp.route("/create", methods=["GET", "POST"])
