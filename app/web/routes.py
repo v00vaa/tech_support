@@ -744,7 +744,18 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
     ]
     queue_stats = {}
+    queue_dialogs = {}
     for role in queue_roles:
+        queue_dialogs[role.id] = db.session.scalars(
+            db.select(Dialog)
+            .where(
+                Dialog.assigned_role_id == role.id,
+                Dialog.responsible_employee_id.is_(None),
+                Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+            )
+            .order_by(Dialog.updated_at.asc())
+            .limit(50)
+        ).all()
         queue_stats[role.id] = {
             "waiting": db.session.scalar(
                 db.select(func.count()).select_from(Dialog).where(
@@ -796,6 +807,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         client_dialogs=client_dialogs,
         queue_roles=queue_roles,
         queue_stats=queue_stats,
+        queue_dialogs=queue_dialogs,
         internal_notes=internal_notes,
         can_view_notes=can_view_notes,
         can_claim=can_claim,
