@@ -74,7 +74,6 @@ from app.web.forms import (
     ClientLoginForm,
     ClientRegistrationForm,
     ClientReplyForm,
-    DialogForm,
     DialogRouteForm,
     EmployeeForm,
     EmployeeRolesForm,
@@ -170,32 +169,6 @@ def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Pat
 def _remove_saved_attachments(paths: list[Path]) -> None:
     for path in paths:
         path.unlink(missing_ok=True)
-
-
-def _dialog_form(form: DialogForm) -> None:
-    form.client_id.choices = [
-        (client.id, client.name)
-        for client in db.session.scalars(db.select(Client).order_by(Client.name))
-    ]
-    roles = db.session.scalars(
-        db.select(Role)
-        .where(Role.role_type == "MAIN", Role.is_active, Role.code != "administrator")
-        .order_by(Role.name)
-    ).all()
-    form.assigned_role_id.choices = [(0, "Без очереди")] + [
-        (role.id, role.name) for role in roles
-    ]
-    form.responsible_employee_id.choices = [(0, "Не назначен")] + [
-        (employee.id, employee.name)
-        for employee in db.session.scalars(
-            db.select(Employee).where(Employee.is_active).order_by(Employee.name)
-        )
-    ]
-    configured_channels = current_app.config.get(
-        "SUPPORT_CHANNELS",
-        [("Web", "Веб-кабинет"), ("API", "Внешний API"), ("Widget", "Виджет")],
-    )
-    form.channel.choices = [(str(value), str(label)) for value, label in configured_channels]
 
 
 def _assign_form(form: AssignForm) -> None:
@@ -887,95 +860,6 @@ def dialog_list() -> ResponseReturnValue:
         queue_roles=queue_roles,
         queue_dialogs=queue_dialogs,
         queue_stats=queue_stats,
-    )
-
-
-@dialogs_bp.route("/create", methods=["GET", "POST"])
-@login_required
-@permission_required("dialogs.create")
-def dialog_create() -> ResponseReturnValue:
-    form = DialogForm()
-    _dialog_form(form)
-    if form.validate_on_submit():
-        assert form.client_id.data is not None
-        assert form.subject.data is not None
-        assert form.channel.data is not None
-        first_message = (form.first_message.data or "").strip()
-        if not first_message:
-            form.first_message.errors = [
-                *form.first_message.errors,
-                "Добавьте первое сообщение обращения.",
-            ]
-        else:
-            employee_id = form.responsible_employee_id.data or None
-            role_id = form.assigned_role_id.data or None
-            employee = db.session.get(Employee, employee_id) if employee_id else None
-            role = db.session.get(Role, role_id) if role_id else None
-            if employee_id and employee is None:
-                form.responsible_employee_id.errors = [
-                    *form.responsible_employee_id.errors,
-                    "Выбранный сотрудник недоступен.",
-                ]
-            elif role_id and role is None:
-                form.assigned_role_id.errors = [
-                    *form.assigned_role_id.errors,
-                    "Выбранная очередь недоступна.",
-                ]
-            elif employee is not None and role is not None and role not in employee.roles:
-                form.responsible_employee_id.errors = [
-                    *form.responsible_employee_id.errors,
-                    "Сотрудник не состоит в выбранной очереди.",
-                ]
-            else:
-                dialog = Dialog(
-                    client_id=form.client_id.data,
-                    responsible_employee_id=employee_id,
-                    assigned_role_id=role_id,
-                    subject=form.subject.data.strip(),
-                    channel=form.channel.data,
-                    status=DialogStatus.IN_PROGRESS if employee_id else DialogStatus.OPEN,
-                )
-                db.session.add(dialog)
-                db.session.flush()
-                db.session.add(
-                    Message(
-                        dialog_id=dialog.id,
-                        author_type=AuthorType.SYSTEM,
-                        author_id=None,
-                        text="Обращение создано.",
-                        is_internal=False,
-                    )
-                )
-                message = Message(
-                    dialog_id=dialog.id,
-                    author_type=AuthorType.EMPLOYEE,
-                    author_id=current_user.id,
-                    text=first_message,
-                    is_internal=False,
-                )
-                db.session.add(message)
-                db.session.flush()
-                saved_paths: list[Path] = []
-                try:
-                    saved_paths = _store_message_attachments(
-                        message, form.attachments.data or []
-                    )
-                    db.session.commit()
-                except ValueError as error:
-                    db.session.rollback()
-                    _remove_saved_attachments(saved_paths)
-                    form.attachments.errors = [*form.attachments.errors, str(error)]
-                except Exception:
-                    db.session.rollback()
-                    _remove_saved_attachments(saved_paths)
-                    raise
-                else:
-                    flash("Диалог создан, первое сообщение отправлено.", "success")
-                    return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
-    return render_template(
-        "dialogs/create.html",
-        form=form,
-        show_first_message=True,
     )
 
 
