@@ -166,20 +166,6 @@ class RoleForm(FlaskForm):
     submit = SubmitField("Сохранить")
 
 
-class DialogForm(FlaskForm):
-    client_id = SelectField("Клиент", coerce=int, validators=[DataRequired()])
-    assigned_role_id = SelectField("Очередь", coerce=int, validators=[Optional()])
-    responsible_employee_id = SelectField("Ответственный", coerce=int, validators=[Optional()])
-    subject = StringField("Тема", validators=[DataRequired(), Length(max=255)])
-    channel = SelectField("Канал", validators=[DataRequired()])
-    first_message = TextAreaField(
-        "Первое сообщение",
-        validators=[Optional(), Length(max=10000)],
-    )
-    attachments = MultipleFileField("Файлы и изображения")
-    submit = SubmitField("Сохранить")
-
-
 class MessageForm(FlaskForm):
     text = TextAreaField("Сообщение", validators=[DataRequired(), Length(max=10000)])
     attachments = MultipleFileField("Файлы и изображения")
