@@ -112,7 +112,10 @@ def route_dialog_to_role(
             dialog_id=dialog.id,
             author_type=AuthorType.SYSTEM,
             author_id=None,
-            text=f"Обращение передано из роли «{source_role.name}» в роль «{target_role.name}».",
+            text=(
+                f"Обращение передано из роли «{source_role.name}» "
+                f"в роль «{target_role.name}»."
+            ),
             is_internal=False,
         )
     )
