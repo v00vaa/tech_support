@@ -30,8 +30,13 @@
     <div class="p-3 border-bottom">
       <strong>Ваши обращения</strong>
       <div class="small text-muted">История общения со службой поддержки</div>
+      <ul class="nav nav-pills nav-fill mt-3" role="tablist">
+        <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#client-tickets" type="button">Обращения</button></li>
+        <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#client-attachments" type="button">Файлы <span class="badge text-bg-light">{{ dialog_attachments|length }}</span></button></li>
+      </ul>
     </div>
-    <div class="client-ticket-list">
+    <div class="tab-content client-ticket-list">
+      <div class="tab-pane fade show active" id="client-tickets">
       {% for item in client_dialogs %}
         <a class="client-ticket {% if item.id == dialog.id %}active{% endif %}" href="{{ url_for('portal.dialog_detail', dialog_id=item.id) }}">
           <div class="d-flex justify-content-between gap-2">
@@ -41,6 +46,17 @@
           <div class="small text-muted mt-1">Обновлено {{ item.updated_at.strftime('%d.%m.%Y %H:%M') }}</div>
         </a>
       {% else %}<p class="text-muted small p-3">У вас пока нет обращений.</p>{% endfor %}
+      </div>
+      <div class="tab-pane fade" id="client-attachments">
+        {% for attachment in dialog_attachments %}
+          <div class="p-3 border-bottom d-flex align-items-center gap-3">
+            {% if attachment.content_type.startswith('image/') %}
+              <a href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" target="_blank" rel="noopener"><img src="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" alt="{{ attachment.filename }}" loading="lazy" style="width:64px;height:64px;object-fit:cover;border-radius:.5rem"></a>
+            {% else %}<span class="badge text-bg-light">Файл</span>{% endif %}
+            <div class="min-w-0 flex-grow-1"><a class="small text-break" href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}">{{ attachment.filename }}</a><div class="small text-muted">{{ (attachment.size_bytes / 1024)|round(1) }} КБ · {{ attachment.created_at.strftime('%d.%m.%Y %H:%M') }}</div></div>
+          </div>
+        {% else %}<p class="small text-muted p-3 mb-0">Вложений пока нет.</p>{% endfor %}
+      </div>
     </div>
   </aside>
 
