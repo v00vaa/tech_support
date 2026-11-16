@@ -1,23 +1,192 @@
-{% extends "layout.html" %}{% block content %}
-{# TODO(UI): Complete the conversation workspace with attachment upload/download and previews, message pagination or lazy loading, and clear visual separation/filtering of internal notes. Add a confirmation step for destructive actions. #}
-<div class="d-flex justify-content-between align-items-start"><div><h1>Диалог #{{ dialog.id }}</h1><h2 class="h4 text-muted">{{ dialog.subject }}</h2></div>{% if has_permission(current_user, 'dialogs.manage') %}<a class="btn btn-outline-secondary" href="{{ url_for('dialogs.dialog_edit', dialog_id=dialog.id) }}">Изменить</a>{% endif %}</div>
-<div class="card mb-3"><div class="card-body row g-3">
-<div class="col-md-4"><strong>Клиент:</strong> <a href="{{ url_for('clients.client_detail', client_id=dialog.client.id) }}">{{ dialog.client.name }}</a></div>
-<div class="col-md-4"><strong>Ответственный:</strong> {{ dialog.responsible_employee.name if dialog.responsible_employee else 'Не назначен' }}</div>
-<div class="col-md-4"><strong>Канал:</strong> {{ dialog.channel }}</div>
-<div class="col-md-4"><strong>Очередь:</strong> {{ dialog.assigned_role.name if dialog.assigned_role else "Не назначена" }}</div>
-{% if has_permission(current_user, 'dialogs.change_status') %}<div class="col-md-6"><form method="post" action="{{ url_for('dialogs.dialog_status', dialog_id=dialog.id) }}">{{ status_form.hidden_tag() }}<div class="input-group">{{ status_form.status(class_='form-select') }}{{ status_form.submit(class_='btn btn-outline-primary') }}</div></form></div>{% endif %}
-{% if has_permission(current_user, 'dialogs.route_to_role') and route_form.target_role_id.choices %}
-<div class="col-md-6"><form method="post" action="{{ url_for('dialogs.dialog_route', dialog_id=dialog.id) }}">{{ route_form.hidden_tag() }}<div class="input-group">{{ route_form.target_role_id(class_='form-select') }}{{ route_form.submit(class_='btn btn-outline-primary') }}</div></form></div>
-{% endif %}
-{% if has_permission(current_user, 'dialogs.transfer') %}<div class="col-md-6"><form method="post" action="{{ url_for('dialogs.dialog_assign', dialog_id=dialog.id) }}">{{ assign_form.hidden_tag() }}<div class="input-group">{{ assign_form.responsible_employee_id(class_='form-select') }}{{ assign_form.submit(class_='btn btn-outline-primary') }}</div></form></div>{% endif %}
-</div></div>
-<div class="card chat-card"><div class="card-header">История сообщений</div><div class="card-body chat-log">
-{% for message in messages %}{% if not message.deleted_at %}
-<div class="chat-message {{ message.author_type.value|lower }} {{ 'border border-warning' if message.is_internal else '' }}">
-<div class="small fw-bold">{{ 'Внутренняя заметка · ' if message.is_internal else '' }}{{ 'Клиент' if message.author_type.value == 'CLIENT' else ('Сотрудник' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
-<div>{{ message.text }}</div><div class="small text-muted">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}{% if has_permission(current_user, 'dialogs.manage') %} · <a href="{{ url_for('messages.message_edit', message_id=message.id) }}">изменить</a> <form class="d-inline" method="post" action="{{ url_for('messages.message_delete', message_id=message.id) }}"><button class="btn btn-link btn-sm p-0">удалить</button></form>{% endif %}</div></div>
-{% endif %}{% else %}<p class="text-muted">Сообщений пока нет.</p>{% endfor %}
+{% extends "layout.html" %}
+
+{% block title %}{{ dialog.subject }} · Обращение #{{ dialog.id }}{% endblock %}
+
+{% block styles %}
+<style>
+  .messenger-shell { display:grid; grid-template-columns:minmax(260px, 330px) minmax(0,1fr); gap:1rem; min-height: min(78vh, 900px); }
+  .messenger-sidebar,.messenger-main { min-width:0; border:1px solid var(--support-color-border); border-radius:var(--support-radius-md); background:var(--support-color-surface); box-shadow:var(--support-shadow-sm); }
+  .messenger-sidebar { display:flex; flex-direction:column; overflow:hidden; }
+  .messenger-sidebar .nav-link { color:var(--support-color-text-muted); text-align:left; }
+  .messenger-sidebar .nav-link.active { color:var(--support-color-primary); background:var(--support-color-primary-soft); }
+  .messenger-list { overflow-y:auto; max-height:65vh; }
+  .messenger-item { display:block; padding:.8rem 1rem; color:inherit; text-decoration:none; border-bottom:1px solid var(--support-color-border); }
+  .messenger-item:hover,.messenger-item.active { background:#f1f5ff; }
+  .messenger-main { display:flex; flex-direction:column; overflow:hidden; }
+  .messenger-header { padding:1rem 1.25rem; border-bottom:1px solid var(--support-color-border); }
+  .messenger-log { display:flex; flex:1; min-height:380px; max-height:62vh; flex-direction:column; gap:.85rem; overflow-y:auto; padding:1.25rem; background:#f7f9fc; }
+  .messenger-message { max-width:min(78%,48rem); padding:.75rem 1rem; border-radius:1rem; overflow-wrap:anywhere; box-shadow:0 1px 2px rgb(15 23 42 / 5%); }
+  .messenger-message.client { align-self:flex-start; color:#193b69; background:#e6efff; border-bottom-left-radius:.25rem; }
+  .messenger-message.employee { align-self:flex-end; color:#174b35; background:#dcf3e6; border-bottom-right-radius:.25rem; }
+  .messenger-message.system { align-self:center; max-width:90%; color:#465466; background:#e9edf2; border:1px solid #d8dee7; text-align:center; font-size:.875rem; }
+  .messenger-message.internal { align-self:stretch; max-width:100%; color:#704b12; background:#fff4d9; border:1px solid #f0d18c; }
+  .messenger-composer { padding:1rem; border-top:1px solid var(--support-color-border); }
+  .messenger-stat { padding:.55rem .7rem; background:#f8fafc; border-radius:.5rem; }
+  @media(max-width:767.98px) { .messenger-shell { grid-template-columns:1fr; } .messenger-list { max-height:260px; } .messenger-log { min-height:320px; } .messenger-message { max-width:92%; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <div><div class="text-muted small">Рабочее место сотрудника</div><h1 class="h3 mb-0">Обращения</h1></div>
+  {% if has_permission(current_user, 'dialogs.create') %}
+    <a class="btn btn-outline-primary" href="{{ url_for('dialogs.dialog_create') }}">Создать диалог</a>
+  {% endif %}
 </div>
-{% if has_permission(current_user, 'dialogs.reply') or has_permission(current_user, 'dialogs.add_internal_note') %}<div class="card-footer"><form method="post" action="{{ url_for('dialogs.message_create', dialog_id=dialog.id) }}">{{ message_form.hidden_tag() }}{{ message_form.text(class_='form-control mb-2', rows='3', placeholder='Введите сообщение…') }}{% if has_permission(current_user, 'dialogs.add_internal_note') %}<div class="form-check mb-2">{{ message_form.is_internal(class_='form-check-input') }}{{ message_form.is_internal.label(class_='form-check-label') }}</div>{% endif %}{{ message_form.submit(class_='btn btn-primary') }}</form></div>{% endif %}
-</div>{% endblock %}
+
+<div class="messenger-shell">
+  <aside class="messenger-sidebar">
+    <div class="p-3 border-bottom">
+      <div class="fw-semibold mb-2">Список обращений</div>
+      <input class="form-control form-control-sm" type="search" placeholder="Поиск в списке…" data-chat-search>
+    </div>
+    <ul class="nav nav-pills nav-fill p-2 gap-1" role="tablist">
+      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#my-dialogs" type="button">Мои</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#role-queues" type="button">Очереди</button></li>
+      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#client-dialogs" type="button">Клиент</button></li>
+      {% if can_view_notes %}<li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#notes-panel" type="button">Заметки</button></li>{% endif %}
+    </ul>
+    <div class="tab-content messenger-list">
+      <div class="tab-pane fade show active" id="my-dialogs">
+        {% for item in own_dialogs %}
+          <a class="messenger-item {% if item.id == dialog.id %}active{% endif %}" href="{{ url_for('dialogs.dialog_detail', dialog_id=item.id) }}" data-chat-item>
+            <div class="d-flex justify-content-between gap-2"><strong class="text-truncate">#{{ item.id }} · {{ item.subject }}</strong><span class="badge text-bg-light">{{ item.status.value.replace('_',' ') }}</span></div>
+            <div class="small text-muted mt-1">{{ item.client.name }} · {{ item.updated_at.strftime('%d.%m %H:%M') }}</div>
+          </a>
+        {% else %}<p class="text-muted small p-3 mb-0">У вас пока нет обращений в ответственности.</p>{% endfor %}
+      </div>
+
+      <div class="tab-pane fade" id="role-queues">
+        {% for role in queue_roles %}
+          <section class="border-bottom">
+            <div class="px-3 py-2 bg-body-tertiary">
+              <div class="fw-semibold">{{ role.name }}</div>
+              <div class="d-flex gap-2 small text-muted mt-1">
+                <span>Ожидают: {{ queue_stats[role.id].waiting }}</span>
+                <span>В работе: {{ queue_stats[role.id].active }}</span>
+              </div>
+            </div>
+            {% for item in queue_dialogs[role.id] %}
+              <a class="messenger-item {% if item.id == dialog.id %}active{% endif %}" href="{{ url_for('dialogs.dialog_detail', dialog_id=item.id) }}" data-chat-item>
+                <strong class="d-block text-truncate">#{{ item.id }} · {{ item.subject }}</strong>
+                <span class="small text-muted">{{ item.client.name }} · {{ item.updated_at.strftime('%d.%m %H:%M') }}</span>
+              </a>
+            {% else %}<p class="small text-muted px-3 py-2 mb-0">Очередь пуста.</p>{% endfor %}
+          </section>
+        {% else %}<p class="small text-muted p-3">Вы пока не состоите ни в одной активной основной роли.</p>{% endfor %}
+      </div>
+
+      <div class="tab-pane fade" id="client-dialogs">
+        <div class="p-3 border-bottom">
+          <strong>{{ dialog.client.name }}</strong>
+          <div class="small text-muted">Все обращения этого клиента</div>
+        </div>
+        {% for item in client_dialogs %}
+          <a class="messenger-item {% if item.id == dialog.id %}active{% endif %}" href="{{ url_for('dialogs.dialog_detail', dialog_id=item.id) }}" data-chat-item>
+            <strong class="d-block text-truncate">#{{ item.id }} · {{ item.subject }}</strong>
+            <span class="small text-muted">{{ item.status.value.replace('_',' ') }} · {{ item.updated_at.strftime('%d.%m %H:%M') }}</span>
+            {% if item.responsible_employee %}<span class="small d-block text-muted">Ответственный: {{ item.responsible_employee.name }}</span>{% endif %}
+          </a>
+        {% else %}<p class="small text-muted p-3">Других обращений нет.</p>{% endfor %}
+      </div>
+
+      {% if can_view_notes %}
+      <div class="tab-pane fade" id="notes-panel">
+        <div class="p-3 border-bottom"><strong>Внутренние заметки</strong><div class="small text-muted">Видны только сотрудникам с соответствующим правом</div></div>
+        {% for note in internal_notes %}
+          <div class="p-3 border-bottom">
+            <div class="small fw-semibold">{{ note.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+            <div class="small text-muted mb-1">{{ 'Сотрудник' if note.author_type.value == 'EMPLOYEE' else 'Система' }}</div>
+            <div class="small">{{ note.text }}</div>
+          </div>
+        {% else %}<p class="small text-muted p-3">Заметок пока нет.</p>{% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </aside>
+
+  <main class="messenger-main">
+    <header class="messenger-header">
+      <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+        <div>
+          <div class="small text-muted">Обращение #{{ dialog.id }} · {{ dialog.client.name }}</div>
+          <h2 class="h5 mb-1">{{ dialog.subject }}</h2>
+          <div class="small text-muted">Очередь: {{ dialog.assigned_role.name if dialog.assigned_role else 'Не назначена' }} · Ответственный: {{ dialog.responsible_employee.name if dialog.responsible_employee else 'Не назначен' }}</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2 align-items-center">
+          <span class="badge text-bg-primary">{{ dialog.status.value.replace('_',' ') }}</span>
+          {% if can_claim %}
+            <form method="post" action="{{ url_for('dialogs.dialog_claim', dialog_id=dialog.id) }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-sm btn-success" type="submit">Взять обращение</button>
+            </form>
+          {% endif %}
+          {% if has_permission(current_user, 'dialogs.manage') %}
+            <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('dialogs.dialog_edit', dialog_id=dialog.id) }}">Изменить</a>
+          {% endif %}
+        </div>
+      </div>
+      <div class="d-flex flex-wrap gap-2 mt-3">
+        {% if has_permission(current_user, 'dialogs.change_status') %}
+          <form method="post" action="{{ url_for('dialogs.dialog_status', dialog_id=dialog.id) }}" class="d-flex gap-1">
+            {{ status_form.hidden_tag() }}{{ status_form.status(class_='form-select form-select-sm') }}{{ status_form.submit(class_='btn btn-sm btn-outline-primary') }}
+          </form>
+        {% endif %}
+        {% if has_permission(current_user, 'dialogs.route_to_role') and route_form.target_role_id.choices %}
+          <form method="post" action="{{ url_for('dialogs.dialog_route', dialog_id=dialog.id) }}" class="d-flex gap-1">
+            {{ route_form.hidden_tag() }}{{ route_form.target_role_id(class_='form-select form-select-sm') }}{{ route_form.submit(class_='btn btn-sm btn-outline-primary') }}
+          </form>
+        {% endif %}
+        {% if has_permission(current_user, 'dialogs.transfer') %}
+          <form method="post" action="{{ url_for('dialogs.dialog_assign', dialog_id=dialog.id) }}" class="d-flex gap-1">
+            {{ assign_form.hidden_tag() }}{{ assign_form.responsible_employee_id(class_='form-select form-select-sm') }}{{ assign_form.submit(class_='btn btn-sm btn-outline-primary') }}
+          </form>
+        {% endif %}
+      </div>
+    </header>
+
+    <div class="messenger-log" id="chat-log" aria-live="polite">
+      {% for message in messages %}
+        <article class="messenger-message {{ message.author_type.value|lower }}">
+          <div class="small fw-semibold mb-1">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Сотрудник' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
+          <div>{{ message.text }}</div>
+          <div class="small opacity-75 mt-2">{{ message.created_at.strftime('%d.%m.%Y %H:%M') }}</div>
+        </article>
+      {% else %}<p class="text-muted text-center my-auto">Сообщений пока нет.</p>{% endfor %}
+    </div>
+
+    {% if has_permission(current_user, 'dialogs.reply') or has_permission(current_user, 'dialogs.add_internal_note') %}
+      <div class="messenger-composer">
+        <form method="post" action="{{ url_for('dialogs.message_create', dialog_id=dialog.id) }}">
+          {{ message_form.hidden_tag() }}
+          {{ message_form.text(class_='form-control mb-2', rows='3', placeholder='Напишите сообщение…') }}
+          {% if has_permission(current_user, 'dialogs.add_internal_note') %}
+            <div class="form-check mb-2">{{ message_form.is_internal(class_='form-check-input') }}{{ message_form.is_internal.label(class_='form-check-label') }}</div>
+          {% endif %}
+          <div class="d-flex justify-content-between align-items-center gap-2">
+            <span class="small text-muted">Отправка сообщения клиенту или внутренняя заметка</span>
+            {{ message_form.submit(class_='btn btn-primary') }}
+          </div>
+        </form>
+      </div>
+    {% endif %}
+  </main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (() => {
+    const log = document.getElementById('chat-log');
+    if (log) log.scrollTop = log.scrollHeight;
+    const search = document.querySelector('[data-chat-search]');
+    if (!search) return;
+    search.addEventListener('input', () => {
+      const query = search.value.trim().toLocaleLowerCase();
+      document.querySelectorAll('[data-chat-item]').forEach((item) => {
+        item.hidden = !item.textContent.toLocaleLowerCase().includes(query);
+      });
+    });
+  })();
+</script>
+{% endblock %}
