@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, Table, UniqueConstraint
+from sqlalchemy import Boolean, Column, ForeignKey, Index, Integer, String, Table, UniqueConstraint, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base, db
@@ -41,7 +41,16 @@ class Role(Base):
     """A named collection of permissions, optionally scoped to a main role."""
 
     __tablename__ = "roles"
-    __table_args__ = (UniqueConstraint("scope_role_id", "role_type", name="uq_roles_scope_type"),)
+    __table_args__ = (
+        UniqueConstraint("scope_role_id", "role_type", name="uq_roles_scope_type"),
+        Index(
+            "uq_roles_single_first_line",
+            "is_first_line",
+            unique=True,
+            postgresql_where=text("is_first_line IS TRUE"),
+            sqlite_where=text("is_first_line = 1"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     code: Mapped[str] = mapped_column(String(80), unique=True, nullable=False, index=True)
@@ -49,6 +58,7 @@ class Role(Base):
     description: Mapped[str | None] = mapped_column(String(500))
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_first_line: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     role_type: Mapped[str] = mapped_column(String(20), default="MAIN", nullable=False)
     scope_role_id: Mapped[int | None] = mapped_column(
         ForeignKey("roles.id", ondelete="CASCADE"), nullable=True, index=True
