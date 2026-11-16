@@ -1110,7 +1110,23 @@ def dialog_status(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), StatusForm()
     if form.validate_on_submit():
         try:
+            previous_status = dialog.status
             dialog_service.change_status(dialog, DialogStatus(form.status.data))
+            if dialog.status != previous_status:
+                db.session.add(
+                    Message(
+                        dialog_id=dialog.id,
+                        author_type=AuthorType.SYSTEM,
+                        author_id=None,
+                        text=(
+                            "Статус изменен: "
+                            f"{previous_status.value.replace('_', ' ').lower()} → "
+                            f"{dialog.status.value.replace('_', ' ').lower()}."
+                        ),
+                        is_internal=False,
+                    )
+                )
+                db.session.commit()
             flash("Статус изменен.", "success")
         except ValueError as error:
             flash(str(error), "danger")
@@ -1156,7 +1172,25 @@ def dialog_assign(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), AssignForm()
     _assign_form(form)
     if form.validate_on_submit():
-        dialog_service.assign_employee(dialog, form.responsible_employee_id.data or None)
+        employee_id = form.responsible_employee_id.data or None
+        employee = db.session.get(Employee, employee_id) if employee_id else None
+        previous_employee_id = dialog.responsible_employee_id
+        dialog_service.assign_employee(dialog, employee_id)
+        if previous_employee_id != employee_id:
+            db.session.add(
+                Message(
+                    dialog_id=dialog.id,
+                    author_type=AuthorType.SYSTEM,
+                    author_id=None,
+                    text=(
+                        f"Ответственный назначен: {employee.name}."
+                        if employee is not None
+                        else "Ответственный сотрудник снят."
+                    ),
+                    is_internal=False,
+                )
+            )
+            db.session.commit()
         flash("Сотрудник назначен.", "success")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
@@ -1195,6 +1229,16 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash("Обращение уже взял другой сотрудник или оно недоступно в вашей очереди.", "warning")
     else:
+        db.session.commit()
+        db.session.add(
+            Message(
+                dialog_id=dialog.id,
+                author_type=AuthorType.SYSTEM,
+                author_id=None,
+                text="Обращение взял в работу сотрудник.",
+                is_internal=False,
+            )
+        )
         db.session.commit()
         flash("Обращение назначено на вас.", "success")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
