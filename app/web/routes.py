@@ -74,6 +74,7 @@ from app.web.forms import (
     ClientLoginForm,
     ClientRegistrationForm,
     ClientReplyForm,
+    DialogEditForm,
     DialogRouteForm,
     EmployeeForm,
     EmployeeRolesForm,
@@ -169,6 +170,25 @@ def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Pat
 def _remove_saved_attachments(paths: list[Path]) -> None:
     for path in paths:
         path.unlink(missing_ok=True)
+
+
+def _dialog_edit_form(form: DialogEditForm) -> None:
+    """Populate choices for editing dialog metadata without changing its queue."""
+    form.client_id.choices = [
+        (client.id, client.name)
+        for client in db.session.scalars(db.select(Client).order_by(Client.name))
+    ]
+    form.responsible_employee_id.choices = [(0, "Не назначен")] + [
+        (employee.id, employee.name)
+        for employee in db.session.scalars(
+            db.select(Employee).where(Employee.is_active).order_by(Employee.name)
+        )
+    ]
+    configured_channels = current_app.config.get(
+        "SUPPORT_CHANNELS",
+        [("Web", "Веб-кабинет"), ("API", "Внешний API"), ("Widget", "Виджет")],
+    )
+    form.channel.choices = [(str(value), str(label)) for value, label in configured_channels]
 
 
 def _assign_form(form: AssignForm) -> None:
@@ -1005,8 +1025,8 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.manage")
 def dialog_edit(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
-    form = DialogForm(obj=dialog)
-    _dialog_form(form)
+    form = DialogEditForm(obj=dialog)
+    _dialog_edit_form(form)
     if form.validate_on_submit():
         assert form.client_id.data is not None
         assert form.subject.data is not None
