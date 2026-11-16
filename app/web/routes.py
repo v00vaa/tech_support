@@ -25,6 +25,7 @@ from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func, update
 from sqlalchemy.engine import CursorResult
+from werkzeug.utils import secure_filename
 
 from app.extensions import db
 from app.models import (
@@ -64,8 +65,6 @@ from app.services.routing_service import (
     route_dialog_to_role,
     save_role_route,
 )
-from werkzeug.utils import secure_filename
-
 from app.web.forms import (
     AssignForm,
     ChangePasswordForm,
@@ -1035,20 +1034,23 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
     ]
     if not role_ids:
         abort(403)
-    result = cast(CursorResult[Any], db.session.execute(
-        update(Dialog)
-        .where(
-            Dialog.id == dialog.id,
-            Dialog.assigned_role_id.in_(role_ids),
-            Dialog.responsible_employee_id.is_(None),
-            Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
-        )
-        .values(
-            responsible_employee_id=current_user.id,
-            status=DialogStatus.IN_PROGRESS,
-            updated_at=datetime.now(UTC),
-        )
-    ))
+    result = cast(
+        CursorResult[Any],
+        db.session.execute(
+            update(Dialog)
+            .where(
+                Dialog.id == dialog.id,
+                Dialog.assigned_role_id.in_(role_ids),
+                Dialog.responsible_employee_id.is_(None),
+                Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+            )
+            .values(
+                responsible_employee_id=current_user.id,
+                status=DialogStatus.IN_PROGRESS,
+                updated_at=datetime.now(UTC),
+            )
+        ),
+    )
     if result.rowcount != 1:
         db.session.rollback()
         flash("Обращение уже взял другой сотрудник или оно недоступно в вашей очереди.", "warning")
