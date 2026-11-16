@@ -15,6 +15,8 @@ COPY wsgi.py ./
 COPY pyproject.toml README.md ./
 RUN pip install --upgrade pip && pip install .
 
+RUN mkdir -p /service/instance/uploads && chown -R support:support /service/instance
+
 USER support
 EXPOSE 8000
 
