@@ -1,7 +1,7 @@
 """Add metadata for private message attachments.
 
 Revision ID: 20261116_01
-Revises: 20261110_01
+Revises: 20261114_02
 Create Date: 2026-11-16
 """
 
