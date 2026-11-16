@@ -884,7 +884,8 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         .order_by(Dialog.updated_at.desc())
     ).all()
     queue_roles = [
-        role for role in current_user.roles
+        role
+        for role in current_user.roles
         if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
     ]
     queue_stats = {}
@@ -902,18 +903,24 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         ).all()
         queue_stats[role.id] = {
             "waiting": db.session.scalar(
-                db.select(func.count()).select_from(Dialog).where(
+                db.select(func.count())
+                .select_from(Dialog)
+                .where(
                     Dialog.assigned_role_id == role.id,
                     Dialog.responsible_employee_id.is_(None),
                     Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
                 )
-            ) or 0,
+            )
+            or 0,
             "active": db.session.scalar(
-                db.select(func.count()).select_from(Dialog).where(
+                db.select(func.count())
+                .select_from(Dialog)
+                .where(
                     Dialog.assigned_role_id == role.id,
                     Dialog.status == DialogStatus.IN_PROGRESS,
                 )
-            ) or 0,
+            )
+            or 0,
         }
     can_claim = (
         dialog.responsible_employee_id is None
