@@ -1086,10 +1086,10 @@ def dialog_status(dialog_id: int) -> ResponseReturnValue:
 def dialog_route(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
     form = DialogRouteForm()
-    if dialog.assigned_role_id is None:
+    assigned_role = dialog.assigned_role
+    if assigned_role is None:
         targets = []
     else:
-        assigned_role = dialog.assigned_role
         targets = [
             item.target_role
             for item in assigned_role.outgoing_routes
