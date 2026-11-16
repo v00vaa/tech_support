@@ -1,11 +1,11 @@
 """Browser routes split into compact entity blueprints."""
 
 import mimetypes
+import re
 from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
 from pathlib import Path
-import re
 from typing import Any, cast
 from uuid import uuid4
 
@@ -26,6 +26,7 @@ from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func, update
 from sqlalchemy.engine import CursorResult
+
 from app.extensions import db
 from app.models import (
     Attachment,
