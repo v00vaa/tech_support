@@ -68,7 +68,9 @@ class Role(Base):
     description: Mapped[str | None] = mapped_column(String(500))
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    is_first_line: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    is_first_line: Mapped[bool] = mapped_column(
+        Boolean, default=False, server_default=text("false"), nullable=False
+    )
     role_type: Mapped[str] = mapped_column(String(20), default="MAIN", nullable=False)
     scope_role_id: Mapped[int | None] = mapped_column(
         ForeignKey("roles.id", ondelete="CASCADE"), nullable=True, index=True
