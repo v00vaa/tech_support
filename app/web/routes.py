@@ -780,7 +780,8 @@ def dialog_list() -> ResponseReturnValue:
         .limit(50)
     ).all()
     queue_roles = [
-        role for role in current_user.roles
+        role
+        for role in current_user.roles
         if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
     ]
     queue_dialogs = {}
@@ -798,18 +799,24 @@ def dialog_list() -> ResponseReturnValue:
         ).all()
         queue_stats[role.id] = {
             "waiting": db.session.scalar(
-                db.select(func.count()).select_from(Dialog).where(
+                db.select(func.count())
+                .select_from(Dialog)
+                .where(
                     Dialog.assigned_role_id == role.id,
                     Dialog.responsible_employee_id.is_(None),
                     Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
                 )
-            ) or 0,
+            )
+            or 0,
             "active": db.session.scalar(
-                db.select(func.count()).select_from(Dialog).where(
+                db.select(func.count())
+                .select_from(Dialog)
+                .where(
                     Dialog.assigned_role_id == role.id,
                     Dialog.status == DialogStatus.IN_PROGRESS,
                 )
-            ) or 0,
+            )
+            or 0,
         }
     return render_template(
         "dialogs/list.html",
@@ -853,13 +860,19 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     _assign_form(assign_form)
     can_view_notes = has_permission(current_user, "dialogs.add_internal_note")
     visible_messages = [
-        message for message in dialog.messages
+        message
+        for message in dialog.messages
         if not message.is_internal and message.deleted_at is None
     ]
-    internal_notes = [
-        message for message in dialog.messages
-        if message.is_internal and message.deleted_at is None
-    ] if can_view_notes else []
+    internal_notes = (
+        [
+            message
+            for message in dialog.messages
+            if message.is_internal and message.deleted_at is None
+        ]
+        if can_view_notes
+        else []
+    )
     own_dialogs = db.session.scalars(
         db.select(Dialog)
         .where(Dialog.responsible_employee_id == current_user.id)
@@ -1042,7 +1055,8 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
     """Atomically claim an unassigned dialog from one of the employee's own role queues."""
     dialog = db.get_or_404(Dialog, dialog_id)
     role_ids = [
-        role.id for role in current_user.roles
+        role.id
+        for role in current_user.roles
         if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
     ]
     if not role_ids:
