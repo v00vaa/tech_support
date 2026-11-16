@@ -6,7 +6,7 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, Message
+from app.models import AuthorType, Client, Dialog, Employee, Message, Role
 
 
 @pytest.fixture
@@ -25,7 +25,12 @@ def customer_records(app: Flask) -> Iterator[tuple[int, int, int]]:
             password_hash="",
         )
         employee.set_password("employee-password")
-        db.session.add_all([customer, other, employee])
+        first_line_role = Role(
+            code="test_first_line",
+            name="Test first-line support",
+            is_first_line=True,
+        )
+        db.session.add_all([customer, other, employee, first_line_role])
         db.session.flush()
 
         dialog = Dialog(client_id=other.id, subject="Private request", channel="Web")
@@ -152,6 +157,9 @@ def test_customer_can_create_a_support_dialog(client, customer_records, app) -> 
         dialog = db.session.scalar(db.select(Dialog).where(Dialog.subject == "New request"))
         assert dialog is not None
         assert dialog.channel == "Web"
+        assert dialog.assigned_role_id is not None
+        assert dialog.assigned_role.is_first_line is True
+        assert dialog.role_assigned_at is not None
 
 
 def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None:
