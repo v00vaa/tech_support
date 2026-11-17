@@ -1,37 +1,83 @@
-"""Small JSON API sharing the same services as the HTML interface."""
+"""Versioned JSON API with employee RBAC and object-level access checks."""
+
+from typing import cast
 
 from flask import Blueprint, abort, jsonify, request
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
-from sqlalchemy import select
+from sqlalchemy import or_, select
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, Employee, Message
 from app.services import client_service, employee_service, message_service
-from app.services.access_control_service import has_permission
+from app.services.access_control_service import has_permission, is_active_administrator
 
 api_bp = Blueprint("api", __name__, url_prefix="/api/v1")
 
 
-@api_bp.before_request
-def enforce_api_permissions() -> None:
-    """Apply RBAC to JSON endpoints while leaving health checks public."""
-    if request.endpoint in {"api.liveness", "api.readiness"}:
-        return
-    if not current_user.is_authenticated:
-        abort(401)
-    permission_by_endpoint = {
-        "api.clients": "clients.view" if request.method in {"GET", "HEAD"} else "clients.create",
-        "api.employees": "employees.view"
-        if request.method in {"GET", "HEAD"}
-        else "employees.create",
-        "api.dialogs": "dialogs.view",
-        "api.dialog_detail": "dialogs.view",
-        "api.messages": "dialogs.view",
-    }
-    required = permission_by_endpoint.get(request.endpoint or "")
-    if required is None or not has_permission(current_user, required):
-        abort(403)
+def _employee() -> Employee:
+    """Return the authenticated employee principal."""
+    user = current_user._get_current_object()
+    if not isinstance(user, Employee) or not user.is_active:
+        abort(403, description="Служебный API доступен только активным сотрудникам.")
+    return user
+
+
+def _dialog_access_clause(employee: Employee):
+    """Build the object-level scope: own dialogs and queues of active roles."""
+    if is_active_administrator(employee):
+        return None
+    role_ids = [role.id for role in employee.roles if role.is_active]
+    clauses = [Dialog.responsible_employee_id == employee.id]
+    if role_ids:
+        clauses.append(Dialog.assigned_role_id.in_(role_ids))
+    return or_(*clauses)
+
+
+def _accessible_dialog(dialog_id: int) -> Dialog:
+    """Load a dialog only if it belongs to the employee's permitted scope."""
+    employee = _employee()
+    statement = select(Dialog).where(Dialog.id == dialog_id)
+    access_clause = _dialog_access_clause(employee)
+    if access_clause is not None:
+        statement = statement.where(access_clause)
+    dialog = db.session.scalar(statement)
+    if dialog is None:
+        # Use 404 for both missing and inaccessible objects to prevent ID probing.
+        abort(404, description="Обращение не найдено.")
+    return dialog
+
+
+def _json_object() -> dict[str, object]:
+    """Require a JSON object instead of silently accepting arrays/scalars/null."""
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        abort(400, description="Тело запроса должно быть JSON-объектом.")
+    return data
+
+
+def _required_text(data: dict[str, object], field: str, max_length: int) -> str:
+    value = data.get(field)
+    if not isinstance(value, str) or not value.strip():
+        abort(400, description=f"Поле {field} обязательно и должно быть строкой.")
+    value = value.strip()
+    if len(value) > max_length:
+        abort(400, description=f"Поле {field} превышает допустимую длину.")
+    return value
+
+
+def _optional_text(
+    data: dict[str, object], field: str, max_length: int
+) -> str | None:
+    value = data.get(field)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        abort(400, description=f"Поле {field} должно быть строкой.")
+    value = value.strip()
+    if len(value) > max_length:
+        abort(400, description=f"Поле {field} превышает допустимую длину.")
+    return value or None
 
 
 def _client_data(client: Client) -> dict[str, object]:
@@ -53,6 +99,7 @@ def _dialog_data(dialog: Dialog) -> dict[str, object]:
         "id": dialog.id,
         "client_id": dialog.client_id,
         "responsible_employee_id": dialog.responsible_employee_id,
+        "assigned_role_id": dialog.assigned_role_id,
         "subject": dialog.subject,
         "status": dialog.status.value,
         "channel": dialog.channel,
@@ -71,6 +118,30 @@ def _message_data(message: Message) -> dict[str, object]:
     }
 
 
+@api_bp.before_request
+def enforce_api_permissions() -> None:
+    """Require an employee principal and the permission for the requested operation."""
+    if request.endpoint in {"api.liveness", "api.readiness"}:
+        return
+    if not current_user.is_authenticated:
+        abort(401)
+    employee = _employee()
+    permission_by_endpoint = {
+        "api.clients": "clients.view"
+        if request.method in {"GET", "HEAD"}
+        else "clients.create",
+        "api.employees": "employees.view"
+        if request.method in {"GET", "HEAD"}
+        else "employees.create",
+        "api.dialogs": "dialogs.view",
+        "api.dialog_detail": "dialogs.view",
+        "api.messages": "dialogs.view",
+    }
+    required = permission_by_endpoint.get(request.endpoint or "")
+    if required is None or not has_permission(employee, required):
+        abort(403)
+
+
 @api_bp.get("/health/live")
 def liveness() -> ResponseReturnValue:
     return jsonify(status="ok"), 200
@@ -87,76 +158,109 @@ def readiness() -> ResponseReturnValue:
 
 @api_bp.route("/clients", methods=["GET", "POST"])
 def clients() -> ResponseReturnValue:
+    employee = _employee()
     if request.method in {"GET", "HEAD"}:
-        return jsonify(
-            [_client_data(item) for item in db.session.scalars(select(Client).order_by(Client.id))]
-        ), 200
-    data = request.get_json(silent=True) or {}
-    if not data.get("name") or not data.get("email"):
-        return jsonify(error="name and email are required"), 400
-    client = client_service.create_client(str(data["name"]), str(data["email"]), data.get("phone"))
+        statement = select(Client).order_by(Client.id)
+        if not is_active_administrator(employee):
+            access_clause = _dialog_access_clause(employee)
+            statement = statement.where(
+                Client.id.in_(
+                    select(Dialog.client_id)
+                    .where(access_clause)
+                    .distinct()
+                )
+            )
+        return jsonify([_client_data(item) for item in db.session.scalars(statement)]), 200
+
+    data = _json_object()
+    name = _required_text(data, "name", 120)
+    email = _required_text(data, "email", 255)
+    phone = _optional_text(data, "phone", 40)
+    client = client_service.create_client(name, email, phone)
     return jsonify(_client_data(client)), 201
 
 
 @api_bp.route("/employees", methods=["GET", "POST"])
 def employees() -> ResponseReturnValue:
+    employee = _employee()
     if request.method in {"GET", "HEAD"}:
-        return jsonify(
-            [
-                _employee_data(item)
-                for item in db.session.scalars(select(Employee).order_by(Employee.id))
-            ]
-        ), 200
-    data = request.get_json(silent=True) or {}
-    if not all(data.get(field) for field in ("name", "email", "password")):
-        return jsonify(error="name, email and password are required"), 400
-    employee = employee_service.create_employee(
-        str(data["name"]),
-        str(data["email"]),
-        str(data.get("position", "Специалист поддержки")),
-        str(data["password"]),
-        bool(data.get("is_active", True)),
+        statement = select(Employee).order_by(Employee.id)
+        if not is_active_administrator(employee):
+            role_ids = [role.id for role in employee.roles if role.is_active]
+            if role_ids:
+                from app.models.role import employee_roles
+
+                statement = statement.where(
+                    Employee.id.in_(
+                        select(employee_roles.c.employee_id).where(
+                            employee_roles.c.role_id.in_(role_ids)
+                        )
+                    )
+                )
+            else:
+                statement = statement.where(Employee.id == employee.id)
+        return jsonify([_employee_data(item) for item in db.session.scalars(statement)]), 200
+
+    data = _json_object()
+    name = _required_text(data, "name", 120)
+    email = _required_text(data, "email", 255)
+    password = _required_text(data, "password", 255)
+    position = _optional_text(data, "position", 120) or "Специалист поддержки"
+    is_active = data.get("is_active", True)
+    if not isinstance(is_active, bool):
+        abort(400, description="Поле is_active должно быть логическим значением.")
+    created_employee = employee_service.create_employee(
+        name, email, position, password, is_active
     )
-    return jsonify(_employee_data(employee)), 201
+    return jsonify(_employee_data(created_employee)), 201
 
 
 @api_bp.route("/dialogs", methods=["GET", "POST"])
 def dialogs() -> ResponseReturnValue:
     if request.method == "POST":
         abort(403, description="Создание обращений сотрудниками через API отключено.")
-    return jsonify(
-        [_dialog_data(item) for item in db.session.scalars(select(Dialog).order_by(Dialog.id))]
-    ), 200
+    employee = _employee()
+    statement = select(Dialog).order_by(Dialog.id)
+    access_clause = _dialog_access_clause(employee)
+    if access_clause is not None:
+        statement = statement.where(access_clause)
+    return jsonify([_dialog_data(item) for item in db.session.scalars(statement)]), 200
 
 
 @api_bp.get("/dialogs/<int:dialog_id>")
 def dialog_detail(dialog_id: int) -> ResponseReturnValue:
-    dialog = db.get_or_404(Dialog, dialog_id)
+    dialog = _accessible_dialog(dialog_id)
     return jsonify(_dialog_data(dialog)), 200
 
 
 @api_bp.route("/dialogs/<int:dialog_id>/messages", methods=["GET", "POST"])
 def messages(dialog_id: int) -> ResponseReturnValue:
-    dialog = db.get_or_404(Dialog, dialog_id)
+    dialog = _accessible_dialog(dialog_id)
+    employee = _employee()
     if request.method in {"GET", "HEAD"}:
-        visible_messages = [
-            item
-            for item in dialog.messages
-            if not item.is_internal or has_permission(current_user, "dialogs.add_internal_note")
-        ]
+        statement = (
+            select(Message)
+            .where(Message.dialog_id == dialog.id, Message.deleted_at.is_(None))
+            .order_by(Message.created_at, Message.id)
+        )
+        if not has_permission(employee, "dialogs.add_internal_note"):
+            statement = statement.where(Message.is_internal.is_(False))
+        visible_messages = db.session.scalars(statement)
         return jsonify([_message_data(item) for item in visible_messages]), 200
-    data = request.get_json(silent=True) or {}
-    if not data.get("text"):
-        return jsonify(error="text is required"), 400
-    is_internal = bool(data.get("is_internal", False))
+
+    data = _json_object()
+    message_text = _required_text(data, "text", 10000)
+    is_internal = data.get("is_internal", False)
+    if not isinstance(is_internal, bool):
+        abort(400, description="Поле is_internal должно быть логическим значением.")
     required = "dialogs.add_internal_note" if is_internal else "dialogs.reply"
-    if not has_permission(current_user, required):
+    if not has_permission(employee, required):
         abort(403)
     message = message_service.create_message(
         dialog.id,
         AuthorType.EMPLOYEE,
-        current_user.id,
-        str(data["text"]),
+        employee.id,
+        message_text,
         is_internal=is_internal,
     )
     return jsonify(_message_data(message)), 201
