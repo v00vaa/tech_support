@@ -75,6 +75,18 @@ def test_clients_api_lists_validates_creates_and_returns_records(
     invalid = api_client.post("/api/v1/clients", json={"name": "Missing email"})
     assert invalid.status_code == 400
 
+    invalid_email = api_client.post(
+        "/api/v1/clients",
+        json={"name": "Invalid email", "email": "not-an-email"},
+    )
+    assert invalid_email.status_code == 400
+
+    duplicate = api_client.post(
+        "/api/v1/clients",
+        json={"name": "Duplicate customer", "email": "api-customer@example.com"},
+    )
+    assert duplicate.status_code == 409
+
     created = api_client.post(
         "/api/v1/clients",
         json={
