@@ -2,8 +2,11 @@
 
 from flask import Blueprint, abort, jsonify, request
 from flask.typing import ResponseReturnValue
+from email_validator import EmailNotValidError, validate_email
 from flask_login import current_user
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, Employee, Message
@@ -22,7 +25,7 @@ def _employee() -> Employee:
     return user
 
 
-def _dialog_access_clause(employee: Employee):
+def _dialog_access_clause(employee: Employee) -> ColumnElement[bool] | None:
     """Build the object-level scope: own dialogs and queues of active roles."""
     if is_active_administrator(employee):
         return None
@@ -63,6 +66,15 @@ def _required_text(data: dict[str, object], field: str, max_length: int) -> str:
     if len(value) > max_length:
         abort(400, description=f"Поле {field} превышает допустимую длину.")
     return value
+
+
+def _validated_email(data: dict[str, object]) -> str:
+    """Validate and normalize an email address before persisting it."""
+    value = _required_text(data, "email", 255)
+    try:
+        return validate_email(value, check_deliverability=False).normalized
+    except EmailNotValidError:
+        abort(400, description="Поле email должно содержать корректный адрес.")
 
 
 def _optional_text(
@@ -173,9 +185,13 @@ def clients() -> ResponseReturnValue:
 
     data = _json_object()
     name = _required_text(data, "name", 120)
-    email = _required_text(data, "email", 255)
+    email = _validated_email(data)
     phone = _optional_text(data, "phone", 40)
-    client = client_service.create_client(name, email, phone)
+    try:
+        client = client_service.create_client(name, email, phone)
+    except IntegrityError:
+        db.session.rollback()
+        abort(409, description="Клиент с таким email уже существует.")
     return jsonify(_client_data(client)), 201
 
 
@@ -200,15 +216,22 @@ def employees() -> ResponseReturnValue:
 
     data = _json_object()
     name = _required_text(data, "name", 120)
-    email = _required_text(data, "email", 255)
-    password = _required_text(data, "password", 255)
+    email = _validated_email(data)
+    password_value = data.get("password")
+    if not isinstance(password_value, str) or len(password_value) < 12:
+        abort(400, description="Пароль должен содержать не менее 12 символов.")
+    password = password_value
     position = _optional_text(data, "position", 120) or "Специалист поддержки"
     is_active = data.get("is_active", True)
     if not isinstance(is_active, bool):
         abort(400, description="Поле is_active должно быть логическим значением.")
-    created_employee = employee_service.create_employee(
-        name, email, position, password, is_active
-    )
+    try:
+        created_employee = employee_service.create_employee(
+            name, email, position, password, is_active
+        )
+    except IntegrityError:
+        db.session.rollback()
+        abort(409, description="Сотрудник с таким email уже существует.")
     return jsonify(_employee_data(created_employee)), 201
 
 
