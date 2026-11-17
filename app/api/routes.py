@@ -174,13 +174,14 @@ def clients() -> ResponseReturnValue:
         statement = select(Client).order_by(Client.id)
         if not is_active_administrator(employee):
             access_clause = _dialog_access_clause(employee)
-            statement = statement.where(
-                Client.id.in_(
-                    select(Dialog.client_id)
-                    .where(access_clause)
-                    .distinct()
+            if access_clause is not None:
+                statement = statement.where(
+                    Client.id.in_(
+                        select(Dialog.client_id)
+                        .where(access_clause)
+                        .distinct()
+                    )
                 )
-            )
         return jsonify([_client_data(item) for item in db.session.scalars(statement)]), 200
 
     data = _json_object()
@@ -218,8 +219,8 @@ def employees() -> ResponseReturnValue:
     name = _required_text(data, "name", 120)
     email = _validated_email(data)
     password_value = data.get("password")
-    if not isinstance(password_value, str) or len(password_value) < 12:
-        abort(400, description="Пароль должен содержать не менее 12 символов.")
+    if not isinstance(password_value, str) or not 12 <= len(password_value) <= 128:
+        abort(400, description="Пароль должен содержать от 12 до 128 символов.")
     password = password_value
     position = _optional_text(data, "position", 120) or "Специалист поддержки"
     is_active = data.get("is_active", True)
