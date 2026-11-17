@@ -172,3 +172,149 @@ def test_messages_api_filters_internal_notes_and_creates_messages(
     )
     assert internal.status_code == 201
     assert internal.json["is_internal"] is True
+
+
+
+def test_employee_api_lists_only_objects_in_active_role_scope(
+    api_client: FlaskClient,
+) -> None:
+    with api_client.application.app_context():
+        _, _ = ensure_rbac_catalogue()
+        customer = db.session.scalar(
+            db.select(Client).where(Client.email == "api-customer@example.com")
+        )
+        administrator = db.session.scalar(
+            db.select(Employee).where(Employee.email == "api-admin@example.com")
+        )
+        assert customer is not None
+        assert administrator is not None
+
+        role = db.session.scalar(
+            db.select(__import__("app.models", fromlist=["Role"]).Role).where(
+                __import__("app.models", fromlist=["Role"]).Role.code == "api_limited_role"
+            )
+        )
+        if role is None:
+            from app.models import Permission, Role
+
+            role = Role(code="api_limited_role", name="API limited role")
+            role.permissions = list(
+                db.session.scalars(
+                    db.select(Permission).where(
+                        Permission.code.in_(["clients.view", "dialogs.view", "dialogs.reply"])
+                    )
+                )
+            )
+            db.session.add(role)
+
+        scoped_employee = Employee(
+            name="Scoped API Agent",
+            email="scoped-api-agent@example.com",
+            position="Agent",
+            password_hash="",
+            is_active=True,
+            roles=[role],
+        )
+        scoped_employee.set_password("Scoped-password-123!")
+        hidden_customer = Client(
+            name="Hidden API Customer",
+            email="hidden-api-customer@example.com",
+        )
+        db.session.add_all([scoped_employee, hidden_customer])
+        db.session.flush()
+
+        visible_dialog = Dialog(
+            client_id=customer.id,
+            assigned_role_id=role.id,
+            subject="Visible to scoped agent",
+            channel="API",
+        )
+        hidden_dialog = Dialog(
+            client_id=hidden_customer.id,
+            responsible_employee_id=administrator.id,
+            subject="Hidden from scoped agent",
+            channel="API",
+        )
+        db.session.add_all([visible_dialog, hidden_dialog])
+        db.session.flush()
+        create_message(
+            visible_dialog.id,
+            AuthorType.EMPLOYEE,
+            administrator.id,
+            "Public scoped message",
+        )
+        create_message(
+            visible_dialog.id,
+            AuthorType.EMPLOYEE,
+            administrator.id,
+            "Private scoped note",
+            is_internal=True,
+        )
+        scoped_employee_id = scoped_employee.id
+        hidden_dialog_id = hidden_dialog.id
+        visible_dialog_id = visible_dialog.id
+
+    with api_client.session_transaction() as session:
+        session["_user_id"] = f"employee:{scoped_employee_id}"
+        session["_fresh"] = True
+
+    dialogs_response = api_client.get("/api/v1/dialogs")
+    assert dialogs_response.status_code == 200
+    assert [item["id"] for item in dialogs_response.get_json()] == [
+        visible_dialog_id
+    ]
+
+    clients_response = api_client.get("/api/v1/clients")
+    assert clients_response.status_code == 200
+    assert len(clients_response.get_json()) == 1
+    assert clients_response.get_json()[0]["email"] == "api-customer@example.com"
+
+    hidden_detail = api_client.get(f"/api/v1/dialogs/{hidden_dialog_id}")
+    assert hidden_detail.status_code == 404
+
+    visible_messages = api_client.get(
+        f"/api/v1/dialogs/{visible_dialog_id}/messages"
+    )
+    assert visible_messages.status_code == 200
+    assert [item["text"] for item in visible_messages.get_json()] == [
+        "Public scoped message"
+    ]
+
+
+def test_client_account_cannot_use_employee_json_api(
+    api_client: FlaskClient,
+) -> None:
+    with api_client.application.app_context():
+        customer = db.session.scalar(
+            db.select(Client).where(Client.email == "api-customer@example.com")
+        )
+        assert customer is not None
+        customer_id = customer.id
+
+    with api_client.session_transaction() as session:
+        session["_user_id"] = f"client:{customer_id}"
+        session["_fresh"] = True
+
+    forbidden = api_client.get("/api/v1/clients")
+    assert forbidden.status_code == 403
+
+    health = api_client.get("/api/v1/health/live")
+    assert health.status_code == 200
+
+
+def test_api_rejects_non_object_json_and_non_boolean_flags(
+    api_client: FlaskClient,
+) -> None:
+    non_object = api_client.post("/api/v1/clients", json=["not", "an", "object"])
+    assert non_object.status_code == 400
+
+    invalid_flag = api_client.post(
+        "/api/v1/employees",
+        json={
+            "name": "Invalid Flag Agent",
+            "email": "invalid-flag@example.com",
+            "password": "Agent-password-123!",
+            "is_active": "false",
+        },
+    )
+    assert invalid_flag.status_code == 400
