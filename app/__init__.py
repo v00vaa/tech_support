@@ -100,6 +100,9 @@ def create_app(settings: Settings | None = None) -> Flask:
 
         user = current_user._get_current_object()
         endpoint = request.endpoint or ""
+        if endpoint in {"api.liveness", "api.readiness"}:
+            return None
+
         if isinstance(user, Client):
             allowed = {
                 "auth.client_login",
