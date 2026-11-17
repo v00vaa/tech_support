@@ -186,12 +186,11 @@ def test_messages_api_filters_internal_notes_and_creates_messages(
     assert internal.json["is_internal"] is True
 
 
-
 def test_employee_api_lists_only_objects_in_active_role_scope(
     api_client: FlaskClient,
 ) -> None:
     with api_client.application.app_context():
-        _, _ = ensure_rbac_catalogue()
+        ensure_rbac_catalogue()
         customer = db.session.scalar(
             db.select(Client).where(Client.email == "api-customer@example.com")
         )
