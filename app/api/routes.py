@@ -1,8 +1,8 @@
 """Versioned JSON API with employee RBAC and object-level access checks."""
 
+from email_validator import EmailNotValidError, validate_email
 from flask import Blueprint, abort, jsonify, request
 from flask.typing import ResponseReturnValue
-from email_validator import EmailNotValidError, validate_email
 from flask_login import current_user
 from sqlalchemy import or_, select
 from sqlalchemy.exc import IntegrityError
