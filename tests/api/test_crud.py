@@ -7,7 +7,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee
+from app.models import AuthorType, Client, Dialog, Employee, Permission, Role
 from app.services.dialog_service import create_dialog
 from app.services.message_service import create_message
 from app.services.rbac_service import ensure_rbac_catalogue
@@ -190,13 +190,9 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
         assert administrator is not None
 
         role = db.session.scalar(
-            db.select(__import__("app.models", fromlist=["Role"]).Role).where(
-                __import__("app.models", fromlist=["Role"]).Role.code == "api_limited_role"
-            )
+            db.select(Role).where(Role.code == "api_limited_role")
         )
         if role is None:
-            from app.models import Permission, Role
-
             role = Role(code="api_limited_role", name="API limited role")
             role.permissions = list(
                 db.session.scalars(
