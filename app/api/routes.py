@@ -1,7 +1,5 @@
 """Versioned JSON API with employee RBAC and object-level access checks."""
 
-from typing import cast
-
 from flask import Blueprint, abort, jsonify, request
 from flask.typing import ResponseReturnValue
 from flask_login import current_user
@@ -9,6 +7,7 @@ from sqlalchemy import or_, select
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, Employee, Message
+from app.models.role import employee_roles
 from app.services import client_service, employee_service, message_service
 from app.services.access_control_service import has_permission, is_active_administrator
 
@@ -188,8 +187,6 @@ def employees() -> ResponseReturnValue:
         if not is_active_administrator(employee):
             role_ids = [role.id for role in employee.roles if role.is_active]
             if role_ids:
-                from app.models.role import employee_roles
-
                 statement = statement.where(
                     Employee.id.in_(
                         select(employee_roles.c.employee_id).where(
