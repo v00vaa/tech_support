@@ -110,9 +110,7 @@ def test_customer_request_is_queued_claimed_and_transferred(
     assert response.status_code == 302
 
     with app.app_context():
-        dialog = db.session.scalar(
-            db.select(Dialog).where(Dialog.subject == "Lifecycle request")
-        )
+        dialog = db.session.scalar(db.select(Dialog).where(Dialog.subject == "Lifecycle request"))
         assert dialog is not None
         dialog_id = dialog.id
         assert dialog.client_id == ids["customer"]

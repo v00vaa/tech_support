@@ -200,9 +200,7 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
         assert customer is not None
         assert administrator is not None
 
-        role = db.session.scalar(
-            db.select(Role).where(Role.code == "api_limited_role")
-        )
+        role = db.session.scalar(db.select(Role).where(Role.code == "api_limited_role"))
         if role is None:
             role = Role(code="api_limited_role", name="API limited role")
             role.permissions = list(
@@ -267,9 +265,7 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
 
     dialogs_response = api_client.get("/api/v1/dialogs")
     assert dialogs_response.status_code == 200
-    assert [item["id"] for item in dialogs_response.get_json()] == [
-        visible_dialog_id
-    ]
+    assert [item["id"] for item in dialogs_response.get_json()] == [visible_dialog_id]
 
     clients_response = api_client.get("/api/v1/clients")
     assert clients_response.status_code == 200
@@ -279,13 +275,9 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
     hidden_detail = api_client.get(f"/api/v1/dialogs/{hidden_dialog_id}")
     assert hidden_detail.status_code == 404
 
-    visible_messages = api_client.get(
-        f"/api/v1/dialogs/{visible_dialog_id}/messages"
-    )
+    visible_messages = api_client.get(f"/api/v1/dialogs/{visible_dialog_id}/messages")
     assert visible_messages.status_code == 200
-    assert [item["text"] for item in visible_messages.get_json()] == [
-        "Public scoped message"
-    ]
+    assert [item["text"] for item in visible_messages.get_json()] == ["Public scoped message"]
 
 
 def test_client_account_cannot_use_employee_json_api(

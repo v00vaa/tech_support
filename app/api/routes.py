@@ -77,9 +77,7 @@ def _validated_email(data: dict[str, object]) -> str:
         abort(400, description="Поле email должно содержать корректный адрес.")
 
 
-def _optional_text(
-    data: dict[str, object], field: str, max_length: int
-) -> str | None:
+def _optional_text(data: dict[str, object], field: str, max_length: int) -> str | None:
     value = data.get(field)
     if value is None:
         return None
@@ -138,9 +136,7 @@ def enforce_api_permissions() -> None:
         abort(401)
     employee = _employee()
     permission_by_endpoint = {
-        "api.clients": "clients.view"
-        if request.method in {"GET", "HEAD"}
-        else "clients.create",
+        "api.clients": "clients.view" if request.method in {"GET", "HEAD"} else "clients.create",
         "api.employees": "employees.view"
         if request.method in {"GET", "HEAD"}
         else "employees.create",
@@ -176,11 +172,7 @@ def clients() -> ResponseReturnValue:
             access_clause = _dialog_access_clause(employee)
             if access_clause is not None:
                 statement = statement.where(
-                    Client.id.in_(
-                        select(Dialog.client_id)
-                        .where(access_clause)
-                        .distinct()
-                    )
+                    Client.id.in_(select(Dialog.client_id).where(access_clause).distinct())
                 )
         return jsonify([_client_data(item) for item in db.session.scalars(statement)]), 200
 
