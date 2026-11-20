@@ -57,7 +57,7 @@ def test_bootstrap_rejects_short_temporary_password(app) -> None:
 
     assert isinstance(result.exception, SystemExit)
     assert result.exit_code != 0
-    assert "не менее 12 символов" in result.output
+    assert "не менее 8 символов" in result.output
 
 
 def test_bootstrap_rejects_disabled_administrator_account(app) -> None:
