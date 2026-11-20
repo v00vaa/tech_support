@@ -28,6 +28,7 @@ def api_client(app: Flask, client: FlaskClient) -> Iterator[FlaskClient]:
         administrator.set_password("API-password-123!")
         administrator.roles = [administrator_role]
         customer = Client(name="API Customer", email="api-customer@example.com")
+        customer.set_password("API-customer-password-123!")
         db.session.add_all([administrator, customer])
         db.session.commit()
         dialog = create_dialog(customer.id, administrator.id, "API dialog", "API")
