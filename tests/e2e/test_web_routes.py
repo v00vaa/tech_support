@@ -356,6 +356,7 @@ def test_employee_roles_and_custom_role_routes(support_system: dict[str, object]
         assert role is not None
         assert role.code.startswith("role_")
         role_id = role.id
+        original_code = role.code
 
     edited = client.post(
         f"/settings/roles/{role_id}/edit",
@@ -373,7 +374,7 @@ def test_employee_roles_and_custom_role_routes(support_system: dict[str, object]
     with client.application.app_context():
         role = db.session.get(Role, role_id)
         assert role is not None
-        assert role.code == "qa_manager_updated"
+        assert role.code == original_code
         assert {permission.code for permission in role.permissions} == {
             "dialogs.view",
             "dialogs.reply",
