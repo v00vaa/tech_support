@@ -10,7 +10,7 @@ import json
 from dataclasses import dataclass
 from typing import Protocol, cast
 from urllib.error import HTTPError, URLError
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
 
 from flask import current_app
@@ -97,8 +97,13 @@ class HttpRegistrationProvider:
             if idempotency_key:
                 headers["Idempotency-Key"] = idempotency_key
             body = b"{}"
+        target_url = urljoin(self.base_url, path)
+        base_parts = urlsplit(self.base_url)
+        target_parts = urlsplit(target_url)
+        if target_parts.scheme != "https" or target_parts.netloc != base_parts.netloc:
+            raise RegistrationProviderError("Registration endpoint must stay on the configured HTTPS host")
         request = Request(
-            urljoin(self.base_url, path),
+            target_url,
             data=body,
             headers=headers,
             method=method,
@@ -109,7 +114,7 @@ class HttpRegistrationProvider:
         if idempotency_key:
             request.add_unredirected_header("Idempotency-Key", idempotency_key)
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            with urlopen(request, timeout=self.timeout) as response:  # nosec B310 - HTTPS host validated above
                 raw_body = response.read()
                 payload = json.loads(raw_body.decode("utf-8")) if raw_body else {}
         except HTTPError as error:

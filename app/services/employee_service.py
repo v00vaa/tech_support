@@ -1,5 +1,7 @@
 """Employee CRUD operations."""
 
+from werkzeug.security import generate_password_hash
+
 from app.extensions import db
 from app.models.employee import Employee
 
@@ -8,9 +10,12 @@ def create_employee(
     name: str, email: str, position: str, password: str, is_active: bool
 ) -> Employee:
     employee = Employee(
-        name=name, email=email, position=position, is_active=is_active, password_hash=""
+        name=name,
+        email=email,
+        position=position,
+        is_active=is_active,
+        password_hash=generate_password_hash(password),
     )
-    employee.set_password(password)
     db.session.add(employee)
     db.session.commit()
     return employee

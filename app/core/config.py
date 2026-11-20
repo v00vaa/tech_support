@@ -55,7 +55,7 @@ class Settings(BaseSettings):
         if self.environment == "production" and self.registration_provider != "http":
             raise ValueError("Production requires SUPPORT_REGISTRATION_PROVIDER=http")
         if self.environment == "production":
-            if self.secret_key == "development-only-change-me":
+            if self.secret_key == "development-only-change-me":  # nosec B105 - sentinel, not a credential
                 raise ValueError("Production requires a unique SUPPORT_SECRET_KEY")
             if not self.smtp_use_tls:
                 raise ValueError("Production SMTP connections must use TLS")

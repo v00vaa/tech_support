@@ -4,6 +4,7 @@ import time
 
 import click
 from flask import Flask
+from werkzeug.security import generate_password_hash
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
@@ -50,11 +51,10 @@ def register_commands(app: Flask) -> None:
                 name="Администратор",
                 email=email,
                 position="Администратор",
-                password_hash="",
+                password_hash=generate_password_hash(password),
                 is_active=True,
                 must_change_password=True,
             )
-            employee.set_password(password)
             db.session.add(employee)
         elif not employee.is_active:
             raise click.ClickException("Учетная запись администратора отключена.")
@@ -108,15 +108,15 @@ def register_commands(app: Flask) -> None:
             db.select(Employee).where(Employee.email == "anna@example.com")
         )
         if specialist is None:
+            specialist_password = click.prompt(
+                "Пароль демо-сотрудника anna@example.com", hide_input=True
+            )
             specialist = Employee(
                 name="Анна Петрова",
                 email="anna@example.com",
                 position="Специалист поддержки",
-                password_hash="",
+                password_hash=generate_password_hash(specialist_password),
                 is_active=True,
-            )
-            specialist.set_password(
-                click.prompt("Пароль демо-сотрудника anna@example.com", hide_input=True)
             )
             specialist.roles = [support_role]
             db.session.add(specialist)
