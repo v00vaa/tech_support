@@ -1616,6 +1616,31 @@ def role_create() -> ResponseReturnValue:
         db.select(Permission).order_by(Permission.category, Permission.name)
     ).all()
     form.permissions.choices = [(item.code, f"{item.name} ({item.code})") for item in permissions]
+    delegable_codes = (
+        {item.code for item in permissions}
+        if is_active_administrator(current_user)
+        else {
+            permission.code
+            for assigned_role in current_user.roles
+            if assigned_role.is_active
+            for permission in assigned_role.permissions
+        }
+    )
+    permission_groups = []
+    categories = {
+        "clients": "Клиенты",
+        "employees": "Сотрудники",
+        "dialogs": "Обращения",
+        "roles": "Роли и управление",
+        "settings": "Настройки",
+    }
+    for category in dict.fromkeys(item.category for item in permissions):
+        permission_groups.append(
+            (
+                categories.get(category, category.capitalize()),
+                [item for item in permissions if item.category == category],
+            )
+        )
     if form.validate_on_submit():
         assert form.code.data is not None
         assert form.name.data is not None
@@ -1639,7 +1664,13 @@ def role_create() -> ResponseReturnValue:
                 *form.permissions.errors,
                 str(error),
             ]
-    return render_template("settings/roles/form.html", form=form, role=None)
+    return render_template(
+        "settings/roles/form.html",
+        form=form,
+        role=None,
+        permission_groups=permission_groups,
+        delegable_codes=delegable_codes,
+    )
 
 
 @settings_bp.route("/roles/<int:role_id>/edit", methods=["GET", "POST"])
