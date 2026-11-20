@@ -335,10 +335,13 @@ def test_employee_roles_and_custom_role_routes(support_system: dict[str, object]
     )
     assert assigned.status_code == 302
 
+    create_page = client.get("/settings/roles/create")
+    assert create_page.status_code == 200
+    assert b"Код роли" not in create_page.data
+
     created = client.post(
         "/settings/roles/create",
         data={
-            "code": "qa_manager",
             "name": "QA Manager",
             "description": "Role used in route tests",
             "permissions": ["dialogs.view"],
@@ -349,8 +352,9 @@ def test_employee_roles_and_custom_role_routes(support_system: dict[str, object]
     assert created.status_code == 302
 
     with client.application.app_context():
-        role = db.session.scalar(db.select(Role).where(Role.code == "qa_manager"))
+        role = db.session.scalar(db.select(Role).where(Role.name == "QA Manager"))
         assert role is not None
+        assert role.code.startswith("role_")
         role_id = role.id
 
     edited = client.post(
