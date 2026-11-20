@@ -86,6 +86,14 @@ def test_bootstrap_rejects_disabled_administrator_account(app) -> None:
     assert "отключена" in result.output
 
 
+def test_auto_forward_worker_exposes_interval_and_batch_options(app) -> None:
+    result = app.test_cli_runner().invoke(args=["run-auto-forward-worker", "--help"])
+
+    assert result.exit_code == 0
+    assert "--interval" in result.output
+    assert "--batch-size" in result.output
+
+
 def test_seed_command_creates_demo_data_and_can_run_twice(app) -> None:
     runner = app.test_cli_runner()
     assert runner.invoke(args=["init-db"]).exit_code == 0
