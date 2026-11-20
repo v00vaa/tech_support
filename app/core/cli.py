@@ -75,7 +75,9 @@ def register_commands(app: Flask) -> None:
 
     @app.cli.command("run-auto-forward-worker")
     @click.option("--interval", default=60, show_default=True, type=click.IntRange(min=5))
-    @click.option("--batch-size", default=100, show_default=True, type=click.IntRange(min=1, max=1000))
+    @click.option(
+        "--batch-size", default=100, show_default=True, type=click.IntRange(min=1, max=1000)
+    )
     def run_auto_forward_worker(interval: int, batch_size: int) -> None:
         """Run the automatic role forwarding worker until interrupted."""
         app.logger.info(
