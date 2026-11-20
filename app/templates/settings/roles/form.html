@@ -4,12 +4,7 @@
 <div class="card"><div class="card-body">
 <form method="post" id="role-form">
   {{ form.hidden_tag() }}
-  <div class="mb-3">
-    {{ form.code.label(class_='form-label') }}
-    {{ form.code(class_='form-control', readonly=role is not none) }}
-    <div class="form-text">Внутренний уникальный идентификатор роли для настроек и программной логики. Используйте латиницу, цифры и подчёркивание, например <code>billing_support</code>. После создания код нельзя изменить.</div>
-    {% for error in form.code.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
-  </div>
+  <div class="alert alert-light border small">Внутренний идентификатор роли создаётся автоматически и не отображается в настройках.</div>
   <div class="mb-3">{{ form.name.label(class_='form-label') }}{{ form.name(class_='form-control') }}{% for error in form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
   <div class="mb-3">{{ form.description.label(class_='form-label') }}{{ form.description(class_='form-control', rows='2') }}</div>
 

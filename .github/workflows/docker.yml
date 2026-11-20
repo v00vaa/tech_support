@@ -1,17 +1,21 @@
 name: Docker build
 
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main, feature/frontend-auth-dashboard]
 
 permissions:
   contents: read
 
 jobs:
   build:
+    if: github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
       - name: Build application image
         run: docker build --tag support-system:ci .

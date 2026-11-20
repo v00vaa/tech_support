@@ -1298,13 +1298,20 @@ def employee_roles_edit(employee_id: int) -> ResponseReturnValue:
     available_roles = db.session.scalars(
         db.select(Role).where(Role.is_active).order_by(Role.name)
     ).all()
-    form.roles.choices = [
-        (role.id, role.name)
+    current_roles = {role.id: role for role in employee.roles}
+    editable_roles = [
+        role
         for role in available_roles
-        if can_delegate_permissions(
+        if role.id in current_roles
+        or can_delegate_permissions(
             current_user,
             {permission.code for permission in role.permissions},
         )
+    ]
+    role_options = {role.id: role for role in editable_roles}
+    role_options.update(current_roles)
+    form.roles.choices = [
+        (role.id, role.name) for role in sorted(role_options.values(), key=lambda item: item.name)
     ]
     if form.validate_on_submit():
         selected = (
@@ -1368,6 +1375,7 @@ def role_list() -> ResponseReturnValue:
         remove_forms=remove_forms,
         first_line_forms=first_line_forms,
         can_configure_first_line=is_active_administrator(current_user),
+        can_assign_special_roles=is_active_administrator(current_user),
         can_manage_role_members=can_manage_role_members,
         global_hr=global_hr,
     )
@@ -1455,6 +1463,36 @@ def role_member_remove(role_id: int, employee_id: int) -> ResponseReturnValue:
     except ValueError as error:
         db.session.rollback()
         flash(str(error), "danger")
+    return redirect(url_for("settings.role_list"))
+
+
+@settings_bp.post("/roles/<int:role_id>/special-members/<int:employee_id>")
+@login_required
+def role_special_member_update(role_id: int, employee_id: int) -> ResponseReturnValue:
+    """Assign or remove a scoped manager/HR role without changing the employee's main role."""
+    if not is_active_administrator(current_user):
+        abort(403)
+    special_role = db.get_or_404(Role, role_id)
+    employee = db.get_or_404(Employee, employee_id)
+    if (
+        special_role.role_type not in {"MANAGER", "HR"}
+        or special_role.scope_role_id is None
+        or not employee.is_active
+        or not special_role.is_active
+    ):
+        abort(400)
+    main_role = special_role.scope_role
+    if main_role is None or main_role not in employee.roles:
+        flash("Сначала сотрудник должен состоять в основной роли.", "warning")
+        return redirect(url_for("settings.role_list"))
+    assigned = request.form.get("assigned") == "on"
+    if assigned and special_role not in employee.roles:
+        employee.roles.append(special_role)
+        flash(f"Сотруднику «{employee.name}» назначена роль «{special_role.name}».", "success")
+    elif not assigned and special_role in employee.roles:
+        employee.roles.remove(special_role)
+        flash(f"У сотрудника «{employee.name}» снята роль «{special_role.name}».", "success")
+    db.session.commit()
     return redirect(url_for("settings.role_list"))
 
 
@@ -1642,13 +1680,12 @@ def role_create() -> ResponseReturnValue:
             )
         )
     if form.validate_on_submit():
-        assert form.code.data is not None
         assert form.name.data is not None
         try:
             save_role(
                 current_user,
                 role=None,
-                code=form.code.data,
+                code=f"role_{uuid4().hex}",
                 name=form.name.data,
                 description=form.description.data or None,
                 permission_codes=tuple(
@@ -1687,13 +1724,12 @@ def role_edit(role_id: int) -> ResponseReturnValue:
     ).all()
     form.permissions.choices = [(item.code, f"{item.name} ({item.code})") for item in permissions]
     if form.validate_on_submit():
-        assert form.code.data is not None
         assert form.name.data is not None
         try:
             save_role(
                 current_user,
                 role=role,
-                code=form.code.data,
+                code=role.code,
                 name=form.name.data,
                 description=form.description.data or None,
                 permission_codes=tuple(

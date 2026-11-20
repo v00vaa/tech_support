@@ -13,7 +13,7 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional, Regexp
+from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional
 
 from app.models.dialog import DialogStatus
 
@@ -149,16 +149,6 @@ class RolePermissionsForm(FlaskForm):
 
 
 class RoleForm(FlaskForm):
-    code = StringField(
-        "Код роли",
-        validators=[
-            DataRequired(),
-            Length(min=3, max=80),
-            Regexp(
-                r"^[a-z][a-z0-9_]*$", message="Используйте латиницу, цифры и _, начиная с буквы."
-            ),
-        ],
-    )
     name = StringField("Название", validators=[DataRequired(), Length(max=120)])
     description = TextAreaField("Описание", validators=[Optional(), Length(max=500)])
     permissions = SelectMultipleField("Разрешения", coerce=str)

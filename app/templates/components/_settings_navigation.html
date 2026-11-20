@@ -1,0 +1,15 @@
+<aside class="col-md-3 col-lg-2">
+  <h1 class="h4 mb-3">Настройки</h1>
+  <nav class="list-group" aria-label="Разделы настроек">
+    <a class="list-group-item list-group-item-action {% if active_settings_section == 'general' %}active{% endif %}" href="{{ url_for('settings.settings_index') }}">Общие</a>
+    <a class="list-group-item list-group-item-action {% if active_settings_section == 'registration' %}active{% endif %}" href="{{ url_for('settings.registration_settings') }}">Регистрация клиентов</a>
+    {% if has_permission(current_user, 'roles.view') or has_permission(current_user, 'roles.create') or has_permission(current_user, 'roles.assign_permissions') or current_user.roles|selectattr('role_type', 'equalto', 'HR')|list or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list %}
+    <a class="list-group-item list-group-item-action {% if active_settings_section == 'roles' %}active{% endif %}" href="{{ url_for('settings.role_list') }}">Роли</a>
+    {% endif %}
+    {% if has_permission(current_user, 'settings.view') %}
+    {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
+    <a class="list-group-item list-group-item-action {% if active_settings_section == slug %}active{% endif %}" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+    {% endfor %}
+    {% endif %}
+  </nav>
+</aside>

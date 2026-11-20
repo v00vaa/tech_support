@@ -32,6 +32,8 @@ dev = [
   "pytest>=9.0.3,<10",
   "pytest-cov>=6.0,<7",
   "ruff>=0.9,<1",
+  "types-Flask-Migrate>=4.1,<5",
+  "types-WTForms>=3.2,<4",
 ]
 
 [tool.hatch.build.targets.wheel]

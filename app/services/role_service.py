@@ -82,11 +82,16 @@ def save_role(
 def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[Role]) -> None:
     """Assign only roles whose permissions the acting employee can delegate."""
     selected_roles = list(roles)
-    current_role_permissions = {
-        permission.code for role in employee.roles for permission in role.permissions
+    current_roles_by_id = {role.id: role for role in employee.roles}
+    selected_role_ids = {role.id for role in selected_roles}
+    removed_roles = [
+        role for role_id, role in current_roles_by_id.items() if role_id not in selected_role_ids
+    ]
+    removed_permissions = {
+        permission.code for role in removed_roles for permission in role.permissions
     }
-    if not can_delegate_permissions(actor, current_role_permissions):
-        raise ValueError("Недостаточно прав для изменения текущего набора ролей сотрудника.")
+    if not can_delegate_permissions(actor, removed_permissions):
+        raise ValueError("Недостаточно прав для снятия одной или нескольких текущих ролей.")
     already_administrator = any(
         role.code == "administrator" and role.is_active for role in employee.roles
     )
@@ -98,7 +103,7 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
 
     selected_role_ids = {role.id for role in selected_roles}
     for role in selected_roles:
-        if not role.is_active:
+        if not role.is_active and role.id not in current_roles_by_id:
             raise ValueError(f"Нельзя назначить отключенную роль «{role.name}».")
         if role.role_type in {"MANAGER", "HR"} and role.scope_role_id not in selected_role_ids:
             raise ValueError(
@@ -106,7 +111,7 @@ def assign_employee_roles(actor: Employee, employee: Employee, roles: Iterable[R
                 "в соответствующей основной роли."
             )
         role_codes = {permission.code for permission in role.permissions}
-        if not can_delegate_permissions(actor, role_codes):
+        if role.id not in current_roles_by_id and not can_delegate_permissions(actor, role_codes):
             raise ValueError(f"Недостаточно прав для назначения роли «{role.name}».")
 
     will_remain_admin = employee.is_active and any(

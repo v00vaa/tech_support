@@ -4,17 +4,9 @@
 
 {% block content %}
 <div class="row g-4">
-  <aside class="col-md-3 col-lg-2">
-    <h1 class="h4 mb-3">Настройки</h1>
-    <div class="list-group">
-      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_index') }}">Общие</a>
-      <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.registration_settings') }}">Регистрация</a>
-      {% if has_permission(current_user, 'roles.view') %}
-        <a class="list-group-item list-group-item-action" href="{{ url_for('settings.role_list') }}">Роли</a>
-      {% endif %}
-      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.settings_stub', section='integrations') }}">Интеграции</a>
-    </div>
-  </aside>
+  {% set active_settings_section = 'registration' %}
+  {% include "components/_settings_navigation.html" %}
+
   <section class="col-md-9 col-lg-8">
     <div class="mb-4">
       <p class="text-uppercase text-primary small fw-semibold mb-2">Клиентские аккаунты</p>

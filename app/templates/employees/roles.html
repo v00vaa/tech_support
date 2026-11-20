@@ -1,9 +1,27 @@
 {% extends "layout.html" %}
 {% block content %}
-<h1>Роли сотрудника: {{ employee.name }}</h1>
-<p class="text-muted">Можно назначать только активные роли, права которых не превышают ваши собственные.</p>
-<div class="card"><div class="card-body"><form method="post">{{ form.hidden_tag() }}
-<div class="mb-3">{{ form.roles.label(class_='form-label') }}{{ form.roles(class_='form-select', size='10') }}{% for error in form.roles.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>
-{{ form.submit(class_='btn btn-primary') }} <a class="btn btn-outline-secondary" href="{{ url_for('employees.employee_detail', employee_id=employee.id) }}">Отмена</a>
-</form></div></div>
+<h1 class="h3 mb-2">Роли сотрудника: {{ employee.name }}</h1>
+<p class="text-muted">Отмечайте роли независимо. Уже назначенные роли сохраняются, пока вы явно не снимете соответствующий флажок.</p>
+<div class="card"><div class="card-body">
+  <form method="post">
+    {{ form.hidden_tag() }}
+    <fieldset class="mb-3">
+      <legend class="form-label">Доступные роли</legend>
+      {% for role_id, role_name in form.roles.choices %}
+      <label class="form-check border rounded p-3 mb-2 d-flex align-items-start gap-2" for="employee-role-{{ role_id }}">
+        <input class="form-check-input mt-1" type="checkbox" id="employee-role-{{ role_id }}" name="{{ form.roles.name }}" value="{{ role_id }}" {% if role_id in (form.roles.data or []) %}checked{% endif %}>
+        <span class="flex-grow-1">
+          <span class="d-block fw-semibold">{{ role_name }}</span>
+          {% if role_id in employee.roles|map(attribute='id')|list %}<span class="small text-muted">Уже назначена</span>{% endif %}
+        </span>
+      </label>
+      {% else %}
+      <p class="text-muted">Нет доступных ролей для назначения.</p>
+      {% endfor %}
+      {% for error in form.roles.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+    </fieldset>
+    {{ form.submit(class_='btn btn-primary') }}
+    <a class="btn btn-outline-secondary" href="{{ url_for('employees.employee_detail', employee_id=employee.id) }}">Отмена</a>
+  </form>
+</div></div>
 {% endblock %}

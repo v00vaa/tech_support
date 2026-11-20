@@ -39,18 +39,18 @@
               {% if not role.is_active %}<span class="badge text-bg-warning ms-2">Отключена</span>{% endif %}
             </button>
           </h3>
-          {% if can_configure_first_line and role.role_type == 'MAIN' and role.code != 'administrator' %}
-          <form method="post" action="{{ url_for('settings.role_first_line_update', role_id=role.id) }}"
-                class="form-check m-0 px-3 flex-shrink-0">
-            {{ first_line_forms[role.id].hidden_tag() }}
-            {{ first_line_forms[role.id].is_first_line(id='first-line-' ~ role.id|string, class_='form-check-input', onchange='this.form.submit()', disabled=not role.is_active) }}
-            <label class="form-check-label text-nowrap" for="first-line-{{ role.id }}">Первый уровень</label>
-          </form>
-          {% endif %}
         </div>
         <div id="role-{{ role.id }}" class="accordion-collapse collapse"
              aria-labelledby="heading-{{ role.id }}" data-bs-parent="#rolesAccordion">
           <div class="accordion-body">
+            {% if can_configure_first_line and role.role_type == 'MAIN' and role.code != 'administrator' %}
+            <form method="post" action="{{ url_for('settings.role_first_line_update', role_id=role.id) }}" class="form-check border rounded p-3 mb-3">
+              {{ first_line_forms[role.id].hidden_tag() }}
+              {{ first_line_forms[role.id].is_first_line(id='first-line-' ~ role.id|string, class_='form-check-input', onchange='this.form.submit()', disabled=not role.is_active) }}
+              <label class="form-check-label fw-semibold" for="first-line-{{ role.id }}">Первый уровень поддержки</label>
+              <div class="form-text">Новые обращения без назначенного сотрудника будут поступать в очередь этой роли.</div>
+            </form>
+            {% endif %}
             <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Разделы роли">
               <button type="button" class="btn btn-primary btn-sm" aria-current="page">Сотрудники</button>
               {% if has_permission(current_user, 'roles.manage_routing') %}
@@ -59,7 +59,7 @@
               {% if has_permission(current_user, 'roles.view') or has_permission(current_user, 'roles.manage_routing') %}
               <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_routing', role_id=role.id, direction='incoming') }}">Получают от</a>
               {% endif %}
-              {% if has_permission(current_user, 'roles.assign_permissions') and not role.is_system %}
+              {% if (can_assign_special_roles or has_permission(current_user, 'roles.assign_permissions')) and not role.is_system %}
               <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_permissions_edit', role_id=role.id) }}">Разрешения</a>
               {% endif %}
             </div>
@@ -93,9 +93,19 @@
                     </td>
                     <td>
                       {% set employee_role_ids = employee.roles|map(attribute='id')|list %}
-                      {% for special_role in role.scoped_roles if special_role.is_active and special_role.id in employee_role_ids %}
-                      <span class="badge text-bg-info">{{ 'Начальник' if special_role.role_type == 'MANAGER' else 'HR' }}</span>
-                      {% else %}—{% endfor %}
+                      {% if can_assign_special_roles %}
+                        {% for special_role in role.scoped_roles if special_role.is_active and special_role.role_type in ['MANAGER', 'HR'] %}
+                        <form class="form-check form-check-inline me-2" method="post" action="{{ url_for('settings.role_special_member_update', role_id=special_role.id, employee_id=employee.id) }}">
+                          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                          <input class="form-check-input" type="checkbox" id="special-{{ special_role.id }}-{{ employee.id }}" name="assigned" {% if special_role.id in employee_role_ids %}checked{% endif %} onchange="this.form.submit()">
+                          <label class="form-check-label small" for="special-{{ special_role.id }}-{{ employee.id }}">{{ 'Начальник' if special_role.role_type == 'MANAGER' else 'HR' }}</label>
+                        </form>
+                        {% endfor %}
+                      {% else %}
+                        {% for special_role in role.scoped_roles if special_role.is_active and special_role.id in employee_role_ids %}
+                        <span class="badge text-bg-info">{{ 'Начальник' if special_role.role_type == 'MANAGER' else 'HR' }}</span>
+                        {% else %}—{% endfor %}
+                      {% endif %}
                     </td>
                     <td class="text-end">
                       {% if has_permission(current_user, 'employees.assign_roles') %}
