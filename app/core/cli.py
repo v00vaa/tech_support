@@ -75,17 +75,26 @@ def register_commands(app: Flask) -> None:
 
     @app.cli.command("run-auto-forward-worker")
     @click.option("--interval", default=60, show_default=True, type=click.IntRange(min=5))
-    def run_auto_forward_worker(interval: int) -> None:
+    @click.option("--batch-size", default=100, show_default=True, type=click.IntRange(min=1, max=1000))
+    def run_auto_forward_worker(interval: int, batch_size: int) -> None:
         """Run the automatic role forwarding worker until interrupted."""
-        click.echo(f"Worker автопередачи запущен. Интервал: {interval} сек.")
+        app.logger.info(
+            "Worker автопередачи запущен: interval=%s batch_size=%s", interval, batch_size
+        )
         try:
             while True:
-                count = process_due_auto_forwards()
-                if count:
-                    click.echo(f"Автоматически передано диалогов: {count}")
+                try:
+                    count = process_due_auto_forwards(limit=batch_size)
+                    if count:
+                        app.logger.info("Автоматически передано обращений: %s", count)
+                except Exception:
+                    db.session.rollback()
+                    app.logger.exception("Ошибка цикла worker автопередачи")
                 time.sleep(interval)
         except KeyboardInterrupt:
-            click.echo("Worker автопередачи остановлен.")
+            app.logger.info("Worker автопередачи остановлен")
+        finally:
+            db.session.remove()
 
     @app.cli.command("seed")
     def seed() -> None:
