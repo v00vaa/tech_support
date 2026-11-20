@@ -3,6 +3,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import event
 
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message, Role
@@ -289,7 +290,22 @@ def test_process_due_auto_forwards_respects_timeout_status_activity_and_limit(ap
         db.session.add_all([due, recent, waiting, assigned])
         db.session.commit()
 
-        assert process_due_auto_forwards(now=now, limit=1) == 1
+        locked_queries: list[bool] = []
+
+        def capture_locked_select(
+            connection, clauseelement, multiparams, params, execution_options
+        ):
+            lock_options = getattr(clauseelement, "_for_update_arg", None)
+            if lock_options is not None:
+                locked_queries.append(lock_options.skip_locked)
+
+        event.listen(db.engine, "before_execute", capture_locked_select)
+        try:
+            assert process_due_auto_forwards(now=now, limit=1) == 1
+        finally:
+            event.remove(db.engine, "before_execute", capture_locked_select)
+
+        assert locked_queries and all(locked_queries)
         assert due.assigned_role_id == target.id
         assert due.status == DialogStatus.OPEN
         auto_event = db.session.scalar(
