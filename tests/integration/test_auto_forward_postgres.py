@@ -33,9 +33,7 @@ def postgres_app() -> Iterator[Flask]:
     if not database_name or not database_name.endswith("_test"):
         pytest.fail("SUPPORT_TEST_POSTGRES_URL must point to a database ending in _test")
 
-    application = create_app(
-        Settings(database_url=database_url, environment="testing")
-    )
+    application = create_app(Settings(database_url=database_url, environment="testing"))
     with application.app_context():
         db.create_all()
 
