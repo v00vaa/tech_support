@@ -66,39 +66,22 @@ def test_api_requires_authentication(app: Flask) -> None:
     assert response.json["error"]["code"] == "Unauthorized"
 
 
-def test_clients_api_lists_validates_creates_and_returns_records(
+def test_clients_api_lists_and_rejects_manual_creation(
     api_client: FlaskClient,
 ) -> None:
-    empty_list = api_client.get("/api/v1/clients")
-    assert empty_list.status_code == 200
-    assert len(empty_list.get_json()) == 1
+    listed = api_client.get("/api/v1/clients")
+    assert listed.status_code == 200
+    assert len(listed.get_json()) == 1
 
-    invalid = api_client.post("/api/v1/clients", json={"name": "Missing email"})
-    assert invalid.status_code == 400
-
-    invalid_email = api_client.post(
-        "/api/v1/clients",
-        json={"name": "Invalid email", "email": "not-an-email"},
-    )
-    assert invalid_email.status_code == 400
-
-    duplicate = api_client.post(
-        "/api/v1/clients",
-        json={"name": "Duplicate customer", "email": "api-customer@example.com"},
-    )
-    assert duplicate.status_code == 409
-
-    created = api_client.post(
+    forbidden = api_client.post(
         "/api/v1/clients",
         json={
-            "name": "Created through API",
-            "email": "created-api@example.com",
+            "name": "Manual API customer",
+            "email": "manual-api@example.com",
             "phone": "+72222222222",
         },
     )
-    assert created.status_code == 201
-    assert created.json["name"] == "Created through API"
-    assert created.json["phone"] == "+72222222222"
+    assert forbidden.status_code == 403
 
 
 def test_employees_api_lists_validates_and_creates_records(
@@ -305,7 +288,11 @@ def test_client_account_cannot_use_employee_json_api(
 def test_api_rejects_non_object_json_and_non_boolean_flags(
     api_client: FlaskClient,
 ) -> None:
-    non_object = api_client.post("/api/v1/clients", json=["not", "an", "object"])
+    dialog_id = api_client.get("/api/v1/dialogs").get_json()[0]["id"]
+    non_object = api_client.post(
+        f"/api/v1/dialogs/{dialog_id}/messages",
+        json=["not", "an", "object"],
+    )
     assert non_object.status_code == 400
 
     invalid_flag = api_client.post(
