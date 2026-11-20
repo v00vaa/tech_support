@@ -56,7 +56,7 @@ class ClientRegistrationForm(FlaskForm):
     name = StringField("Имя для обращений", validators=[Optional(), Length(max=120)])
     email = StringField("Email для связи", validators=[Optional(), Email(), Length(max=255)])
     phone = StringField("Телефон для связи", validators=[Optional(), Length(max=40)])
-    password = PasswordField("Пароль", validators=[DataRequired(), Length(min=12, max=128)])
+    password = PasswordField("Пароль", validators=[DataRequired(), Length(min=8, max=128)])
     confirm_password = PasswordField(
         "Повторите пароль",
         validators=[DataRequired(), EqualTo("password", message="Пароли не совпадают.")],
