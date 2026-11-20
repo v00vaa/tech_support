@@ -337,7 +337,7 @@ def test_employee_roles_and_custom_role_routes(support_system: dict[str, object]
 
     create_page = client.get("/settings/roles/create")
     assert create_page.status_code == 200
-    assert b"Код роли" not in create_page.data
+    assert "Код роли".encode("utf-8") not in create_page.data
 
     created = client.post(
         "/settings/roles/create",
