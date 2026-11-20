@@ -141,15 +141,18 @@ def test_client_manual_creation_is_disabled_but_edit_and_delete_remain(
     client_id = _ids(support_system)["client"]
 
     assert client.get("/clients/create").status_code == 403
-    assert client.post(
-        "/clients/create",
-        data={
-            "name": "New Customer",
-            "email": "new-customer@example.com",
-            "phone": "+71111111111",
-            "submit": "Save",
-        },
-    ).status_code == 403
+    assert (
+        client.post(
+            "/clients/create",
+            data={
+                "name": "New Customer",
+                "email": "new-customer@example.com",
+                "phone": "+71111111111",
+                "submit": "Save",
+            },
+        ).status_code
+        == 403
+    )
 
     edited = client.post(
         f"/clients/{client_id}/edit",
