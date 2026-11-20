@@ -1546,8 +1546,12 @@ def role_routing_delete(role_id: int, route_id: int) -> ResponseReturnValue:
 
 @settings_bp.route("/roles/<int:role_id>/permissions", methods=["GET", "POST"])
 @login_required
-@permission_required("roles.assign_permissions")
 def role_permissions_edit(role_id: int) -> ResponseReturnValue:
+    if not (
+        is_active_administrator(current_user)
+        or has_permission(current_user, "roles.assign_permissions")
+    ):
+        abort(403)
     role = db.get_or_404(Role, role_id)
     if role.is_system or role.role_type != "MAIN":
         abort(403)

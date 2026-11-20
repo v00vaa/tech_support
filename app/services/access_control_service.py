@@ -33,7 +33,9 @@ def has_permission(employee: Employee, permission_code: str) -> bool:
 
 
 def can_delegate_permissions(employee: Employee, codes: Iterable[str]) -> bool:
-    """Prevent a user from granting permissions they do not possess."""
+    """Allow administrators to delegate all permissions; prevent other escalation."""
+    if is_active_administrator(employee):
+        return True
     return set(codes).issubset(permission_codes(employee))
 
 

@@ -5,60 +5,113 @@
     <h1 class="h4 mb-3">Настройки</h1>
     <div class="list-group">
       <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
+      {% if has_permission(current_user, 'settings.view') %}
+      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.registration_settings') }}">Регистрация клиентов</a>
+      {% endif %}
     </div>
   </aside>
   <section class="col-md-9 col-lg-10">
     <a href="{{ url_for('settings.role_list') }}" class="text-decoration-none">← Все роли</a>
     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mt-2 mb-3">
       <div>
-        <h2 class="h3 mb-1">Разрешения роли «{{ role.name }}»</h2>
-        <p class="text-muted mb-0">Отметьте действия, которые будут доступны сотрудникам с этой ролью.</p>
+        <h1 class="h3 mb-1">Разрешения роли «{{ role.name }}»</h1>
+        <p class="text-muted mb-0">Простые настройки подходят для типовых задач. Дополнительные позволяют управлять каждым правом отдельно.</p>
       </div>
       <span class="badge text-bg-secondary">{{ current_codes|length }} назначено</span>
     </div>
-
     <div class="alert alert-info">
-      Можно назначить только те разрешения, которыми вы сами обладаете. Ранее выданные права можно отозвать. Новые права можно добавить только в том случае, если вы сами ими обладаете.
+      Администратор может назначать любые разрешения. Остальные пользователи могут выдавать только те права, которыми обладают сами.
     </div>
-
-    <form method="post">
+    <form method="post" id="role-permissions-form">
       {{ form.hidden_tag() }}
-      {% for error in form.permissions.errors %}
-      <div class="alert alert-danger">{{ error }}</div>
-      {% endfor %}
-
-      {% for category, permissions in permission_groups %}
-      <section class="card mb-3">
-        <div class="card-header fw-semibold">{{ category }}</div>
-        <div class="list-group list-group-flush">
+      {% for error in form.permissions.errors %}<div class="alert alert-danger">{{ error }}</div>{% endfor %}
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+        <div class="btn-group" role="group" aria-label="Режим настройки разрешений">
+          <button type="button" class="btn btn-primary" id="simple-mode-button" aria-pressed="true">Простые настройки</button>
+          <button type="button" class="btn btn-outline-primary" id="advanced-mode-button" aria-pressed="false">Дополнительные</button>
+        </div>
+        <span class="small text-muted">Настройки синхронизируются между режимами</span>
+      </div>
+      <section id="simple-permissions">
+        <div class="card mb-3"><div class="card-header fw-semibold">Клиенты</div><div class="card-body row g-3">
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="clients.view"><span class="form-check-label fw-semibold">Просмотр клиентов</span><span class="form-text d-block">Список и карточки клиентов</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="clients.view,clients.edit,clients.delete"><span class="form-check-label fw-semibold">Управление клиентами</span><span class="form-text d-block">Просмотр, изменение и удаление карточек</span></label></div>
+        </div></div>
+        <div class="card mb-3"><div class="card-header fw-semibold">Сотрудники</div><div class="card-body row g-3">
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="employees.view"><span class="form-check-label fw-semibold">Просмотр сотрудников</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="employees.view,employees.create,employees.edit,employees.deactivate,employees.assign_roles"><span class="form-check-label fw-semibold">Управление сотрудниками</span><span class="form-text d-block">Добавление, изменение, отключение и назначение ролей</span></label></div>
+        </div></div>
+        <div class="card mb-3"><div class="card-header fw-semibold">Обращения</div><div class="card-body row g-3">
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="dialogs.view"><span class="form-check-label fw-semibold">Просмотр обращений</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="dialogs.view,dialogs.reply,dialogs.change_status"><span class="form-check-label fw-semibold">Работа с обращениями</span><span class="form-text d-block">Ответы клиентам и изменение статуса</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="dialogs.view,dialogs.reply,dialogs.change_status,dialogs.manage,dialogs.transfer,dialogs.route_to_role"><span class="form-check-label fw-semibold">Полное управление обращениями</span><span class="form-text d-block">Изменение и передача диалогов</span></label></div>
+        </div></div>
+        <div class="card mb-3"><div class="card-header fw-semibold">Роли и настройки</div><div class="card-body row g-3">
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="roles.view"><span class="form-check-label fw-semibold">Просмотр ролей</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="roles.view,roles.create,roles.edit,roles.assign_permissions"><span class="form-check-label fw-semibold">Управление ролями</span><span class="form-text d-block">Создание ролей и настройка прав</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="settings.view"><span class="form-check-label fw-semibold">Просмотр настроек</span></label></div>
+          <div class="col-md-6"><label class="form-check border rounded p-3"><input class="form-check-input permission-bundle" type="checkbox" data-codes="settings.view,settings.edit"><span class="form-check-label fw-semibold">Изменение настроек</span></label></div>
+        </div></div>
+        <div class="alert alert-secondary small">Внутренние заметки, маршрутизация, управление составом ролей и глобальные полномочия вынесены в дополнительные настройки, чтобы их нельзя было случайно выдать вместе с обычными правами.</div>
+      </section>
+      <section id="advanced-permissions" hidden>
+        {% for category, permissions in permission_groups %}
+        <div class="card mb-3"><div class="card-header fw-semibold">{{ category }}</div><div class="list-group list-group-flush">
           {% for permission in permissions %}
           <label class="list-group-item d-flex gap-3 align-items-start">
-            <input class="form-check-input mt-1" type="checkbox"
-                   name="{{ form.permissions.name }}" value="{{ permission.code }}"
-                   id="permission-{{ permission.id }}"
-                   {% if permission.code in (form.permissions.data or []) %}checked{% endif %}
-                   {% if permission.code not in delegable_codes and permission.code not in current_codes %}disabled{% endif %}>
-            <span class="flex-grow-1">
-              <span class="d-block fw-medium">{{ permission.name }}</span>
-              <span class="d-block small text-muted">{{ permission.description }}</span>
-              <code class="small">{{ permission.code }}</code>
-              {% if permission.code not in delegable_codes %}
-              <span class="badge text-bg-light border ms-1">
-                {{ 'Можно отозвать, нельзя повторно выдать' if permission.code in current_codes else 'Нет права на выдачу' }}
-              </span>
-              {% endif %}
+            <input class="form-check-input mt-1 permission-code" type="checkbox" name="{{ form.permissions.name }}" value="{{ permission.code }}" data-code="{{ permission.code }}" id="permission-{{ permission.id }}" {% if permission.code in current_codes %}checked{% endif %} {% if permission.code not in delegable_codes and permission.code not in current_codes %}disabled{% endif %}>
+            <span class="flex-grow-1"><span class="d-block fw-medium">{{ permission.name }}</span><span class="d-block small text-muted">{{ permission.description }}</span><code class="small">{{ permission.code }}</code>
+              {% if permission.code not in delegable_codes %}<span class="badge text-bg-light border ms-1">{{ 'Можно отозвать, нельзя повторно выдать' if permission.code in current_codes else 'Нет права на выдачу' }}</span>{% endif %}
             </span>
           </label>
           {% endfor %}
-        </div>
+        </div></div>
+        {% endfor %}
       </section>
-      {% endfor %}
-
-      <div class="d-flex gap-2">
-        {{ form.submit(class_='btn btn-primary', value='Сохранить разрешения') }}
-        <a class="btn btn-outline-secondary" href="{{ url_for('settings.role_list') }}">Отмена</a>
-      </div>
+      <div class="d-flex gap-2 mt-3">{{ form.submit(class_='btn btn-primary', value='Сохранить разрешения') }}<a class="btn btn-outline-secondary" href="{{ url_for('settings.role_list') }}">Отмена</a></div>
     </form>
   </section>
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+(() => {
+  const simple = document.getElementById("simple-permissions");
+  const advanced = document.getElementById("advanced-permissions");
+  const simpleButton = document.getElementById("simple-mode-button");
+  const advancedButton = document.getElementById("advanced-mode-button");
+  const granular = [...document.querySelectorAll(".permission-code")];
+  const bundles = [...document.querySelectorAll(".permission-bundle")];
+  const byCode = new Map(granular.map((input) => [input.dataset.code, input]));
+  function refreshBundles() {
+    bundles.forEach((bundle) => {
+      const inputs = bundle.dataset.codes.split(",").map((code) => byCode.get(code)).filter(Boolean);
+      const count = inputs.filter((input) => input.checked).length;
+      bundle.checked = inputs.length > 0 && count === inputs.length;
+      bundle.indeterminate = count > 0 && count < inputs.length;
+    });
+  }
+  function setMode(advancedMode) {
+    simple.hidden = advancedMode;
+    advanced.hidden = !advancedMode;
+    simpleButton.classList.toggle("btn-primary", !advancedMode);
+    simpleButton.classList.toggle("btn-outline-primary", advancedMode);
+    advancedButton.classList.toggle("btn-primary", advancedMode);
+    advancedButton.classList.toggle("btn-outline-primary", !advancedMode);
+    simpleButton.setAttribute("aria-pressed", String(!advancedMode));
+    advancedButton.setAttribute("aria-pressed", String(advancedMode));
+  }
+  bundles.forEach((bundle) => bundle.addEventListener("change", () => {
+    bundle.dataset.codes.split(",").forEach((code) => {
+      const input = byCode.get(code);
+      if (input && !input.disabled) input.checked = bundle.checked;
+    });
+    refreshBundles();
+  }));
+  granular.forEach((input) => input.addEventListener("change", refreshBundles));
+  simpleButton.addEventListener("click", () => setMode(false));
+  advancedButton.addEventListener("click", () => setMode(true));
+  refreshBundles();
+})();
+</script>
 {% endblock %}
