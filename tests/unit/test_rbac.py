@@ -157,7 +157,7 @@ def test_internal_messages_are_hidden_from_users_without_note_permission(app, cl
         customer = Client(name="Customer", email="customer@example.com")
         db.session.add(customer)
         db.session.commit()
-        dialog = create_dialog(customer.id, None, "Test dialog", "Web")
+        dialog = create_dialog(customer.id, employee.id, "Test dialog", "Web")
         create_message(dialog.id, AuthorType.EMPLOYEE, employee.id, "Public")
         create_message(dialog.id, AuthorType.EMPLOYEE, employee.id, "Private", is_internal=True)
         _login(client, employee)
