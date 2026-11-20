@@ -44,9 +44,7 @@ def ensure_rbac_catalogue() -> tuple[Role, Role]:
 
     support.is_system = False
     db.session.flush()
-    if db.session.scalar(
-        db.select(Role.id).where(Role.is_first_line.is_(True)).limit(1)
-    ) is None:
+    if db.session.scalar(db.select(Role.id).where(Role.is_first_line.is_(True)).limit(1)) is None:
         support.is_first_line = True
     administrator.permissions = list(permissions_by_code.values())
     support.permissions = [permissions_by_code[code] for code in SUPPORT_LEVEL_1_PERMISSIONS]
