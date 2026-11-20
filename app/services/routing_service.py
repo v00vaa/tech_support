@@ -121,43 +121,54 @@ def route_dialog_to_role(
 
 
 def process_due_auto_forwards(*, now: datetime | None = None, limit: int = 100) -> int:
-    """Move queued dialogs through each source role's default route after its timeout."""
+    """Atomically claim and forward overdue dialogs, safely across multiple workers."""
+    if limit < 1:
+        raise ValueError("Лимит обработки должен быть положительным.")
+
     current_time = now or datetime.now(UTC)
     if current_time.tzinfo is None:
         current_time = current_time.replace(tzinfo=UTC)
+
     routes = db.session.scalars(
-        select(RoleRoute).where(
+        select(RoleRoute)
+        .where(
             RoleRoute.is_default.is_(True),
             RoleRoute.auto_forward_after_minutes.is_not(None),
         )
+        .order_by(RoleRoute.id)
     ).all()
+
     transferred = 0
-    for route in routes:
-        if transferred >= limit:
-            break
-        if not route.source_role.is_active or not route.target_role.is_active:
-            continue
-        threshold = current_time - timedelta(minutes=route.auto_forward_after_minutes or 0)
-        dialogs = db.session.scalars(
-            select(Dialog)
-            .where(
-                Dialog.assigned_role_id == route.source_role_id,
-                Dialog.responsible_employee_id.is_(None),
-                Dialog.status.not_in(
-                    [DialogStatus.WAITING_CLIENT, DialogStatus.RESOLVED, DialogStatus.CLOSED]
-                ),
-                Dialog.role_assigned_at.is_not(None),
-            )
-            .order_by(Dialog.role_assigned_at)
-            .limit(limit - transferred)
-        ).all()
-        for dialog in dialogs:
-            assigned_at = dialog.role_assigned_at
-            if assigned_at is None:
+    try:
+        for route in routes:
+            if transferred >= limit:
+                break
+            if not route.source_role.is_active or not route.target_role.is_active:
                 continue
-            if assigned_at.tzinfo is None:
-                assigned_at = assigned_at.replace(tzinfo=UTC)
-            if assigned_at <= threshold:
+
+            threshold = current_time - timedelta(minutes=route.auto_forward_after_minutes or 0)
+            dialogs = db.session.scalars(
+                select(Dialog)
+                .where(
+                    Dialog.assigned_role_id == route.source_role_id,
+                    Dialog.responsible_employee_id.is_(None),
+                    Dialog.status.not_in(
+                        [
+                            DialogStatus.WAITING_CLIENT,
+                            DialogStatus.RESOLVED,
+                            DialogStatus.CLOSED,
+                        ]
+                    ),
+                    Dialog.role_assigned_at.is_not(None),
+                    Dialog.role_assigned_at <= threshold,
+                )
+                .order_by(Dialog.role_assigned_at, Dialog.id)
+                .limit(limit - transferred)
+                .with_for_update(skip_locked=True, of=Dialog)
+            ).all()
+
+            for dialog in dialogs:
+                source_role = route.source_role
                 dialog.assigned_role = route.target_role
                 dialog.role_assigned_at = current_time
                 dialog.status = DialogStatus.OPEN
@@ -169,12 +180,19 @@ def process_due_auto_forwards(*, now: datetime | None = None, limit: int = 100) 
                         author_id=None,
                         text=(
                             "Обращение автоматически передано из роли "
-                            f"«{route.source_role.name}» в роль «{route.target_role.name}»."
+                            f"«{source_role.name}» в роль «{route.target_role.name}»."
                         ),
                         is_internal=False,
                     )
                 )
                 transferred += 1
-    if transferred:
-        db.session.commit()
+
+        if transferred:
+            db.session.commit()
+        else:
+            db.session.rollback()
+    except Exception:
+        db.session.rollback()
+        raise
+
     return transferred
