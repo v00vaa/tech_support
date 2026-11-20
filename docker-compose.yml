@@ -22,6 +22,32 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command:
+      - flask
+      - --app
+      - wsgi:app
+      - run-auto-forward-worker
+      - --interval
+      - "30"
+      - --batch-size
+      - "100"
+    environment:
+      SUPPORT_ENVIRONMENT: development
+      SUPPORT_SECRET_KEY: development-only-change-me
+      SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
+      SUPPORT_RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      disable: true
 
   migrate:
     build: .
