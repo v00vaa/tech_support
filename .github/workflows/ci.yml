@@ -39,7 +39,8 @@ jobs:
       - run: mypy app
       - run: bandit -c pyproject.toml -r app
       - run: pip-audit
-      - run: pytest
+      - run: coverage run --source=app -m pytest -o addopts=""
+      - run: coverage report --fail-under=80
 
   docker:
     name: Docker build
