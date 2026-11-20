@@ -101,7 +101,9 @@ class HttpRegistrationProvider:
         base_parts = urlsplit(self.base_url)
         target_parts = urlsplit(target_url)
         if target_parts.scheme != "https" or target_parts.netloc != base_parts.netloc:
-            raise RegistrationProviderError("Registration endpoint must stay on the configured HTTPS host")
+            raise RegistrationProviderError(
+                "Registration endpoint must stay on the configured HTTPS host"
+            )
         request = Request(
             target_url,
             data=body,
