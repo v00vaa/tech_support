@@ -40,12 +40,12 @@ def register_commands(app: Flask) -> None:
         employee = db.session.scalar(db.select(Employee).where(Employee.email == email))
         if employee is None:
             password = click.prompt(
-                "Временный пароль (не менее 12 символов)",
+                "Временный пароль (не менее 8 символов)",
                 hide_input=True,
                 confirmation_prompt=True,
             )
-            if len(password) < 12:
-                raise click.ClickException("Пароль должен содержать не менее 12 символов.")
+            if len(password) < 8:
+                raise click.ClickException("Пароль должен содержать не менее 8 символов.")
             employee = Employee(
                 name="Администратор",
                 email=email,
