@@ -111,7 +111,6 @@ def test_authenticated_employee_can_open_browser_pages(
     paths = [
         "/",
         "/clients",
-        "/clients/create",
         f"/clients/{ids['client']}",
         f"/clients/{ids['client']}/edit",
         "/employees",
@@ -135,11 +134,14 @@ def test_authenticated_employee_can_open_browser_pages(
         assert response.status_code == 200, path
 
 
-def test_client_create_edit_and_delete_routes(support_system: dict[str, object]) -> None:
+def test_client_manual_creation_is_disabled_but_edit_and_delete_remain(
+    support_system: dict[str, object],
+) -> None:
     client = _client(support_system)
     client_id = _ids(support_system)["client"]
 
-    created = client.post(
+    assert client.get("/clients/create").status_code == 403
+    assert client.post(
         "/clients/create",
         data={
             "name": "New Customer",
@@ -147,8 +149,7 @@ def test_client_create_edit_and_delete_routes(support_system: dict[str, object])
             "phone": "+71111111111",
             "submit": "Save",
         },
-    )
-    assert created.status_code == 302
+    ).status_code == 403
 
     edited = client.post(
         f"/clients/{client_id}/edit",
@@ -168,7 +169,7 @@ def test_client_create_edit_and_delete_routes(support_system: dict[str, object])
         assert db.session.get(Client, client_id) is None
         assert (
             db.session.scalar(db.select(Client).where(Client.email == "new-customer@example.com"))
-            is not None
+            is None
         )
 
 
@@ -498,14 +499,13 @@ def test_invalid_dialog_status_transition_is_rejected(
         assert dialog.status.value == "OPEN"
 
 
-def test_system_role_cannot_be_edited(support_system: dict[str, object]) -> None:
+def test_default_support_role_can_be_edited(support_system: dict[str, object]) -> None:
     client = _client(support_system)
     support_role_id = _ids(support_system)["support_role"]
 
     response = client.get(f"/settings/roles/{support_role_id}/edit")
 
-    assert response.status_code == 302
-    assert response.headers["Location"].endswith("/settings/roles")
+    assert response.status_code == 200
 
 
 def test_public_message_requires_reply_permission(
