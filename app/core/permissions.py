@@ -18,12 +18,6 @@ PERMISSION_DEFINITIONS: tuple[PermissionDefinition, ...] = (
         "category": "clients",
     },
     {
-        "code": "clients.create",
-        "name": "Создание клиентов",
-        "description": "Добавление клиентов",
-        "category": "clients",
-    },
-    {
         "code": "clients.edit",
         "name": "Изменение клиентов",
         "description": "Изменение карточек клиентов",
