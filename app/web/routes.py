@@ -882,9 +882,7 @@ def employee_list() -> ResponseReturnValue:
     total_pages = max((total + per_page - 1) // per_page, 1)
     page = min(page, total_pages)
     employees = db.session.scalars(
-        statement.order_by(Employee.name, Employee.id)
-        .offset((page - 1) * per_page)
-        .limit(per_page)
+        statement.order_by(Employee.name, Employee.id).offset((page - 1) * per_page).limit(per_page)
     ).all()
     roles = db.session.scalars(db.select(Role).where(Role.is_active).order_by(Role.name)).all()
     return render_template(
