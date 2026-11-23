@@ -2169,7 +2169,10 @@ def channel_settings() -> ResponseReturnValue:
         return redirect(url_for("settings.channel_settings"))
 
     return render_template(
-        "settings/channels.html", form=form, settings=settings, active_settings_section="channels"
+        "settings/channels.html",
+        form=form,
+        settings=settings,
+        active_settings_section="channels",
     )
 
 
