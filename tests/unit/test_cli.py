@@ -131,6 +131,7 @@ def test_auto_forward_worker_stops_gracefully_on_sigterm(app, monkeypatch) -> No
     import app.core.cli as cli_module
 
     registered_handlers = {}
+    original_handlers = {}
     restored_handlers = []
     processed_batches = []
 
@@ -149,16 +150,14 @@ def test_auto_forward_worker_stops_gracefully_on_sigterm(app, monkeypatch) -> No
             return self.stopped
 
     def fake_signal(signum, handler):
-        previous = registered_handlers.get(signum, object())
-        registered_handlers[signum] = handler
-        if handler is not None and handler is not request_stop_placeholder:
-            pass
-        if handler not in (None,):
-            return previous
-        restored_handlers.append(signum)
-        return previous
+        original = original_handlers.setdefault(signum, object())
+        if handler is original:
+            restored_handlers.append(signum)
+        else:
+            registered_handlers[signum] = handler
+        return original
 
-    request_stop_placeholder = object()
+
     monkeypatch.setattr(cli_module, "Event", FakeEvent)
     monkeypatch.setattr(cli_module.signal, "signal", fake_signal)
     monkeypatch.setattr(
