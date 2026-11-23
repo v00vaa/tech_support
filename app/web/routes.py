@@ -1832,11 +1832,37 @@ def registration_settings() -> ResponseReturnValue:
     return render_template("settings/registration.html", form=form, settings=settings)
 
 
-@settings_bp.get("")
+def _get_general_settings() -> GeneralSettings:
+    """Return the singleton global settings row, creating safe defaults."""
+    settings = db.session.get(GeneralSettings, 1)
+    if settings is None:
+        settings = GeneralSettings(id=1)
+        db.session.add(settings)
+        db.session.commit()
+    return settings
+
+
+@settings_bp.route("", methods=["GET", "POST"])
 @login_required
 @permission_required("settings.view")
 def settings_index() -> ResponseReturnValue:
-    return render_template("settings/index.html")
+    settings = _get_general_settings()
+    form = GeneralSettingsForm()
+    if request.method == "GET":
+        form.closed_dialog_retention_days.data = (
+            ""
+            if settings.closed_dialog_retention_days is None
+            else str(settings.closed_dialog_retention_days)
+        )
+
+    if form.validate_on_submit():
+        value = form.closed_dialog_retention_days.data
+        settings.closed_dialog_retention_days = int(value) if value else None
+        db.session.commit()
+        flash("Общие настройки сохранены.", "success")
+        return redirect(url_for("settings.settings_index"))
+
+    return render_template("settings/index.html", form=form, settings=settings)
 
 
 @settings_bp.get("/<string:section>")

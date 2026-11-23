@@ -64,6 +64,22 @@ class ClientRegistrationForm(FlaskForm):
     submit = SubmitField("Создать аккаунт")
 
 
+class GeneralSettingsForm(FlaskForm):
+    """Global retention policy for closed support dialogs."""
+
+    closed_dialog_retention_days = SelectField(
+        "Срок хранения закрытых обращений",
+        choices=[
+            ("", "Никогда"),
+            ("30", "30 дней"),
+            ("90", "90 дней"),
+            ("180", "180 дней"),
+            ("365", "365 дней"),
+        ],
+    )
+    submit = SubmitField("Сохранить настройки")
+
+
 class RegistrationSettingsForm(FlaskForm):
     """Administrator-controlled customer registration options."""
 

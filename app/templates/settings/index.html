@@ -7,6 +7,18 @@
   <section class="col-md-9 col-lg-10">
     <h2 class="h3">Общие настройки</h2>
     <p class="text-muted">Настройте способы регистрации клиентов, интеграции и рабочие процессы. Управление ролями и составом сотрудников доступно в разделе «Роли».</p>
+    <form method="post" class="card mt-4">
+      {{ form.hidden_tag() }}
+      <div class="card-body">
+        <h3 class="h5">Хранение обращений</h3>
+        <p class="text-muted">Определяет, через сколько дней после закрытия обращения оно и связанные вложения должны автоматически удаляться. При значении «Никогда» автоматическое удаление по сроку отключено.</p>
+        <div class="mb-3">
+          {{ form.closed_dialog_retention_days.label(class_="form-label") }}
+          {{ form.closed_dialog_retention_days(class_="form-select") }}
+        </div>
+        {{ form.submit(class_="btn btn-primary") }}
+      </div>
+    </form>
     <div class="card mt-4"><div class="card-body">
       <h3 class="h5">Регистрация клиентов</h3>
       <p class="text-muted">Включение автоматического и ручного режимов, выбор способов связи и состава регистрационных данных.</p>

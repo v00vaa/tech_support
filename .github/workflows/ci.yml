@@ -107,6 +107,7 @@ jobs:
   docker:
     name: Docker build
     needs: [lint, typing, security, tests]
+    if: ${{ needs.lint.result == 'success' && needs.typing.result == 'success' && needs.security.result == 'success' && needs.tests.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
