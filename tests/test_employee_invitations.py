@@ -178,7 +178,6 @@ def test_invitation_is_not_sent_when_employee_email_already_exists(
     assert "Сотрудник с таким email уже существует.".encode() in response.data
 
 
-
 def test_failed_email_delivery_revokes_the_created_invitation(
     app,
     admin_client,
