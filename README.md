@@ -7,6 +7,7 @@
 - Python 3.12+, Flask 3, Flask-Login, Flask-WTF;
 - SQLAlchemy 2, Flask-Migrate и Alembic;
 - PostgreSQL 16, Redis для shared rate limiting в production;
+- Ollama для локальной классификации сообщений (модель по умолчанию `qwen2.5:3b`);
 - pytest, pytest-cov, Ruff, mypy, Bandit и pip-audit;
 - Docker Compose и GitHub Actions.
 
@@ -47,6 +48,8 @@ wsgi.py         # WSGI entrypoint
 - восстановление пароля клиента через подписанную ссылку и SMTP;
 - отправка приглашений сотрудников через SMTP; приглашения действуют 72 часа, могут быть отозваны и принимаются только один раз;
 - интеграционный адаптер регистрации из основной системы;
+- настройки словаря запрещённых слов и примеров некорректных сообщений;
+- настраиваемое подключение к Ollama и редактируемые промты для классификации;
 - worker для автоматической маршрутизации и ежедневного применения срока хранения закрытых обращений.
 
 ## Быстрый запуск через Docker Compose
@@ -63,7 +66,7 @@ Copy-Item .env.example .env
 docker compose up --build -d
 ```
 
-Compose поднимает PostgreSQL, Redis, одноразовый сервис миграций, Flask/Gunicorn и отдельный worker. Приложение доступно по адресу http://localhost:5000. PostgreSQL использует именованный volume, вложения хранятся отдельно в приватном volume `support_uploads`.
+Compose поднимает PostgreSQL, Redis, Ollama, одноразовый сервис загрузки модели, сервис миграций, Flask/Gunicorn и отдельный worker. Приложение доступно по адресу http://localhost:5000, Ollama API — по адресу http://localhost:11434. При первом запуске сервис `ollama-model` загружает модель из `SUPPORT_OLLAMA_MODEL` (по умолчанию `qwen2.5:3b`); загрузка может занять время и потребовать несколько гигабайт диска. Данные Ollama сохраняются в volume `ollama_data`. PostgreSQL использует именованный volume, вложения хранятся отдельно в приватном volume `support_uploads`.
 
 Создайте первоначальные системные роли и администратора:
 
