@@ -927,6 +927,7 @@ def accept_employee_invitation_route(token: str) -> ResponseReturnValue:
 
     form = EmployeeInvitationAcceptForm()
     if form.validate_on_submit():
+        assert form.password.data is not None
         try:
             employee = accept_employee_invitation(token, form.password.data)
         except InvalidEmployeeInvitation:
