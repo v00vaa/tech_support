@@ -1,6 +1,6 @@
 """Browser routes split into compact entity blueprints."""
 
-import mimetypes
+import io
 import re
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -8,6 +8,7 @@ from functools import wraps
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
+from zipfile import BadZipFile, ZipFile
 
 from flask import (
     Blueprint,
@@ -118,6 +119,69 @@ _ALLOWED_ATTACHMENT_EXTENSIONS = {
 }
 _MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024
 _MAX_ATTACHMENTS_PER_MESSAGE = 5
+_OLE_SIGNATURE = bytes.fromhex("D0CF11E0A1B11AE1")
+_PNG_SIGNATURE = bytes.fromhex("89504E470D0A1A0A")
+
+
+def _detect_attachment_content_type(filename: str, content: bytes) -> str:
+    """Validate file bytes against the allowed extension and return a trusted MIME type."""
+    extension = Path(filename).suffix.lower().removeprefix(".")
+
+    if extension in {"jpg", "jpeg"} and content.startswith(bytes.fromhex("FFD8FF")):
+        return "image/jpeg"
+    if extension == "png" and content.startswith(_PNG_SIGNATURE):
+        return "image/png"
+    if extension == "gif" and content[:6] in {b"GIF87a", b"GIF89a"}:
+        return "image/gif"
+    if (
+        extension == "webp"
+        and len(content) >= 12
+        and content[:4] == b"RIFF"
+        and content[8:12] == b"WEBP"
+    ):
+        return "image/webp"
+    if extension == "pdf" and content.startswith(b"%PDF-"):
+        return "application/pdf"
+    if extension in {"doc", "xls"} and content.startswith(_OLE_SIGNATURE):
+        return (
+            "application/msword"
+            if extension == "doc"
+            else "application/vnd.ms-excel"
+        )
+
+    if extension in {"zip", "docx", "xlsx"}:
+        try:
+            with ZipFile(io.BytesIO(content)) as archive:
+                names = set(archive.namelist())
+        except (BadZipFile, OSError):
+            names = set()
+
+        if extension == "zip" and names:
+            return "application/zip"
+        if extension == "docx" and {
+            "[Content_Types].xml",
+            "word/document.xml",
+        }.issubset(names):
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if extension == "xlsx" and {
+            "[Content_Types].xml",
+            "xl/workbook.xml",
+        }.issubset(names):
+            return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+
+    if extension in {"txt", "csv"}:
+        try:
+            text = content.decode("utf-8-sig")
+        except UnicodeDecodeError:
+            text = ""
+        else:
+            if text and not any(
+                ord(character) < 32 and character not in "\\t\\n\\r"
+                for character in text
+            ):
+                return "text/csv" if extension == "csv" else "text/plain"
+
+    raise ValueError("Содержимое файла не соответствует его расширению.")
 
 
 def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Path]:
@@ -140,7 +204,9 @@ def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Pat
         upload.stream.seek(0)
         if size_bytes <= 0 or size_bytes > _MAX_ATTACHMENT_SIZE:
             raise ValueError("Размер каждого файла должен быть от 1 байта до 10 МБ.")
-        content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
+        content = upload.stream.read()
+        upload.stream.seek(0)
+        content_type = _detect_attachment_content_type(filename, content)
         prepared.append((upload, filename, suffix, size_bytes, content_type))
 
     storage_dir = Path(current_app.instance_path) / "uploads"
