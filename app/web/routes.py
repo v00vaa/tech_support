@@ -143,11 +143,7 @@ def _detect_attachment_content_type(filename: str, content: bytes) -> str:
     if extension == "pdf" and content.startswith(b"%PDF-"):
         return "application/pdf"
     if extension in {"doc", "xls"} and content.startswith(_OLE_SIGNATURE):
-        return (
-            "application/msword"
-            if extension == "doc"
-            else "application/vnd.ms-excel"
-        )
+        return "application/msword" if extension == "doc" else "application/vnd.ms-excel"
 
     if extension in {"zip", "docx", "xlsx"}:
         try:
@@ -175,10 +171,7 @@ def _detect_attachment_content_type(filename: str, content: bytes) -> str:
         except UnicodeDecodeError:
             text = ""
         else:
-            if text and not any(
-                ord(character) < 32 and character not in "\\t\\n\\r"
-                for character in text
-            ):
+            if text and not any(ord(character) < 32 and character not in "\\t\\n\\r" for character in text):
                 return "text/csv" if extension == "csv" else "text/plain"
 
     raise ValueError("Содержимое файла не соответствует его расширению.")
