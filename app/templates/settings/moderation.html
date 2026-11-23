@@ -9,6 +9,16 @@
     <p class="text-muted">Списки сохраняются в БД. Каждый элемент указывается с новой строки.</p>
     <form method="post" class="card"><div class="card-body">
       {{ form.hidden_tag() }}
+      <div class="form-check form-switch mb-3">
+        {{ form.blocked_words_enabled(class_="form-check-input", role="switch") }}
+        {{ form.blocked_words_enabled.label(class_="form-check-label fw-semibold") }}
+        <div class="form-text">Если выключить, список ниже останется сохранённым, но не будет проверяться.</div>
+      </div>
+      <div class="form-check form-switch mb-4">
+        {{ form.classifier_enabled(class_="form-check-input", role="switch") }}
+        {{ form.classifier_enabled.label(class_="form-check-label fw-semibold") }}
+        <div class="form-text">Для работы классификатора также должна быть включена модель Ollama на вкладке AI.</div>
+      </div>
       <div class="mb-4">
         {{ form.blocked_words.label(class_="form-label fw-semibold") }}
         {{ form.blocked_words(class_="form-control font-monospace", rows="10", placeholder="слово\nзапрещённая фраза") }}
@@ -23,7 +33,7 @@
       </div>
       {{ form.submit(class_="btn btn-primary") }}
     </div></form>
-    <div class="alert alert-info mt-3 mb-0">Настройки и сервис проверки словаря подготовлены. Автоматическое отклонение сообщений и классификация при отправке будут подключены отдельным этапом.</div>
+    <div class="alert alert-info mt-3 mb-0">Фильтр и классификатор применяются к новым обращениям и ответам клиентов. При недоступности Ollama сообщение принимается без AI-проверки; словарный фильтр продолжает работать независимо.</div>
   </section>
 </div>
 {% endblock %}
