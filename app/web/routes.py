@@ -2343,7 +2343,7 @@ def moderation_events() -> ResponseReturnValue:
         .limit(100)
     ).all()
     client_ids = {event.client_id for event in events if event.client_id is not None}
-    clients = {}
+    clients: dict[int, Client] = {}
     if client_ids:
         clients = {
             client.id: client
