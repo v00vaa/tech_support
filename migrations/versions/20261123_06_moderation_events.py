@@ -55,9 +55,11 @@ def upgrade() -> None:
     op.create_index("ix_moderation_events_client_id", "moderation_events", ["client_id"])
     op.create_index("ix_moderation_events_dialog_id", "moderation_events", ["dialog_id"])
     op.create_index("ix_moderation_events_review_status", "moderation_events", ["review_status"])
+    op.create_index("ix_moderation_events_created_at", "moderation_events", ["created_at"])
 
 
 def downgrade() -> None:
+    op.drop_index("ix_moderation_events_created_at", table_name="moderation_events")
     op.drop_index("ix_moderation_events_review_status", table_name="moderation_events")
     op.drop_index("ix_moderation_events_dialog_id", table_name="moderation_events")
     op.drop_index("ix_moderation_events_client_id", table_name="moderation_events")
