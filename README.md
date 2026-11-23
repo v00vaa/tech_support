@@ -1,80 +1,142 @@
-# Support System
+# Support Desk
 
-Базовый каркас системы технической поддержки на Flask. Это **модульный монолит**:
-контексты развиваются в одном развёртываемом приложении, но не зависят от деталей
-друг друга и могут быть выделены в сервисы позже.
+Веб-система технической поддержки на Flask. Проект реализован как модульный монолит: веб-интерфейс, служебный JSON API, доменные сервисы и persistence-модели находятся в одном приложении и используют общую PostgreSQL БД.
 
-## Стек
+## Технологии
 
-- Python 3.12, Flask, Pydantic Settings;
-- SQLAlchemy 2.x, Alembic и отдельная PostgreSQL БД;
-- pytest/pytest-cov, Ruff, mypy, Bandit и pip-audit;
+- Python 3.12+, Flask 3, Flask-Login, Flask-WTF;
+- SQLAlchemy 2, Flask-Migrate и Alembic;
+- PostgreSQL 16, Redis для shared rate limiting в production;
+- pytest, pytest-cov, Ruff, mypy, Bandit и pip-audit;
 - Docker Compose и GitHub Actions.
 
-Зависимости описаны в `pyproject.toml` по стандарту PEP 621. Для локальной работы
-используется `pip`: `pip install -e ".[dev]"`. Это намеренно простой и переносимый
-вариант; lock-файл можно добавить при выборе корпоративного зеркала пакетов.
+## Структура проекта
 
-## Слои и границы
-
-Каждый контекст в `app/modules/` содержит:
-
-- `domain` — сущности, value objects, доменные события и интерфейсы портов. Здесь
-  запрещены импорты Flask, SQLAlchemy, Redis, Celery и SDK внешних каналов.
-- `application` — сценарии использования, команды/запросы и оркестрация домена.
-- `infrastructure` — реализации портов: SQLAlchemy-репозитории, клиенты основной
-  корпоративной БД, Telegram/VK/API-адаптеры.
-
-`app/api` — единственный HTTP transport. Он вызывает application-слой, а
-`app/infrastructure` содержит общие технические адаптеры. Никакой общий доступ к
-ORM-моделям между контекстами не предполагается; взаимодействие строится через
-application-порты и события. Корпоративная БД подключается будущим адаптером только
-для чтения/синхронизации и не смешивается с БД поддержки.
-
-Созданные контексты: authentication, clients, employees, dialogs, messages,
-attachments, internal_notes, integrations и channels. Последние два заранее
-выделяют границы для Web, Telegram, VK, внешнего API и виджета.
-
-## Запуск
-
-```bash
-copy .env.example .env
-docker compose up --build
+```text
+app/
+  api/          # версионированный JSON API (/api/v1)
+  core/         # конфигурация, обработчики ошибок, CLI-команды
+  models/       # SQLAlchemy-модели и связи
+  services/     # бизнес-операции, маршрутизация, доступ, вложения
+  web/          # Flask blueprints, формы и HTTP-маршруты
+  templates/    # Jinja2-шаблоны интерфейса
+  static/       # статические ресурсы
+migrations/     # Alembic-миграции
+tests/
+  unit/
+  api/
+  integration/
+  e2e/
+docs/           # API, интеграционные контракты и RBAC
+wsgi.py         # WSGI entrypoint
 ```
 
-Проверка живости: `GET http://localhost:8000/api/v1/health/live`.
-Проверка готовности БД: `GET http://localhost:8000/api/v1/health/ready`.
+Слои организованы по фактическим каталогам `app/models`, `app/services`, `app/web` и `app/api`; каталоги `app/modules` и `app/infrastructure` не используются.
 
-После первого запуска примените миграции (`flask db upgrade`) и выполните
-`flask bootstrap`. Команда создаёт системные роли и первоначальную учетную
-запись администратора; временный пароль вводится интерактивно и не хранится
-в `.env`. При первом входе система потребует его сменить.
+## Возможности
 
-## Режимы конфигурации
+- клиентский личный кабинет и создание обращений;
+- очередь обращений по основной роли первого уровня;
+- захват обращения сотрудником и маршрутизация по настроенным правилам;
+- разграничение прав по ролям и объектной области доступа;
+- публичные сообщения, внутренние заметки и приватные вложения;
+- soft-delete сообщений и физическое удаление вложений после удаления обращения;
+- JSON API для сотрудников с RBAC и проверкой доступа к объектам;
+- восстановление пароля клиента через подписанную ссылку и SMTP;
+- интеграционный адаптер регистрации из основной системы;
+- worker для автоматической маршрутизации и ежедневного применения срока хранения закрытых обращений.
 
-Переменные конфигурации имеют префикс `SUPPORT_`; `.env` исключён из Git, а
-`.env.example` содержит только локальные, не секретные значения. Доступны режимы
-`development`, `testing` и `production`. В production Flask debug запрещён
-валидацией настроек. Тесты передают отдельный SQLite URL в памяти, а Docker Compose
-использует именованный volume `tech_support_postgres_data`, который не связан с
-какой-либо корпоративной или production БД.
+## Быстрый запуск через Docker Compose
 
-## Разработка и миграции
+Скопируйте пример конфигурации:
 
-```bash
+```powershell
+Copy-Item .env.example .env
+```
+
+Запустите сервисы:
+
+```powershell
+docker compose up --build -d
+```
+
+Compose поднимает PostgreSQL, Redis, одноразовый сервис миграций, Flask/Gunicorn и отдельный worker. Приложение доступно по адресу http://localhost:5000. PostgreSQL использует именованный volume, вложения хранятся отдельно в приватном volume `support_uploads`.
+
+Создайте первоначальные системные роли и администратора:
+
+```powershell
+docker compose exec app flask bootstrap
+```
+
+Команда запросит email и временный пароль администратора. При первом входе система потребует сменить пароль.
+
+Проверки состояния:
+- `GET /api/v1/health/live` — процесс приложения;
+- `GET /api/v1/health/ready` — готовность подключения к БД.
+
+Остановка:
+
+```powershell
+docker compose down
+```
+
+Для удаления также данных БД и загруженных файлов потребуется отдельное явное удаление volumes; обычный `docker compose down` сохраняет их.
+
+## Локальная разработка
+
+Требуется Python 3.12 или новее и доступная PostgreSQL. Установите проект с инструментами разработки:
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 pip install -e ".[dev]"
-alembic revision --autogenerate -m "describe change"
+Copy-Item .env.example .env
+```
+
+Настройте `SUPPORT_DATABASE_URL` в `.env`, затем примените миграции и запустите приложение:
+
+```powershell
 alembic upgrade head
+flask --app wsgi:app bootstrap
+flask --app wsgi:app run
+```
+
+Все переменные окружения имеют префикс `SUPPORT_`. Основные режимы: `development`, `testing`, `production`. Production-конфигурация требует HTTPS, уникальный секрет, Redis для rate limiting, HTTP-интеграцию регистрации и настроенный SMTP.
+
+## Worker и срок хранения
+
+Отдельный Compose-сервис `worker` обрабатывает автоматическую передачу обращений. Он также ежедневно запускает очистку закрытых обращений согласно общей настройке **«Срок хранения закрытых обращений»**. Значение **«Никогда»** установлено по умолчанию и отключает автоматическое удаление. Доступные сроки: 30, 90, 180 и 365 дней.
+
+Ручные команды:
+
+```powershell
+flask --app wsgi:app cleanup-expired-dialogs --limit 100
+flask --app wsgi:app cleanup-orphaned-attachments --min-age-hours 24
+```
+
+Первая команда применяет настроенный срок хранения. Вторая удаляет только файлы, на которые не ссылается БД и которые старше защитного интервала.
+
+## Тесты и проверки качества
+
+```powershell
 ruff check app tests
+ruff format --check app tests
 mypy app
 bandit -c pyproject.toml -r app
 pip-audit
 pytest
 ```
 
-Alembic смотрит исключительно на SQLAlchemy metadata инфраструктурного слоя. До
-появления первых persistence-моделей миграций нет — это ожидаемое состояние каркаса.
-При `docker compose up` отдельный одноразовый сервис `migrate` запускает `alembic
-upgrade head` только после healthcheck PostgreSQL; Flask стартует лишь после его
-успешного завершения. CI в `.github/workflows/ci.yml` запускает проверки кода, а
-`.github/workflows/docker.yml` проверяет сборку image на push и pull request.
+Для PostgreSQL integration-тестов задайте отдельную тестовую БД через `SUPPORT_TEST_POSTGRES_URL`. Не используйте production БД для тестов.
+
+GitHub Actions запускает Ruff, Mypy, security checks и тесты/миграции параллельно. Сборка Docker image в CI зависит от успешного завершения всех четырёх проверок.
+
+## Документация
+
+- [JSON API v1](docs/api.md)
+- [Интеграция регистрации с основной системой](docs/registration-integration.md)
+- [Аутентификация клиентов](docs/client-authentication.md)
+- [Права и роли](docs/role-permissions.md)
+- [Маршрутизация обращений](docs/role-routing.md)
+
