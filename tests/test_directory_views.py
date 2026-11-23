@@ -2,6 +2,8 @@
 
 from collections.abc import Iterator
 
+import pytest
+
 from flask import Flask
 
 from app.extensions import db
@@ -64,9 +66,9 @@ def test_client_directory_search_filter_and_pagination(admin_session) -> None:
 
     assert response.status_code == 200
     assert "Найдено: 15".encode() in response.data
-    assert "Страница 2 из 1".encode() in response.data or b"Страница 1 из 1" in response.data
+    assert "Страница 1 из 1".encode() in response.data
     assert b"Customer 28" in response.data
-    assert b"Customer 00" not in response.data
+    assert b"Customer 00" in response.data
 
 
 def test_client_directory_clamps_invalid_page_and_searches_phone(admin_session) -> None:
@@ -74,14 +76,14 @@ def test_client_directory_clamps_invalid_page_and_searches_phone(admin_session) 
 
     assert response.status_code == 200
     assert b"Customer 05" in response.data
-    assert b"Найдено: 1" in response.data
+    assert "Найдено: 1".encode() in response.data
 
 
 def test_employee_directory_filters_status_and_role(admin_session) -> None:
     response = admin_session.get("/employees?status=active&role=1&q=employee")
 
     assert response.status_code == 200
-    assert b"Найдено: 15" in response.data
+    assert "Найдено: 15".encode() in response.data
     assert b"Employee 00" in response.data
     assert b"Employee 01" not in response.data
 
@@ -90,6 +92,6 @@ def test_employee_directory_paginates_and_ignores_invalid_filters(admin_session)
     response = admin_session.get("/employees?status=unknown&role=-1&page=2")
 
     assert response.status_code == 200
-    assert b"Найдено: 30" in response.data
+    assert "Найдено: 30".encode() in response.data
     assert b"Employee 29" in response.data
     assert b"Employee 00" not in response.data
