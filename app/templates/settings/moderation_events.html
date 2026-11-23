@@ -38,7 +38,7 @@
               {% if event.source == 'blocked_words' %}Словарь запрещённых слов{% elif event.source == 'classifier' %}AI-классификатор{% else %}{{ event.source }}{% endif %}
             </div>
             <div class="col-md-4"><span class="text-muted">Обращение:</span>
-              {% if event.dialog_id %}<a href="{{ url_for('dialogs.detail', dialog_id=event.dialog_id) }}">#{{ event.dialog_id }}</a>{% else %}Новое обращение{% endif %}
+              {% if event.dialog_id %}#{{ event.dialog_id }}{% else %}Новое обращение{% endif %}
             </div>
           </div>
           <div class="mb-2"><strong>Текст сообщения</strong></div>
