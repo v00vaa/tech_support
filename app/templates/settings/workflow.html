@@ -1,0 +1,93 @@
+{% extends "layout.html" %}
+{% block title %}Рабочие процессы · Support Desk{% endblock %}
+{% block content %}
+<div class="row g-4">
+  {% set active_settings_section = 'workflow' %}
+  {% include "components/_settings_navigation.html" %}
+
+  <section class="col-md-9 col-lg-10">
+    <h2 class="h3">Рабочие процессы</h2>
+    <p class="text-muted">Настройте передачу обращений между основными ролями и автоматическую эскалацию по времени.</p>
+
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">Как проходит обращение</div>
+      <div class="card-body">
+        <ol class="mb-0">
+          <li>Новое обращение клиента поступает в очередь роли первого уровня.</li>
+          <li>Сотрудник может передать его только по настроенному направлению.</li>
+          <li>Маршрут по умолчанию может автоматически передать обращение после заданного времени ожидания.</li>
+          <li>После передачи обращение переходит в очередь целевой роли без прежнего ответственного.</li>
+        </ol>
+        <p class="small text-muted mt-3 mb-0">Статусы и допустимые переходы между ними остаются доменными правилами приложения. На этой странице настраиваются именно переходы между очередями.</p>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header fw-semibold">Новое правило маршрутизации</div>
+      <div class="card-body">
+        {% if roles|length < 2 %}
+        <p class="text-muted mb-0">Для настройки маршрутов нужны как минимум две активные основные роли, кроме администратора.</p>
+        {% else %}
+        <form method="post">
+          {{ form.hidden_tag() }}
+          <div class="row g-3">
+            <div class="col-md-4">
+              {{ form.source_role_id.label(class_="form-label") }}
+              {{ form.source_role_id(class_="form-select") }}
+              {% for error in form.source_role_id.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+              {{ form.target_role_id.label(class_="form-label") }}
+              {{ form.target_role_id(class_="form-select") }}
+              {% for error in form.target_role_id.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-md-4">
+              {{ form.auto_forward_after_minutes.label(class_="form-label") }}
+              {{ form.auto_forward_after_minutes(class_="form-control", placeholder="Например, 30") }}
+              <div class="form-text">Оставьте пустым, чтобы отключить автоматическую передачу.</div>
+              {% for error in form.auto_forward_after_minutes.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+            </div>
+            <div class="col-12">
+              <div class="form-check">
+                {{ form.is_default(class_="form-check-input") }}
+                {{ form.is_default.label(class_="form-check-label") }}
+              </div>
+              <div class="form-text">У одной исходной роли может быть только один маршрут по умолчанию. Автопередача разрешена только для него.</div>
+            </div>
+          </div>
+          {% for error in form.errors.get('csrf_token', []) %}<div class="text-danger small mt-2">{{ error }}</div>{% endfor %}
+          <div class="mt-3">{{ form.submit(class_="btn btn-primary") }}</div>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header fw-semibold">Настроенные направления</div>
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead><tr><th>Из роли</th><th>В роль</th><th>По умолчанию</th><th>Автопередача</th><th></th></tr></thead>
+          <tbody>
+            {% for route in routes %}
+            <tr>
+              <td>{{ route.source_role.name }}</td>
+              <td>{{ route.target_role.name }}</td>
+              <td>{% if route.is_default %}<span class="badge text-bg-success">Да</span>{% else %}Нет{% endif %}</td>
+              <td>{{ route.auto_forward_after_minutes ~ ' мин.' if route.auto_forward_after_minutes else 'Отключена' }}</td>
+              <td class="text-end">
+                <form method="post" action="{{ url_for('settings.workflow_route_delete', route_id=route.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button class="btn btn-sm btn-outline-danger" type="submit">Удалить</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">Правила маршрутизации пока не настроены.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
