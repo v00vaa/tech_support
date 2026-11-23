@@ -10,6 +10,7 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
+from app.services.attachment_storage_service import remove_orphaned_attachment_files
 from app.services.rbac_service import ensure_rbac_catalogue
 from app.services.routing_service import process_due_auto_forwards
 
@@ -67,6 +68,18 @@ def register_commands(app: Flask) -> None:
         click.echo("RBAC настроен. Учетная запись администратора готова.")
         if is_first_administrator:
             click.echo("При первом входе потребуется сменить временный пароль.")
+
+    @app.cli.command("cleanup-orphaned-attachments")
+    @click.option(
+        "--min-age-hours",
+        default=24,
+        show_default=True,
+        type=click.IntRange(min=1),
+    )
+    def cleanup_orphaned_attachments(min_age_hours: int) -> None:
+        """Remove unreferenced attachment files older than the safety grace period."""
+        count = remove_orphaned_attachment_files(min_age_hours)
+        click.echo(f"Удалено осиротевших файлов: {count}")
 
     @app.cli.command("process-auto-forwards")
     def process_auto_forwards_command() -> None:
