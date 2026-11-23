@@ -42,6 +42,7 @@ from app.models import (
 )
 from app.services import client_service, dialog_service, employee_service, message_service
 from app.services.access_control_service import (
+    can_access_dialog,
     can_delegate_permissions,
     has_permission,
     is_active_administrator,
@@ -885,6 +886,8 @@ def dialog_list() -> ResponseReturnValue:
 @permission_required("dialogs.view")
 def dialog_detail(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
     message_form, status_form, assign_form = MessageForm(), StatusForm(), AssignForm()
     status_form.status.data = dialog.status.value
     assign_form.responsible_employee_id.data = dialog.responsible_employee_id or 0
@@ -1020,6 +1023,8 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.manage")
 def dialog_edit(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
     form = DialogEditForm(obj=dialog)
     _dialog_edit_form(form)
     if form.validate_on_submit():
@@ -1041,7 +1046,10 @@ def dialog_edit(dialog_id: int) -> ResponseReturnValue:
 @login_required
 @permission_required("dialogs.manage")
 def dialog_delete(dialog_id: int) -> ResponseReturnValue:
-    dialog_service.delete_dialog(db.get_or_404(Dialog, dialog_id))
+    dialog = db.get_or_404(Dialog, dialog_id)
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
+    dialog_service.delete_dialog(dialog)
     flash("Диалог удален.", "info")
     return redirect(url_for("dialogs.dialog_list"))
 
@@ -1051,6 +1059,8 @@ def dialog_delete(dialog_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.change_status")
 def dialog_status(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), StatusForm()
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
     if form.validate_on_submit():
         try:
             previous_status = dialog.status
@@ -1080,6 +1090,10 @@ def dialog_status(dialog_id: int) -> ResponseReturnValue:
 @login_required
 def dialog_route(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
+    if not can_access_dialog(current_user, dialog) or not has_permission(
+        current_user, "dialogs.route_to_role"
+    ):
+        abort(403)
     form = DialogRouteForm()
     assigned_role = dialog.assigned_role
     if assigned_role is None:
@@ -1107,6 +1121,8 @@ def dialog_route(dialog_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.transfer")
 def dialog_assign(dialog_id: int) -> ResponseReturnValue:
     dialog, form = db.get_or_404(Dialog, dialog_id), AssignForm()
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
     _assign_form(form)
     if form.validate_on_submit():
         employee_id = form.responsible_employee_id.data or None
@@ -1138,6 +1154,8 @@ def dialog_assign(dialog_id: int) -> ResponseReturnValue:
 def dialog_claim(dialog_id: int) -> ResponseReturnValue:
     """Atomically claim an unassigned dialog from one of the employee's own role queues."""
     dialog = db.get_or_404(Dialog, dialog_id)
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
     role_ids = [
         role.id
         for role in current_user.roles
@@ -1156,6 +1174,8 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
 @login_required
 def message_create(dialog_id: int) -> ResponseReturnValue:
     dialog = db.get_or_404(Dialog, dialog_id)
+    if not can_access_dialog(current_user, dialog):
+        abort(403)
     form = MessageForm()
     if form.validate_on_submit():
         assert form.text.data is not None
@@ -1211,7 +1231,7 @@ def attachment_download(attachment_id: int) -> ResponseReturnValue:
         if message.is_internal or message.dialog.client_id != user.id:
             abort(404)
     else:
-        if not has_permission(current_user, "dialogs.view"):
+        if not can_access_dialog(current_user, message.dialog):
             abort(403)
         if message.is_internal and not has_permission(current_user, "dialogs.add_internal_note"):
             abort(403)
@@ -1239,6 +1259,8 @@ def attachment_download(attachment_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.manage")
 def message_edit(message_id: int) -> ResponseReturnValue:
     message = db.get_or_404(Message, message_id)
+    if not can_access_dialog(current_user, message.dialog):
+        abort(403)
     form = MessageForm(obj=message)
     if form.validate_on_submit():
         assert form.text.data is not None
@@ -1254,6 +1276,8 @@ def message_edit(message_id: int) -> ResponseReturnValue:
 @permission_required("dialogs.manage")
 def message_delete(message_id: int) -> ResponseReturnValue:
     message = db.get_or_404(Message, message_id)
+    if not can_access_dialog(current_user, message.dialog):
+        abort(403)
     dialog_id = message.dialog_id
     message_service.delete_message(message)
     flash("Сообщение скрыто из истории.", "info")
