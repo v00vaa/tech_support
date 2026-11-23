@@ -939,7 +939,12 @@ def accept_employee_invitation_route(token: str) -> ResponseReturnValue:
             flash("Учётная запись создана. Добро пожаловать в Support Desk!", "success")
             return redirect(url_for("main.index"))
 
-    return render_template("auth/accept_employee_invitation.html", form=form, invitation=invitation)
+    response = make_response(
+        render_template("auth/accept_employee_invitation.html", form=form, invitation=invitation)
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["Referrer-Policy"] = "no-referrer"
+    return response
 
 
 @employees_bp.route("/invitations", methods=["GET", "POST"])
@@ -980,6 +985,9 @@ def employee_invitations() -> ResponseReturnValue:
         except EmployeeInvitationConflict as error:
             db.session.rollback()
             form.email.errors = [*form.email.errors, str(error)]
+        except ValueError as error:
+            db.session.rollback()
+            form.role_id.errors = [*form.role_id.errors, str(error)]
 
     invitations = db.session.scalars(
         db.select(EmployeeInvitation)
@@ -995,7 +1003,6 @@ def employee_invitations() -> ResponseReturnValue:
         "employees/invitations.html",
         form=form,
         invitations=invitations,
-        now=datetime.now(UTC),
     )
 
 
