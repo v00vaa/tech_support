@@ -204,6 +204,8 @@ class WorkflowRouteForm(FlaskForm):
 
 
 class ModerationSettingsForm(FlaskForm):
+    blocked_words_enabled = BooleanField("Включить фильтр запрещённых слов")
+    classifier_enabled = BooleanField("Включить классификатор некорректных сообщений")
     blocked_words = TextAreaField(
         "Запрещённые слова и фразы",
         validators=[Optional(), Length(max=50000)],
@@ -216,6 +218,7 @@ class ModerationSettingsForm(FlaskForm):
 
 
 class OllamaSettingsForm(FlaskForm):
+    ollama_enabled = BooleanField("Разрешить использование модели Ollama")
     ollama_base_url = StringField(
         "Адрес Ollama API",
         validators=[DataRequired(), Length(max=255)],
