@@ -13,3 +13,4 @@ build/
 get.ps1
 # Local database backups must not be committed.
 support_before_alembic_reset.sql
+backups/
