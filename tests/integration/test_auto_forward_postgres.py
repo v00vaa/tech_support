@@ -17,9 +17,9 @@ from sqlalchemy.engine import make_url
 from app import create_app
 from app.core.config import Settings
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, DialogStatus, Message, Role
+from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message, Role
 from app.models.role_route import RoleRoute
-from app.services.routing_service import process_due_auto_forwards
+from app.services import dialog_service\nfrom app.services.routing_service import process_due_auto_forwards
 
 
 @pytest.fixture
@@ -170,3 +170,77 @@ def test_failed_commit_rolls_back_forward_and_event(postgres_app: Flask) -> None
             assert dialog.assigned_role_id == target_id
     finally:
         _cleanup(postgres_app, dialog_ids, source_id, target_id, customer_id)
+
+
+
+def test_parallel_employees_only_one_can_claim_dialog(postgres_app: Flask) -> None:
+    """PostgreSQL row locking must allow exactly one employee to claim a queue item."""
+    suffix = uuid4().hex
+    with postgres_app.app_context():
+        role = Role(code=f"claim_role_{suffix}", name="Claim queue")
+        customer = Client(name="Claim test", email=f"claim-{suffix}@example.test")
+        first = Employee(
+            name="First employee",
+            email=f"first-{suffix}@example.test",
+            password_hash="unused-test-hash",
+        )
+        second = Employee(
+            name="Second employee",
+            email=f"second-{suffix}@example.test",
+            password_hash="unused-test-hash",
+        )
+        first.roles.append(role)
+        second.roles.append(role)
+        db.session.add_all([customer, first, second])
+        db.session.flush()
+        dialog = Dialog(
+            client_id=customer.id,
+            assigned_role_id=role.id,
+            subject="Concurrent claim",
+            status=DialogStatus.OPEN,
+            role_assigned_at=datetime.now(UTC),
+        )
+        db.session.add(dialog)
+        db.session.commit()
+        dialog_id = dialog.id
+        role_id = role.id
+        customer_id = customer.id
+        employee_ids = [first.id, second.id]
+
+    barrier = Barrier(2)
+
+    def claim(employee_id: int) -> bool:
+        with postgres_app.app_context():
+            barrier.wait(timeout=15)
+            return dialog_service.claim_dialog(dialog_id, employee_id, [role_id])
+
+    try:
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = [executor.submit(claim, employee_id) for employee_id in employee_ids]
+            results = [future.result(timeout=30) for future in futures]
+
+        assert sorted(results) == [False, True]
+
+        with postgres_app.app_context():
+            claimed = db.session.get(Dialog, dialog_id)
+            assert claimed is not None
+            assert claimed.responsible_employee_id in employee_ids
+            assert claimed.status == DialogStatus.IN_PROGRESS
+            assert (
+                db.session.scalar(
+                    db.select(func.count(Message.id)).where(
+                        Message.dialog_id == dialog_id,
+                        Message.author_type == AuthorType.SYSTEM,
+                        Message.text == "Обращение взял в работу сотрудник.",
+                    )
+                )
+                == 1
+            )
+    finally:
+        with postgres_app.app_context():
+            db.session.execute(delete(Message).where(Message.dialog_id == dialog_id))
+            db.session.execute(delete(Dialog).where(Dialog.id == dialog_id))
+            db.session.execute(delete(Client).where(Client.id == customer_id))
+            db.session.execute(delete(Employee).where(Employee.id.in_(employee_ids)))
+            db.session.execute(delete(Role).where(Role.id == role_id))
+            db.session.commit()
