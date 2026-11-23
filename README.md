@@ -8,6 +8,7 @@
 - SQLAlchemy 2, Flask-Migrate и Alembic;
 - PostgreSQL 16, Redis для shared rate limiting в production;
 - Ollama для локальной классификации сообщений (модель по умолчанию `qwen2.5:3b`);
+- Ollama для локальной классификации сообщений (модель по умолчанию `qwen2.5:3b`);
 - pytest, pytest-cov, Ruff, mypy, Bandit и pip-audit;
 - Docker Compose и GitHub Actions.
 
