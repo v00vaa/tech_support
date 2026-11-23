@@ -17,7 +17,7 @@ from app.web.routes import _detect_attachment_content_type
         ("photo.webp", b"RIFF" + b"\x00\x00\x00\x00" + b"WEBP" + b"image-data", "image/webp"),
         ("document.pdf", b"%PDF-1.7\nbody", "application/pdf"),
         ("notes.txt", b"Hello, support!\n", "text/plain"),
-        ("table.csv", "name;value\nitem;42\n".encode(), "text/csv"),
+        ("table.csv", b"name;value\nitem;42\n", "text/csv"),
         ("archive.zip", b"PK\x03\x04" + b"archive", "application/zip"),
         (
             "legacy.doc",
