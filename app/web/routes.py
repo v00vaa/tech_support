@@ -25,7 +25,6 @@ from flask import (
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
 from sqlalchemy import func, update
-from sqlalchemy.engine import CursorResult
 
 from app.extensions import db
 from app.models import (
