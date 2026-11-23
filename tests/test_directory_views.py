@@ -2,8 +2,8 @@
 
 from collections.abc import Iterator
 
-from flask import Flask
 import pytest
+from flask import Flask
 
 from app.extensions import db
 from app.models import Client, Employee, Role
