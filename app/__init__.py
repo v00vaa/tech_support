@@ -109,7 +109,7 @@ def create_app(settings: Settings | None = None) -> Flask:
                 "auth.login",
                 "auth.client_register",
                 "auth.client_registration_complete",
-                "auth.accept_employee_invitation",
+                "auth.accept_employee_invitation_route",
                 "auth.logout",
                 "portal.index",
                 "portal.dialog_create",
