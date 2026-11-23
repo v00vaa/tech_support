@@ -60,7 +60,7 @@ from app.services.employee_invitation_service import (
     revoke_employee_invitation,
     send_employee_invitation_email,
 )
-from app.services.moderation_service import normalize_entries
+from app.services.moderation_service import check_message, normalize_entries
 from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.registration_provider import (
     RegistrationProviderError,
@@ -613,6 +613,17 @@ def portal_dialog_create() -> ResponseReturnValue:
 
     form = ClientDialogForm()
     if form.validate_on_submit():
+        blocked_terms = check_message(
+            form.message.data or "",
+            settings.blocked_words if settings is not None else "",
+        )
+        if blocked_terms:
+            form.message.errors = [
+                *form.message.errors,
+                "Сообщение содержит запрещённые слова или фразы.",
+            ]
+            return render_template("portal/dialog_form.html", form=form), 400
+
         first_line_role = db.session.scalar(
             db.select(Role).where(
                 Role.is_first_line.is_(True),
@@ -696,6 +707,15 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         if dialog.status == DialogStatus.CLOSED:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
+            global_settings = db.session.get(GeneralSettings, 1)
+            blocked_terms = check_message(
+                form.text.data or "",
+                global_settings.blocked_words if global_settings is not None else "",
+            )
+            if blocked_terms:
+                flash("Сообщение содержит запрещённые слова или фразы.", "danger")
+                return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+
             dialog.updated_at = datetime.now(UTC)
             message = Message(
                 dialog_id=dialog.id,
