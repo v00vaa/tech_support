@@ -1146,37 +1146,9 @@ def dialog_claim(dialog_id: int) -> ResponseReturnValue:
     ]
     if not role_ids:
         abort(403)
-    result = cast(
-        CursorResult[Any],
-        db.session.execute(
-            update(Dialog)
-            .where(
-                Dialog.id == dialog.id,
-                Dialog.assigned_role_id.in_(role_ids),
-                Dialog.responsible_employee_id.is_(None),
-                Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
-            )
-            .values(
-                responsible_employee_id=current_user.id,
-                status=DialogStatus.IN_PROGRESS,
-                updated_at=datetime.now(UTC),
-            )
-        ),
-    )
-    if result.rowcount != 1:
-        db.session.rollback()
+    if not dialog_service.claim_dialog(dialog.id, current_user.id, role_ids):
         flash("Обращение уже взял другой сотрудник или оно недоступно в вашей очереди.", "warning")
     else:
-        db.session.add(
-            Message(
-                dialog_id=dialog.id,
-                author_type=AuthorType.SYSTEM,
-                author_id=None,
-                text="Обращение взял в работу сотрудник.",
-                is_internal=False,
-            )
-        )
-        db.session.commit()
         flash("Обращение назначено на вас.", "success")
     return redirect(url_for("dialogs.dialog_detail", dialog_id=dialog.id))
 
