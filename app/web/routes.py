@@ -105,6 +105,7 @@ from app.web.forms import (
     RoleRouteForm,
     StatusForm,
     WorkflowRouteForm,
+    WebChannelSettingsForm,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -590,13 +591,22 @@ def portal_index() -> ResponseReturnValue:
         .where(Dialog.client_id == current_user.id)
         .order_by(Dialog.updated_at.desc())
     ).all()
-    return render_template("portal/index.html", dialogs=dialogs)
+    settings = db.session.get(GeneralSettings, 1)
+    web_channel_enabled = settings.web_channel_enabled if settings else True
+    return render_template(
+        "portal/index.html", dialogs=dialogs, web_channel_enabled=web_channel_enabled
+    )
 
 
 @portal_bp.route("/dialogs/new", methods=["GET", "POST"], endpoint="dialog_create")
 @client_required
 def portal_dialog_create() -> ResponseReturnValue:
     """Create a new customer-owned dialog and its first public message."""
+    settings = db.session.get(GeneralSettings, 1)
+    if settings is not None and not settings.web_channel_enabled:
+        flash("Приём новых обращений через веб-кабинет временно отключён.", "warning")
+        return redirect(url_for("portal.index"))
+
     form = ClientDialogForm()
     if form.validate_on_submit():
         first_line_role = db.session.scalar(
@@ -2140,6 +2150,27 @@ def workflow_route_delete(route_id: int) -> ResponseReturnValue:
         db.session.rollback()
         flash(str(error), "danger")
     return redirect(url_for("settings.workflow_editor"))
+
+
+@settings_bp.route("/channels", methods=["GET", "POST"])
+@login_required
+@permission_required("settings.view")
+def channel_settings() -> ResponseReturnValue:
+    """Configure the currently implemented Web intake channel."""
+    settings = _get_general_settings()
+    form = WebChannelSettingsForm()
+    if request.method == "GET":
+        form.web_channel_enabled.data = settings.web_channel_enabled
+
+    if form.validate_on_submit():
+        settings.web_channel_enabled = bool(form.web_channel_enabled.data)
+        db.session.commit()
+        flash("Настройки Web-канала сохранены.", "success")
+        return redirect(url_for("settings.channel_settings"))
+
+    return render_template(
+        "settings/channels.html", form=form, settings=settings, active_settings_section="channels"
+    )
 
 
 @settings_bp.get("/<string:section>")
