@@ -88,7 +88,7 @@ def send_employee_invitation_email(invitation: EmployeeInvitation, token: str) -
     )
     host = current_app.config.get("SMTP_HOST")
     sender = current_app.config.get("SMTP_SENDER")
-    if injected is None and (not host or not sender):
+    if injected is None and (not isinstance(host, str) or not isinstance(sender, str)):
         raise RuntimeError("Employee invitation email delivery is not configured")
 
     invitation_path = url_for("auth.accept_employee_invitation_route", token=token, _external=False)
