@@ -20,3 +20,4 @@ class GeneralSettings(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     closed_dialog_retention_days: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    web_channel_enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
