@@ -2,7 +2,6 @@
 
 from collections.abc import Iterator
 
-import pytest
 from flask import Flask
 
 from app.extensions import db
