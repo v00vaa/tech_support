@@ -82,7 +82,7 @@ def test_workflow_editor_creates_and_deletes_route(app, client, workflow_system)
 
     deleted = client.post(f"/settings/workflow/routes/{route_id}/delete")
     assert deleted.status_code == 302
-    with client.application.app_context():
+    with app.app_context():
         assert db.session.get(RoleRoute, route_id) is None
 
 
@@ -99,7 +99,7 @@ def test_workflow_editor_rejects_self_routing(app, client, workflow_system) -> N
 
     assert response.status_code == 200
     assert "Нельзя направлять роль саму в себя.".encode() in response.data
-    with client.application.app_context():
+    with app.app_context():
         assert db.session.scalar(db.select(RoleRoute)) is None
 
 
