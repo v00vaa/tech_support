@@ -1,6 +1,7 @@
 """Flask CLI commands for database bootstrap and demo data."""
 
-import time
+import signal
+from threading import Event
 
 import click
 from flask import Flask
@@ -83,8 +84,19 @@ def register_commands(app: Flask) -> None:
         app.logger.info(
             "Worker автопередачи запущен: interval=%s batch_size=%s", interval, batch_size
         )
+        stop_event = Event()
+
+        def request_stop(signum: int, frame: object) -> None:
+            del frame
+            app.logger.info("Получен сигнал %s; worker завершит текущий цикл", signum)
+            stop_event.set()
+
+        previous_handlers = {
+            signum: signal.signal(signum, request_stop)
+            for signum in (signal.SIGINT, signal.SIGTERM)
+        }
         try:
-            while True:
+            while not stop_event.is_set():
                 try:
                     count = process_due_auto_forwards(limit=batch_size)
                     if count:
@@ -92,10 +104,11 @@ def register_commands(app: Flask) -> None:
                 except Exception:
                     db.session.rollback()
                     app.logger.exception("Ошибка цикла worker автопередачи")
-                time.sleep(interval)
-        except KeyboardInterrupt:
+                stop_event.wait(interval)
             app.logger.info("Worker автопередачи остановлен")
         finally:
+            for signum, handler in previous_handlers.items():
+                signal.signal(signum, handler)
             db.session.remove()
 
     @app.cli.command("seed")
