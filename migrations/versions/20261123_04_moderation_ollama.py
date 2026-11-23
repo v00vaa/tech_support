@@ -29,7 +29,7 @@ def upgrade() -> None:
             "ollama_base_url",
             sa.String(length=255),
             nullable=False,
-            server_default="http://localhost:11434",
+            server_default="http://ollama:11434",
         ),
     )
     op.add_column(
