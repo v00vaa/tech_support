@@ -58,7 +58,6 @@ def remove_orphaned_attachment_files(min_age_hours: int = 24) -> int:
     return removed
 
 
-
 def cleanup_expired_closed_dialogs(limit: int = 100) -> int:
     """Delete closed dialogs past the configured retention period and their files."""
     if limit < 1:
@@ -103,7 +102,5 @@ def cleanup_expired_closed_dialogs(limit: int = 100) -> int:
             removed += 1
         except Exception:
             db.session.rollback()
-            current_app.logger.exception(
-                "Could not delete expired closed dialog %s", dialog_id
-            )
+            current_app.logger.exception("Could not delete expired closed dialog %s", dialog_id)
     return removed

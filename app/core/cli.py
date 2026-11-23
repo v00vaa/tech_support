@@ -86,7 +86,9 @@ def register_commands(app: Flask) -> None:
         click.echo(f"Удалено осиротевших файлов: {count}")
 
     @app.cli.command("cleanup-expired-dialogs")
-    @click.option("--limit", default=100, show_default=True, type=click.IntRange(min=1, max=1000))
+    @click.option(
+        "--limit", default=100, show_default=True, type=click.IntRange(min=1, max=1000)
+    )
     def cleanup_expired_dialogs_command(limit: int) -> None:
         """Delete closed dialogs and attachments after the configured retention period."""
         count = cleanup_expired_closed_dialogs(limit=limit)
