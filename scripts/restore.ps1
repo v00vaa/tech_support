@@ -28,7 +28,11 @@ if ($manifest.format_version -ne 1) { throw "Неподдерживаемая в
 $actualDumpHash = (Get-FileHash -LiteralPath $dumpPath -Algorithm SHA256).Hash
 if ($actualDumpHash -ne $manifest.database_sha256) { throw "Контрольная сумма database.dump не совпадает." }
 foreach ($file in $manifest.uploads) {
-    $filePath = Join-Path $uploadsPath $file.path
+    $uploadsRoot = [IO.Path]::GetFullPath($uploadsPath) + [IO.Path]::DirectorySeparatorChar
+    $filePath = [IO.Path]::GetFullPath((Join-Path $uploadsPath $file.path))
+    if (-not $filePath.StartsWith($uploadsRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Недопустимый путь вложения в manifest: $($file.path)"
+    }
     if (-not (Test-Path -LiteralPath $filePath -PathType Leaf)) {
         throw "Файл вложения отсутствует в резервной копии: $($file.path)"
     }
@@ -48,6 +52,7 @@ if ($existing -notcontains "app") { throw "Сначала создайте ко�
 $wasAppRunning = $running -contains "app"
 $wasWorkerRunning = $running -contains "worker"
 $dumpContainerPath = "/tmp/support-restore.dump"
+$restoreSucceeded = $false
 
 try {
     # Stop writers before replacing both persistent stores.
@@ -65,10 +70,16 @@ try {
     Invoke-Compose -Arguments @(
         "cp", (Join-Path $uploadsPath "."), "app:/service/instance/uploads"
     )
+    $restoreSucceeded = $true
     Write-Host "Восстановление завершено из: $backupDir"
 }
 finally {
     & docker compose exec -T db rm -f $dumpContainerPath 2>$null
-    if ($wasAppRunning) { Invoke-Compose -Arguments @("start", "app") }
-    if ($wasWorkerRunning) { Invoke-Compose -Arguments @("start", "worker") }
+    if ($restoreSucceeded) {
+        if ($wasAppRunning) { Invoke-Compose -Arguments @("start", "app") }
+        if ($wasWorkerRunning) { Invoke-Compose -Arguments @("start", "worker") }
+    }
+    else {
+        Write-Warning "Восстановление завершилось ошибкой. app и worker оставлены остановленными для проверки БД и файлов."
+    }
 }
