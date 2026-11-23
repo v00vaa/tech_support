@@ -4,21 +4,37 @@ import re
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
-import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.models import Employee, EmployeeInvitation
+from app.models import Employee, EmployeeInvitation, Role
 from app.services.employee_invitation_service import create_employee_invitation
 from app.services.rbac_service import ensure_rbac_catalogue
 
 
+def _new_invitation(admin_id: int, role_id: int, email: str):
+    return create_employee_invitation(
+        email=email,
+        name="New Employee",
+        position="Support specialist",
+        invited_by_employee_id=admin_id,
+        role_id=role_id,
+    )
+
+
+import pytest
+
+
 @pytest.fixture
-def invitation_admin(app: Flask) -> Iterator[int]:
+def invitation_admin(app: Flask) -> Iterator[tuple[int, int]]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
     with app.app_context():
         db.create_all()
         administrator_role, _ = ensure_rbac_catalogue()
+        support_role = db.session.scalar(
+            db.select(Role).where(Role.code == "support_level_1")
+        )
+        assert support_role is not None
         admin = Employee(
             name="Invitation Admin",
             email="invitation-admin@example.com",
@@ -28,8 +44,7 @@ def invitation_admin(app: Flask) -> Iterator[int]:
         )
         db.session.add(admin)
         db.session.commit()
-        admin_id = admin.id
-        yield admin_id
+        yield admin.id, support_role.id
         db.session.remove()
         db.drop_all()
 
@@ -37,7 +52,7 @@ def invitation_admin(app: Flask) -> Iterator[int]:
 @pytest.fixture
 def admin_client(client, invitation_admin):
     with client.session_transaction() as session:
-        session["_user_id"] = f"employee:{invitation_admin}"
+        session["_user_id"] = f"employee:{invitation_admin[0]}"
         session["_fresh"] = True
     return client
 
@@ -54,6 +69,7 @@ def test_admin_can_send_employee_invitation(app, admin_client, invitation_admin)
             "name": "New Specialist",
             "email": "New.Specialist@example.com",
             "position": "Support specialist",
+            "role_id": str(invitation_admin[1]),
         },
         follow_redirects=True,
     )
@@ -71,17 +87,13 @@ def test_admin_can_send_employee_invitation(app, admin_client, invitation_admin)
         )
         assert invitation is not None
         assert token_match.group(1) not in invitation.token_hash
-        assert invitation.invited_by_employee_id == invitation_admin
+        assert invitation.invited_by_employee_id == invitation_admin[0]
+        assert invitation.role_id == invitation_admin[1]
 
 
 def test_employee_invitation_creates_account_once(app, client, invitation_admin) -> None:
     with app.app_context():
-        invitation, token = create_employee_invitation(
-            email="new.employee@example.com",
-            name="New Employee",
-            position="Support specialist",
-            invited_by_employee_id=invitation_admin,
-        )
+        invitation, token = _new_invitation(*invitation_admin, "new.employee@example.com")
 
     response = client.post(
         f"/accept-invitation/{token}",
@@ -100,6 +112,7 @@ def test_employee_invitation_creates_account_once(app, client, invitation_admin)
         assert employee is not None
         assert employee.check_password("a-long-and-strong-password")
         assert employee.is_active
+        assert [role.id for role in employee.roles] == [invitation_admin[1]]
         assert stored_invitation is not None
         assert stored_invitation.accepted_at is not None
 
@@ -109,12 +122,7 @@ def test_employee_invitation_creates_account_once(app, client, invitation_admin)
 
 def test_expired_employee_invitation_is_rejected(app, client, invitation_admin) -> None:
     with app.app_context():
-        invitation, token = create_employee_invitation(
-            email="expired.employee@example.com",
-            name="Expired Employee",
-            position="Support specialist",
-            invited_by_employee_id=invitation_admin,
-        )
+        invitation, token = _new_invitation(*invitation_admin, "expired.employee@example.com")
         invitation.expires_at = datetime.now(UTC) - timedelta(minutes=1)
         db.session.commit()
 
@@ -128,12 +136,7 @@ def test_revoked_employee_invitation_cannot_be_used(
     invitation_admin,
 ) -> None:
     with app.app_context():
-        invitation, token = create_employee_invitation(
-            email="revoked.employee@example.com",
-            name="Revoked Employee",
-            position="Support specialist",
-            invited_by_employee_id=invitation_admin,
-        )
+        invitation, token = _new_invitation(*invitation_admin, "revoked.employee@example.com")
         invitation_id = invitation.id
 
     revoked = admin_client.post(f"/employees/invitations/{invitation_id}/revoke")
@@ -167,8 +170,9 @@ def test_invitation_is_not_sent_when_employee_email_already_exists(
             "name": "Duplicate",
             "email": "EXISTING@example.com",
             "position": "Specialist",
+            "role_id": str(invitation_admin[1]),
         },
     )
     assert response.status_code == 200
     assert sent == []
-    assert b"already exists" not in response.data
+    assert "Сотрудник с таким email уже существует.".encode() in response.data
