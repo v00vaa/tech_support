@@ -2198,8 +2198,8 @@ def moderation_settings() -> ResponseReturnValue:
         form.blocked_words.data = settings.blocked_words
         form.invalid_message_examples.data = settings.invalid_message_examples
     if form.validate_on_submit():
-        settings.blocked_words = "\\n".join(normalize_entries(form.blocked_words.data or ""))
-        settings.invalid_message_examples = "\\n".join(normalize_entries(form.invalid_message_examples.data or ""))
+        settings.blocked_words = "\n".join(normalize_entries(form.blocked_words.data or ""))
+        settings.invalid_message_examples = "\n".join(normalize_entries(form.invalid_message_examples.data or ""))
         db.session.commit()
         flash("Настройки модерации сохранены.", "success")
         return redirect(url_for("settings.moderation_settings"))
