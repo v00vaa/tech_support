@@ -281,3 +281,15 @@ class StatusForm(FlaskForm):
 class AssignForm(FlaskForm):
     responsible_employee_id = SelectField("Ответственный", coerce=int, validators=[Optional()])
     submit = SubmitField("Назначить")
+
+
+class ModerationReviewForm(FlaskForm):
+    """Record an employee decision on a moderation event."""
+
+    review_status = SelectField(
+        "Результат разбора",
+        choices=[("REVIEWED", "Подтверждено"), ("IGNORED", "Отклонение ошибочно")],
+        validators=[DataRequired()],
+    )
+    review_note = TextAreaField("Комментарий", validators=[Optional(), Length(max=2000)])
+    submit = SubmitField("Сохранить разбор")
