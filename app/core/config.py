@@ -32,6 +32,8 @@ class Settings(BaseSettings):
     smtp_sender: str | None = None
     smtp_use_tls: bool = True
     smtp_timeout_seconds: float = 10.0
+    ollama_base_url: str = "http://localhost:11434"
+    ollama_model: str = "qwen2.5:3b"
 
     # Main-system registration integration. The mock provider is intended only for
     # local development; production must use the authenticated HTTP provider.
