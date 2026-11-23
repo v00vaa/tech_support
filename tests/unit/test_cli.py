@@ -125,3 +125,52 @@ def test_seed_command_creates_demo_data_and_can_run_twice(app) -> None:
     second_run = runner.invoke(args=["seed"])
     assert second_run.exit_code == 0
     assert "демонстрационные данные подготовлены" in second_run.output.lower()
+
+
+def test_auto_forward_worker_stops_gracefully_on_sigterm(app, monkeypatch) -> None:
+    import app.core.cli as cli_module
+
+    registered_handlers = {}
+    restored_handlers = []
+    processed_batches = []
+
+    class FakeEvent:
+        stopped = False
+
+        def is_set(self) -> bool:
+            return self.stopped
+
+        def set(self) -> None:
+            self.stopped = True
+
+        def wait(self, timeout: int) -> bool:
+            assert timeout == 5
+            registered_handlers[cli_module.signal.SIGTERM](cli_module.signal.SIGTERM, None)
+            return self.stopped
+
+    def fake_signal(signum, handler):
+        previous = registered_handlers.get(signum, object())
+        registered_handlers[signum] = handler
+        if handler is not None and handler is not request_stop_placeholder:
+            pass
+        if handler not in (None,):
+            return previous
+        restored_handlers.append(signum)
+        return previous
+
+    request_stop_placeholder = object()
+    monkeypatch.setattr(cli_module, "Event", FakeEvent)
+    monkeypatch.setattr(cli_module.signal, "signal", fake_signal)
+    monkeypatch.setattr(
+        cli_module,
+        "process_due_auto_forwards",
+        lambda *, limit: processed_batches.append(limit) or 0,
+    )
+
+    result = app.test_cli_runner().invoke(
+        args=["run-auto-forward-worker", "--interval", "5", "--batch-size", "7"]
+    )
+
+    assert result.exit_code == 0
+    assert processed_batches == [7]
+    assert set(restored_handlers) == {cli_module.signal.SIGINT, cli_module.signal.SIGTERM}
