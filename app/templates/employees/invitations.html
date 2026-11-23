@@ -10,7 +10,7 @@
     <form method="post">
       {{ form.hidden_tag() }}
       <div class="row g-3">
-        {% for field in [form.name, form.email, form.position] %}
+        {% for field in [form.name, form.email, form.role_id, form.position] %}
         <div class="col-md-4">
           {{ field.label(class_="form-label") }}
           {{ field(class_="form-control") }}
@@ -30,7 +30,7 @@
       <tbody>
         {% for invitation in invitations %}
         <tr>
-          <td>{{ invitation.name }}</td><td>{{ invitation.email }}</td><td>{{ invitation.position }}</td>
+          <td>{{ invitation.name }}</td><td>{{ invitation.email }}</td><td>{{ invitation.position }}<div class="small text-muted">{{ invitation.role.name }}</div></td>
           <td>{{ invitation.created_at.strftime('%d.%m.%Y %H:%M') }} UTC</td>
           <td>{{ invitation.expires_at.strftime('%d.%m.%Y %H:%M') }} UTC</td>
           <td class="text-end">
