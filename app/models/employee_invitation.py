@@ -1,14 +1,12 @@
 """Single-use employee invitations."""
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 
 from sqlalchemy import DateTime, ForeignKey, String
-from sqlalchemy.orm import relationship
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.extensions import Base
-
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.models.role import Role
