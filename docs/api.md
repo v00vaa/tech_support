@@ -35,7 +35,7 @@ Creating dialogs through the employee API is deliberately disabled. A client cre
 ## Object-level access
 
 - An active administrator can access all dialogs, clients, and employees.
-- Other employees can access dialogs assigned to them or queued to one of their active roles.
+- Other employees can access dialogs assigned to them, or unclaimed `OPEN` / `WAITING_EMPLOYEE` dialogs in their active `MAIN` roles. Special roles, already claimed queue items, and closed/resolved queue items do not grant queue access.
 - A dialog outside this scope returns `404`, the same response as a missing dialog, to avoid exposing object identifiers.
 - The client list is limited to clients who have at least one dialog visible to the employee.
 - The employee list is limited to the employee's active-role colleagues; an employee without active roles sees only their own record.
