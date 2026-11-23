@@ -56,7 +56,7 @@ class OllamaClient:
     ) -> dict[str, Any]:
         """Classify a message and parse the model's JSON response."""
         prompt = classification_prompt.replace(
-            "{invalid_examples}", "\\n".join(invalid_examples)
+            "{invalid_examples}", "\n".join(invalid_examples)
         ).replace("{message}", message)
         result = self._request(
             "/api/chat",
