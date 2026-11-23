@@ -192,8 +192,17 @@ def accept_employee_invitation(token: str, password: str) -> Employee:
 
 
 def revoke_employee_invitation(invitation: EmployeeInvitation) -> None:
-    """Revoke an invitation so its previously sent link cannot be used."""
-    if invitation.accepted_at is not None:
+    """Revoke an invitation under a row lock so acceptance cannot race the revocation."""
+    locked_invitation = db.session.scalar(
+        select(EmployeeInvitation)
+        .where(EmployeeInvitation.id == invitation.id)
+        .with_for_update()
+    )
+    if (
+        locked_invitation is None
+        or locked_invitation.accepted_at is not None
+        or locked_invitation.revoked_at is not None
+    ):
         raise InvalidEmployeeInvitation
-    invitation.revoked_at = datetime.now(UTC)
+    locked_invitation.revoked_at = datetime.now(UTC)
     db.session.commit()
