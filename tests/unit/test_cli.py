@@ -157,7 +157,6 @@ def test_auto_forward_worker_stops_gracefully_on_sigterm(app, monkeypatch) -> No
             registered_handlers[signum] = handler
         return original
 
-
     monkeypatch.setattr(cli_module, "Event", FakeEvent)
     monkeypatch.setattr(cli_module.signal, "signal", fake_signal)
     monkeypatch.setattr(
