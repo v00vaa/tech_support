@@ -92,6 +92,7 @@ def test_admin_can_send_employee_invitation(app, admin_client, invitation_admin)
 def test_employee_invitation_creates_account_once(app, client, invitation_admin) -> None:
     with app.app_context():
         invitation, token = _new_invitation(*invitation_admin, "new.employee@example.com")
+        invitation_id = invitation.id
 
     response = client.post(
         f"/accept-invitation/{token}",
@@ -106,7 +107,7 @@ def test_employee_invitation_creates_account_once(app, client, invitation_admin)
         employee = db.session.scalar(
             db.select(Employee).where(Employee.email == "new.employee@example.com")
         )
-        stored_invitation = db.session.get(EmployeeInvitation, invitation.id)
+        stored_invitation = db.session.get(EmployeeInvitation, invitation_id)
         assert employee is not None
         assert employee.check_password("a-long-and-strong-password")
         assert employee.is_active
@@ -131,6 +132,7 @@ def test_expired_employee_invitation_is_rejected(app, client, invitation_admin) 
 def test_revoked_employee_invitation_cannot_be_used(
     app,
     admin_client,
+    client,
     invitation_admin,
 ) -> None:
     with app.app_context():
@@ -139,7 +141,7 @@ def test_revoked_employee_invitation_cannot_be_used(
 
     revoked = admin_client.post(f"/employees/invitations/{invitation_id}/revoke")
     assert revoked.status_code == 302
-    assert admin_client.get(f"/accept-invitation/{token}").status_code == 410
+    assert client.get(f"/accept-invitation/{token}").status_code == 410
 
 
 def test_invitation_is_not_sent_when_employee_email_already_exists(
