@@ -9,7 +9,11 @@
     <h1 class="mb-2">Здравствуйте, {{ current_user.name }}</h1>
     <p class="text-muted mb-0">Здесь отображаются только ваши обращения в службу поддержки.</p>
   </div>
+  {% if web_channel_enabled %}
   <a class="btn btn-primary" href="{{ url_for('portal.dialog_create') }}">Создать обращение</a>
+  {% else %}
+  <span class="badge text-bg-warning">Приём новых обращений временно отключён</span>
+  {% endif %}
 </section>
 
 <div class="card">
