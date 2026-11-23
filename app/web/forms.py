@@ -183,6 +183,19 @@ class RoleRouteForm(FlaskForm):
     submit = SubmitField("Сохранить маршрут")
 
 
+class WorkflowRouteForm(FlaskForm):
+    """Configure a role-to-role transition in the support workflow."""
+
+    source_role_id = SelectField("Исходная роль", coerce=int, validators=[DataRequired()])
+    target_role_id = SelectField("Целевая роль", coerce=int, validators=[DataRequired()])
+    is_default = BooleanField("Маршрут по умолчанию")
+    auto_forward_after_minutes = IntegerField(
+        "Автопередача через (минут)",
+        validators=[Optional(), NumberRange(min=1, max=10080)],
+    )
+    submit = SubmitField("Сохранить маршрут")
+
+
 class RoleRouteDeleteForm(FlaskForm):
     submit = SubmitField("Удалить")
 
