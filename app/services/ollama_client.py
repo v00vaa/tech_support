@@ -3,6 +3,7 @@
 import json
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
 from urllib.request import Request, urlopen
 
 
@@ -14,6 +15,14 @@ class OllamaClient:
     """Client for Ollama's /api/tags and /api/chat endpoints."""
 
     def __init__(self, base_url: str, model: str, timeout: float = 20.0) -> None:
+        parsed_url = urlsplit(base_url)
+        if (
+            parsed_url.scheme not in {"http", "https"}
+            or not parsed_url.hostname
+            or parsed_url.username
+            or parsed_url.password
+        ):
+            raise ValueError("Ollama URL must be an HTTP(S) URL without embedded credentials.")
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout = timeout
@@ -27,7 +36,7 @@ class OllamaClient:
             method="GET" if payload is None else "POST",
         )
         try:
-            with urlopen(request, timeout=self.timeout) as response:
+            with urlopen(request, timeout=self.timeout) as response:  # nosec B310 - HTTP(S) URL validated above
                 result = json.loads(response.read().decode("utf-8"))
         except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
             raise OllamaError(f"Ошибка запроса Ollama: {error}") from error
