@@ -9,6 +9,11 @@
     <p class="text-muted">Настройка локального Ollama API и промтов классификатора.</p>
     <form method="post" class="card"><div class="card-body">
       {{ form.hidden_tag() }}
+      <div class="form-check form-switch mb-4">
+        {{ form.ollama_enabled(class_="form-check-input", role="switch") }}
+        {{ form.ollama_enabled.label(class_="form-check-label fw-semibold") }}
+        <div class="form-text">Если выключить, приложение не будет отправлять сообщения в Ollama. Настройки модели и промты сохранятся.</div>
+      </div>
       <div class="row g-3 mb-3">
         <div class="col-md-8">
           {{ form.ollama_base_url.label(class_="form-label") }}
@@ -37,7 +42,7 @@
         {{ form.test_connection(class_="btn btn-outline-secondary") }}
       </div>
     </div></form>
-    <div class="alert alert-info mt-3 mb-0">Проверка подключения обращается к /api/tags и проверяет наличие выбранной модели. Compose загружает модель при первом запуске.</div>
+    <div class="alert alert-info mt-3 mb-0">Проверка подключения обращается к /api/tags и проверяет наличие выбранной модели. Compose загружает модель при первом запуске. Для запуска классификации должны быть включены и модель Ollama, и классификатор на вкладке «Модерация».</div>
   </section>
 </div>
 {% endblock %}
