@@ -187,9 +187,7 @@ def accept_employee_invitation(token: str, password: str) -> Employee:
         db.session.commit()
     except IntegrityError as error:
         db.session.rollback()
-        raise EmployeeInvitationConflict(
-            "Учётная запись с таким email уже существует."
-        ) from error
+        raise EmployeeInvitationConflict("Учётная запись с таким email уже существует.") from error
     return employee
 
 
