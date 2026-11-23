@@ -3,7 +3,6 @@
 from collections.abc import Iterator
 
 from flask import Flask
-
 import pytest
 
 from app.extensions import db
