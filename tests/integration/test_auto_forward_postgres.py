@@ -19,7 +19,8 @@ from app.core.config import Settings
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message, Role
 from app.models.role_route import RoleRoute
-from app.services import dialog_service\nfrom app.services.routing_service import process_due_auto_forwards
+from app.services import dialog_service
+from app.services.routing_service import process_due_auto_forwards
 
 
 @pytest.fixture
