@@ -51,6 +51,7 @@ from app.services.access_control_service import (
     is_active_administrator,
     permission_required,
 )
+from app.services.classifier_service import classify_message
 from app.services.employee_invitation_service import (
     EmployeeInvitationConflict,
     InvalidEmployeeInvitation,
@@ -60,7 +61,6 @@ from app.services.employee_invitation_service import (
     revoke_employee_invitation,
     send_employee_invitation_email,
 )
-from app.services.classifier_service import classify_message
 from app.services.moderation_service import check_message, normalize_entries
 from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.registration_provider import (
@@ -646,7 +646,10 @@ def portal_dialog_create() -> ResponseReturnValue:
             form.message.errors = [*form.message.errors, rejection_reason]
             return render_template("portal/dialog_form.html", form=form), 400
         if classifier_unavailable:
-            flash("Классификатор временно недоступен; сообщение принято без AI-проверки.", "warning")
+            flash(
+                "Классификатор временно недоступен; сообщение принято без AI-проверки.",
+                "warning",
+            )
 
         first_line_role = db.session.scalar(
             db.select(Role).where(
