@@ -9,6 +9,7 @@ from sqlalchemy.engine import CursorResult
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
 from app.models.message import AuthorType, Message
+from app.services.attachment_storage_service import remove_attachment_files
 
 ALLOWED_TRANSITIONS: dict[DialogStatus, set[DialogStatus]] = {
     DialogStatus.OPEN: {DialogStatus.IN_PROGRESS, DialogStatus.CLOSED},
@@ -48,8 +49,16 @@ def update_dialog(
 
 
 def delete_dialog(dialog: Dialog) -> None:
+    """Delete a dialog and its attachment files after the database commit succeeds."""
+    storage_keys = [
+        attachment.storage_key
+        for message in dialog.messages
+        for attachment in message.attachments
+        if attachment.storage_key
+    ]
     db.session.delete(dialog)
     db.session.commit()
+    remove_attachment_files(storage_keys)
 
 
 def assign_employee(dialog: Dialog, employee_id: int | None) -> Dialog:
