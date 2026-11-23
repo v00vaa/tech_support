@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql.elements import ColumnElement
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, Message
+from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message
 from app.models.role import employee_roles
 from app.services import client_service, employee_service, message_service
 from app.services.access_control_service import has_permission, is_active_administrator
@@ -26,13 +26,23 @@ def _employee() -> Employee:
 
 
 def _dialog_access_clause(employee: Employee) -> ColumnElement[bool] | None:
-    """Build the object-level scope: own dialogs and queues of active roles."""
+    """Build the same object-level scope as can_access_dialog()."""
     if is_active_administrator(employee):
         return None
-    role_ids = [role.id for role in employee.roles if role.is_active]
+    queue_role_ids = [
+        role.id
+        for role in employee.roles
+        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
+    ]
     clauses = [Dialog.responsible_employee_id == employee.id]
-    if role_ids:
-        clauses.append(Dialog.assigned_role_id.in_(role_ids))
+    if queue_role_ids:
+        clauses.append(
+            (
+                Dialog.responsible_employee_id.is_(None)
+                & Dialog.assigned_role_id.in_(queue_role_ids)
+                & Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE])
+            )
+        )
     return or_(*clauses)
 
 
