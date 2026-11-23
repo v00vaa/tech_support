@@ -260,3 +260,102 @@ def test_customer_cannot_reply_with_blocked_words(client, customer_records, app)
     assert response.status_code == 302
     with app.app_context():
         assert db.session.scalar(db.select(Message).where(Message.text == "This is spam")) is None
+
+
+def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
+    client, customer_records, app
+) -> None:
+    with app.app_context():
+        db.session.add(
+            GeneralSettings(
+                id=1,
+                blocked_words="spam",
+                blocked_words_enabled=False,
+            )
+        )
+        db.session.commit()
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "Allowed while filter disabled", "message": "This is spam"},
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        dialog = db.session.scalar(
+            db.select(Dialog).where(Dialog.subject == "Allowed while filter disabled")
+        )
+        assert dialog is not None
+
+
+def test_classifier_rejects_invalid_customer_message(
+    client, customer_records, app, monkeypatch
+) -> None:
+    with app.app_context():
+        db.session.add(
+            GeneralSettings(
+                id=1,
+                classifier_enabled=True,
+                ollama_enabled=True,
+            )
+        )
+        db.session.commit()
+
+    monkeypatch.setattr(
+        "app.web.routes.classify_message",
+        lambda message, settings: {
+            "is_invalid": True,
+            "category": "abuse",
+            "reason": "Сообщение содержит оскорбления.",
+            "confidence": 0.99,
+        },
+    )
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "Invalid request", "message": "Bad message"},
+    )
+
+    assert response.status_code == 400
+    assert "Сообщение содержит оскорбления.".encode() in response.data
+    with app.app_context():
+        assert (
+            db.session.scalar(db.select(Dialog).where(Dialog.subject == "Invalid request"))
+            is None
+        )
+
+
+def test_classifier_is_not_called_when_ollama_is_disabled(
+    client, customer_records, app, monkeypatch
+) -> None:
+    with app.app_context():
+        db.session.add(
+            GeneralSettings(
+                id=1,
+                classifier_enabled=True,
+                ollama_enabled=False,
+            )
+        )
+        db.session.commit()
+
+    def fail_if_called(*args, **kwargs):
+        raise AssertionError("Ollama must stay disabled")
+
+    monkeypatch.setattr("app.web.routes.classify_message", fail_if_called)
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "No model request", "message": "Normal message"},
+    )
+
+    assert response.status_code == 302
