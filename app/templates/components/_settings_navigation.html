@@ -8,7 +8,9 @@
     {% endif %}
     {% if has_permission(current_user, 'settings.view') %}
     {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
-    <a class="list-group-item list-group-item-action {% if active_settings_section == slug %}active{% endif %}" href="{{ url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+      {% if slug != 'workflow' or has_permission(current_user, 'roles.manage_routing') %}
+      <a class="list-group-item list-group-item-action {% if active_settings_section == slug %}active{% endif %}" href="{{ url_for('settings.workflow_editor') if slug == 'workflow' else url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
+      {% endif %}
     {% endfor %}
     {% endif %}
   </nav>
