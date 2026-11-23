@@ -90,9 +90,7 @@ def test_employee_without_settings_edit_cannot_review_event(
         role = db.session.scalar(db.select(Role).where(Role.code == "moderation_reviewer"))
         assert role is not None
         role.permissions = [
-            permission
-            for permission in role.permissions
-            if permission.code != "settings.edit"
+            permission for permission in role.permissions if permission.code != "settings.edit"
         ]
         db.session.commit()
 
