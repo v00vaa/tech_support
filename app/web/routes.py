@@ -103,6 +103,7 @@ from app.web.forms import (
     RolePermissionsForm,
     RoleRouteDeleteForm,
     RoleRouteForm,
+    WorkflowRouteForm,
     StatusForm,
 )
 
@@ -2078,6 +2079,67 @@ def settings_index() -> ResponseReturnValue:
         return redirect(url_for("settings.settings_index"))
 
     return render_template("settings/index.html", form=form, settings=settings)
+
+
+@settings_bp.route("/workflow", methods=["GET", "POST"])
+@login_required
+def workflow_editor() -> ResponseReturnValue:
+    """Manage the configured role-to-role workflow and automatic forwarding rules."""
+    if not has_permission(current_user, "roles.manage_routing"):
+        abort(403)
+
+    roles = db.session.scalars(
+        db.select(Role)
+        .where(Role.is_active, Role.role_type == "MAIN", Role.code != "administrator")
+        .order_by(Role.name)
+    ).all()
+    form = WorkflowRouteForm()
+    role_choices = [(role.id, role.name) for role in roles]
+    form.source_role_id.choices = role_choices
+    form.target_role_id.choices = role_choices
+
+    if form.validate_on_submit():
+        source_role = db.get_or_404(Role, form.source_role_id.data)
+        target_role = db.get_or_404(Role, form.target_role_id.data)
+        try:
+            save_role_route(
+                current_user,
+                source_role=source_role,
+                target_role=target_role,
+                is_default=form.is_default.data,
+                auto_forward_after_minutes=form.auto_forward_after_minutes.data,
+            )
+            flash("Правило рабочего процесса сохранено.", "success")
+            return redirect(url_for("settings.workflow_editor"))
+        except ValueError as error:
+            db.session.rollback()
+            form.target_role_id.errors = [*form.target_role_id.errors, str(error)]
+
+    routes = db.session.scalars(
+        db.select(RoleRoute).order_by(RoleRoute.source_role_id, RoleRoute.target_role_id)
+    ).all()
+    return render_template(
+        "settings/workflow.html",
+        form=form,
+        roles=roles,
+        routes=routes,
+    )
+
+
+@settings_bp.post("/workflow/routes/<int:route_id>/delete")
+@login_required
+def workflow_route_delete(route_id: int) -> ResponseReturnValue:
+    """Delete a workflow transition after checking routing-management permission."""
+    if not has_permission(current_user, "roles.manage_routing"):
+        abort(403)
+    route = db.get_or_404(RoleRoute, route_id)
+    try:
+        delete_role_route(current_user, route)
+        flash("Правило рабочего процесса удалено.", "success")
+    except ValueError as error:
+        db.session.rollback()
+        flash(str(error), "danger")
+    return redirect(url_for("settings.workflow_editor"))
 
 
 @settings_bp.get("/<string:section>")
