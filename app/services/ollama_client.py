@@ -36,9 +36,9 @@ class OllamaClient:
             method="GET" if payload is None else "POST",
         )
         try:
-            with urlopen(request, timeout=self.timeout) as response:  # nosec B310 - HTTP(S) URL validated above
+            with urlopen(request, timeout=self.timeout) as response:  # nosec B310
                 result = json.loads(response.read().decode("utf-8"))
-        except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        except (\n            HTTPError,\n            URLError,\n            TimeoutError,\n            OSError,\n            UnicodeDecodeError,\n            json.JSONDecodeError,\n        ) as error:
             raise OllamaError(f"Ошибка запроса Ollama: {error}") from error
         if not isinstance(result, dict):
             raise OllamaError("Ollama вернула ответ неожиданного формата.")
