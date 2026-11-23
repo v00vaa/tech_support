@@ -6,7 +6,16 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, GeneralSettings, Message, Role
+from app.models import (
+    AuthorType,
+    Client,
+    Dialog,
+    Employee,
+    GeneralSettings,
+    Message,
+    ModerationEvent,
+    Role,
+)
 
 
 @pytest.fixture
@@ -240,6 +249,14 @@ def test_customer_cannot_create_dialog_with_blocked_words(client, customer_recor
             db.select(Dialog).where(Dialog.subject == "Blocked request")
         )
         assert blocked_dialog is None
+        event = db.session.scalar(
+            db.select(ModerationEvent).where(ModerationEvent.message_text == "This is SPAM")
+        )
+        assert event is not None
+        assert event.client_id == customer_records[0]
+        assert event.dialog_id is None
+        assert event.source == "blocked_words"
+        assert event.review_status == "NEW"
 
 
 def test_customer_cannot_reply_with_blocked_words(client, customer_records, app) -> None:
@@ -260,6 +277,11 @@ def test_customer_cannot_reply_with_blocked_words(client, customer_records, app)
     assert response.status_code == 302
     with app.app_context():
         assert db.session.scalar(db.select(Message).where(Message.text == "This is spam")) is None
+        event = db.session.scalar(
+            db.select(ModerationEvent).where(ModerationEvent.message_text == "This is spam")
+        )
+        assert event is not None
+        assert event.dialog_id == own_dialog_id
 
 
 def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
@@ -326,6 +348,13 @@ def test_classifier_rejects_invalid_customer_message(
     assert response.status_code == 400
     assert "Сообщение содержит оскорбления.".encode() in response.data
     with app.app_context():
+        event = db.session.scalar(
+            db.select(ModerationEvent).where(ModerationEvent.message_text == "Bad message")
+        )
+        assert event is not None
+        assert event.source == "classifier"
+        assert event.category == "abuse"
+        assert event.confidence == 0.99
         rejected_dialog = db.session.scalar(
             db.select(Dialog).where(Dialog.subject == "Invalid request")
         )
@@ -359,3 +388,14 @@ def test_classifier_is_not_called_when_ollama_is_disabled(
     )
 
     assert response.status_code == 302
+
+
+def test_customer_cannot_open_moderation_journal(client, customer_records) -> None:
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+
+    response = client.get("/settings/moderation/events")
+
+    assert response.status_code == 403
