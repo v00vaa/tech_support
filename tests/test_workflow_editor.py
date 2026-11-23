@@ -55,7 +55,7 @@ def workflow_system(app: Flask, client) -> Iterator[dict[str, int]]:
         db.drop_all()
 
 
-def test_workflow_editor_creates_and_deletes_route(client, workflow_system) -> None:
+def test_workflow_editor_creates_and_deletes_route(app, client, workflow_system) -> None:
     page = client.get("/settings/workflow")
     assert page.status_code == 200
     assert "Рабочие процессы".encode() in page.data
@@ -71,7 +71,7 @@ def test_workflow_editor_creates_and_deletes_route(client, workflow_system) -> N
     )
     assert created.status_code == 302
 
-    with client.application.app_context():
+    with app.app_context():
         route = db.session.scalar(db.select(RoleRoute))
         assert route is not None
         assert route.source_role_id == workflow_system["source"]
@@ -86,7 +86,7 @@ def test_workflow_editor_creates_and_deletes_route(client, workflow_system) -> N
         assert db.session.get(RoleRoute, route_id) is None
 
 
-def test_workflow_editor_rejects_self_routing(client, workflow_system) -> None:
+def test_workflow_editor_rejects_self_routing(app, client, workflow_system) -> None:
     response = client.post(
         "/settings/workflow",
         data={
