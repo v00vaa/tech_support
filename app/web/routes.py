@@ -172,7 +172,7 @@ def _detect_attachment_content_type(filename: str, content: bytes) -> str:
             text = ""
         else:
             has_control_chars = any(
-                ord(character) < 32 and character not in "\\t\\n\\r" for character in text
+                ord(character) < 32 and character not in "\t\n\r" for character in text
             )
             if text and not has_control_chars:
                 return "text/csv" if extension == "csv" else "text/plain"
