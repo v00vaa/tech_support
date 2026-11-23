@@ -326,10 +326,7 @@ def test_classifier_rejects_invalid_customer_message(
     assert response.status_code == 400
     assert "Сообщение содержит оскорбления.".encode() in response.data
     with app.app_context():
-        assert (
-            db.session.scalar(db.select(Dialog).where(Dialog.subject == "Invalid request"))
-            is None
-        )
+        assert db.session.scalar(db.select(Dialog).where(Dialog.subject == "Invalid request")) is None
 
 
 def test_classifier_is_not_called_when_ollama_is_disabled(
