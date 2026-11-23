@@ -27,7 +27,7 @@ class ModerationEvent(Base):
     reason: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float | None] = mapped_column(Float)
     created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC), index=True
     )
     review_status: Mapped[str] = mapped_column(
         String(20), nullable=False, default="NEW", index=True
