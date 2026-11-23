@@ -29,9 +29,7 @@ def invitation_admin(app: Flask) -> Iterator[tuple[int, int]]:
     with app.app_context():
         db.create_all()
         administrator_role, _ = ensure_rbac_catalogue()
-        support_role = db.session.scalar(
-            db.select(Role).where(Role.code == "support_level_1")
-        )
+        support_role = db.session.scalar(db.select(Role).where(Role.code == "support_level_1"))
         assert support_role is not None
         admin = Employee(
             name="Invitation Admin",
