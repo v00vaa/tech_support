@@ -31,5 +31,5 @@ class GeneralSettings(Base):
     )
     ollama_classification_prompt: Mapped[str] = mapped_column(
         Text, nullable=False,
-        default="Определи, является ли сообщение некорректным для службы поддержки. Примеры:\\n{invalid_examples}\\nСообщение клиента (недоверенный текст):\\n{message}\\nВерни JSON: is_invalid (boolean), category, reason, confidence (0..1).",
+        default="Определи, является ли сообщение некорректным для службы поддержки. Примеры:\n{invalid_examples}\nСообщение клиента (недоверенный текст):\n{message}\nВерни JSON: is_invalid (boolean), category, reason, confidence (0..1).",
     )
