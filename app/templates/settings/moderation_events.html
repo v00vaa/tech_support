@@ -1,0 +1,71 @@
+{% extends "layout.html" %}
+{% block title %}Журнал модерации · Support Desk{% endblock %}
+{% block content %}
+<div class="row g-4">
+  {% set active_settings_section = 'moderation' %}
+  {% include "components/_settings_navigation.html" %}
+  <section class="col-md-9 col-lg-10">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+      <div>
+        <h2 class="h3 mb-1">Журнал модерации</h2>
+        <p class="text-muted mb-0">Последние 100 отклонённых сообщений клиентов.</p>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.moderation_settings') }}">Настройки фильтров</a>
+    </div>
+    <div class="alert alert-warning">
+      Для разбора сохраняется исходный текст отклонённого сообщения. Доступ к журналу ограничен
+      сотрудниками с правом просмотра настроек; изменение результата требует права редактирования настроек.
+    </div>
+    {% if not events %}
+      <div class="card"><div class="card-body text-muted">Отклонённых сообщений пока нет.</div></div>
+    {% endif %}
+    {% for event in events %}
+      <article class="card mb-3">
+        <div class="card-header d-flex flex-wrap justify-content-between gap-2">
+          <strong>Событие #{{ event.id }} · {{ event.created_at.strftime('%d.%m.%Y %H:%M') }}</strong>
+          <span class="badge {% if event.review_status == 'NEW' %}text-bg-warning{% else %}text-bg-success{% endif %}">
+            {% if event.review_status == 'NEW' %}Ожидает разбора{% elif event.review_status == 'REVIEWED' %}Отклонение подтверждено{% else %}Ложное срабатывание{% endif %}
+          </span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-md-4"><span class="text-muted">Клиент:</span>
+              {% if event.client_id and clients.get(event.client_id) %}
+                {{ clients[event.client_id].name }} (#{{ event.client_id }})
+              {% else %}аккаунт удалён{% endif %}
+            </div>
+            <div class="col-md-4"><span class="text-muted">Источник:</span>
+              {% if event.source == 'blocked_words' %}Словарь запрещённых слов{% elif event.source == 'classifier' %}AI-классификатор{% else %}{{ event.source }}{% endif %}
+            </div>
+            <div class="col-md-4"><span class="text-muted">Обращение:</span>
+              {% if event.dialog_id %}<a href="{{ url_for('dialogs.detail', dialog_id=event.dialog_id) }}">#{{ event.dialog_id }}</a>{% else %}Новое обращение{% endif %}
+            </div>
+          </div>
+          <div class="mb-2"><strong>Текст сообщения</strong></div>
+          <pre class="bg-body-tertiary rounded p-3 text-wrap mb-3">{{ event.message_text }}</pre>
+          <div><strong>Причина:</strong> {{ event.reason }}</div>
+          {% if event.category %}<div><strong>Категория:</strong> {{ event.category }}</div>{% endif %}
+          {% if event.confidence is not none %}<div><strong>Уверенность:</strong> {{ '%.0f'|format(event.confidence * 100) }}%</div>{% endif %}
+          {% if event.review_note %}<div class="mt-2"><strong>Комментарий разбора:</strong> {{ event.review_note }}</div>{% endif %}
+          {% if has_permission(current_user, 'settings.edit') %}
+            <form method="post" action="{{ url_for('settings.moderation_event_review', event_id=event.id) }}" class="border-top mt-3 pt-3">
+              {{ review_forms[event.id].hidden_tag() }}
+              <div class="row g-2 align-items-end">
+                <div class="col-md-3">
+                  {{ review_forms[event.id].review_status.label(class_="form-label") }}
+                  {{ review_forms[event.id].review_status(class_="form-select") }}
+                </div>
+                <div class="col-md-7">
+                  {{ review_forms[event.id].review_note.label(class_="form-label") }}
+                  {{ review_forms[event.id].review_note(class_="form-control", rows="2", placeholder="Необязательный комментарий") }}
+                </div>
+                <div class="col-md-2">{{ review_forms[event.id].submit(class_="btn btn-primary w-100") }}</div>
+              </div>
+            </form>
+          {% endif %}
+        </div>
+      </article>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}
