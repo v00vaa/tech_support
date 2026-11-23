@@ -1,0 +1,43 @@
+{% extends "layout.html" %}
+{% block title %}AI · Support Desk{% endblock %}
+{% block content %}
+<div class="row g-4">
+  {% set active_settings_section = 'ai' %}
+  {% include "components/_settings_navigation.html" %}
+  <section class="col-md-9 col-lg-10">
+    <h2 class="h3">Локальная AI-модель</h2>
+    <p class="text-muted">Настройка локального Ollama API и промтов классификатора.</p>
+    <form method="post" class="card"><div class="card-body">
+      {{ form.hidden_tag() }}
+      <div class="row g-3 mb-3">
+        <div class="col-md-8">
+          {{ form.ollama_base_url.label(class_="form-label") }}
+          {{ form.ollama_base_url(class_="form-control", placeholder="http://ollama:11434") }}
+          {% for error in form.ollama_base_url.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+        <div class="col-md-4">
+          {{ form.ollama_model.label(class_="form-label") }}
+          {{ form.ollama_model(class_="form-control", placeholder="qwen2.5:3b") }}
+          {% for error in form.ollama_model.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+        </div>
+      </div>
+      <div class="mb-3">
+        {{ form.ollama_system_prompt.label(class_="form-label fw-semibold") }}
+        {{ form.ollama_system_prompt(class_="form-control", rows="5") }}
+        {% for error in form.ollama_system_prompt.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      <div class="mb-3">
+        {{ form.ollama_classification_prompt.label(class_="form-label fw-semibold") }}
+        {{ form.ollama_classification_prompt(class_="form-control font-monospace", rows="8") }}
+        <div class="form-text">Подстановки: {invalid_examples} и {message}. Ожидается JSON с полем is_invalid.</div>
+        {% for error in form.ollama_classification_prompt.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        {{ form.save_settings(class_="btn btn-primary") }}
+        {{ form.test_connection(class_="btn btn-outline-secondary") }}
+      </div>
+    </div></form>
+    <div class="alert alert-info mt-3 mb-0">Проверка подключения обращается к /api/tags и проверяет наличие выбранной модели. Compose загружает модель при первом запуске.</div>
+  </section>
+</div>
+{% endblock %}
