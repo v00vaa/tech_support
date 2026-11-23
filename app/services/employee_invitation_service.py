@@ -51,7 +51,12 @@ def create_employee_invitation(
         raise EmployeeInvitationConflict("Сотрудник с таким email уже существует.")
 
     role = db.session.get(Role, role_id)
-    if role is None or not role.is_active or role.role_type != "MAIN" or role.code == "administrator":
+    if (
+        role is None
+        or not role.is_active
+        or role.role_type != "MAIN"
+        or role.code == "administrator"
+    ):
         raise ValueError("Для приглашения выберите активную основную роль.")
 
     now = datetime.now(UTC)
@@ -108,6 +113,8 @@ def send_employee_invitation_email(invitation: EmployeeInvitation, token: str) -
     if injected is not None:
         injected(invitation.email, subject, body)
         return
+    if not isinstance(host, str) or not isinstance(sender, str):
+        raise RuntimeError("Employee invitation email delivery is not configured")
 
     message = EmailMessage()
     message["Subject"] = subject
