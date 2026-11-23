@@ -113,6 +113,7 @@ def test_employee_invitation_creates_account_once(app, client, invitation_admin)
         assert stored_invitation is not None
         assert stored_invitation.accepted_at is not None
 
+    client.post("/logout")
     reused = client.get(f"/accept-invitation/{token}")
     assert reused.status_code == 410
 
@@ -139,8 +140,8 @@ def test_revoked_employee_invitation_cannot_be_used(
 
     revoked = admin_client.post(f"/employees/invitations/{invitation_id}/revoke")
     assert revoked.status_code == 302
-    anonymous_client = app.test_client()
-    assert anonymous_client.get(f"/accept-invitation/{token}").status_code == 410
+    admin_client.post("/logout")
+    assert admin_client.get(f"/accept-invitation/{token}").status_code == 410
 
 
 def test_invitation_is_not_sent_when_employee_email_already_exists(
