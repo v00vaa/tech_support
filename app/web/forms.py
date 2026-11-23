@@ -80,6 +80,13 @@ class GeneralSettingsForm(FlaskForm):
     submit = SubmitField("Сохранить настройки")
 
 
+class WebChannelSettingsForm(FlaskForm):
+    """Enable or pause intake through the customer web portal."""
+
+    web_channel_enabled = BooleanField("Принимать новые обращения через веб-кабинет")
+    submit = SubmitField("Сохранить настройки")
+
+
 class RegistrationSettingsForm(FlaskForm):
     """Administrator-controlled customer registration options."""
 
