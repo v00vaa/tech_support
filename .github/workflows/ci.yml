@@ -34,6 +34,19 @@ jobs:
           python-version: "3.13"
       - name: Install project and verification tools
         run: python -m pip install ".[dev]"
+      - name: Verify a single Alembic head
+        run: |
+          heads="$(alembic heads)"
+          printf '%s\n' "$heads"
+          test "$(printf '%s\n' "$heads" | grep -c '(head)')" -eq 1
+      - name: Verify migrations from an empty PostgreSQL database
+        env:
+          SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@localhost:5432/support_migrations_test
+          PGPASSWORD: support
+        run: |
+          createdb --host localhost --username support support_migrations_test
+          alembic upgrade head
+          alembic current
       - run: ruff check app tests
       - run: ruff format --check app tests
       - run: mypy app
