@@ -60,6 +60,8 @@ from app.services.employee_invitation_service import (
     revoke_employee_invitation,
     send_employee_invitation_email,
 )
+from app.services.ollama_client import OllamaClient, OllamaError
+from app.services.moderation_service import normalize_entries
 from app.services.registration_provider import (
     RegistrationProviderError,
     RegistrationTokenInvalid,
@@ -106,6 +108,8 @@ from app.web.forms import (
     StatusForm,
     WebChannelSettingsForm,
     WorkflowRouteForm,
+    ModerationSettingsForm,
+    OllamaSettingsForm,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -2062,7 +2066,11 @@ def _get_general_settings() -> GeneralSettings:
     """Return the singleton global settings row, creating safe defaults."""
     settings = db.session.get(GeneralSettings, 1)
     if settings is None:
-        settings = GeneralSettings(id=1)
+        settings = GeneralSettings(
+            id=1,
+            ollama_base_url=current_app.config.get("OLLAMA_BASE_URL", "http://localhost:11434"),
+            ollama_model=current_app.config.get("OLLAMA_MODEL", "qwen2.5:3b"),
+        )
         db.session.add(settings)
         db.session.commit()
     return settings
@@ -2174,6 +2182,66 @@ def channel_settings() -> ResponseReturnValue:
         settings=settings,
         active_settings_section="channels",
     )
+
+
+
+@settings_bp.route("/moderation", methods=["GET", "POST"])
+@login_required
+@permission_required("settings.view")
+def moderation_settings() -> ResponseReturnValue:
+    """Edit blocked terms and examples used by the classifier."""
+    if request.method == "POST" and not has_permission(current_user, "settings.edit"):
+        abort(403)
+    settings = _get_general_settings()
+    form = ModerationSettingsForm()
+    if request.method == "GET":
+        form.blocked_words.data = settings.blocked_words
+        form.invalid_message_examples.data = settings.invalid_message_examples
+    if form.validate_on_submit():
+        settings.blocked_words = "\\n".join(normalize_entries(form.blocked_words.data or ""))
+        settings.invalid_message_examples = "\\n".join(normalize_entries(form.invalid_message_examples.data or ""))
+        db.session.commit()
+        flash("Настройки модерации сохранены.", "success")
+        return redirect(url_for("settings.moderation_settings"))
+    return render_template("settings/moderation.html", form=form,
+        blocked_word_count=len(normalize_entries(settings.blocked_words)),
+        example_count=len(normalize_entries(settings.invalid_message_examples)),
+        active_settings_section="moderation")
+
+
+@settings_bp.route("/ai", methods=["GET", "POST"])
+@login_required
+@permission_required("settings.view")
+def ai_settings() -> ResponseReturnValue:
+    """Edit Ollama configuration and prompts, or test the API connection."""
+    if request.method == "POST" and not has_permission(current_user, "settings.edit"):
+        abort(403)
+    settings = _get_general_settings()
+    form = OllamaSettingsForm()
+    if request.method == "GET":
+        form.ollama_base_url.data = settings.ollama_base_url
+        form.ollama_model.data = settings.ollama_model
+        form.ollama_system_prompt.data = settings.ollama_system_prompt
+        form.ollama_classification_prompt.data = settings.ollama_classification_prompt
+    if form.validate_on_submit():
+        if form.test_connection.data:
+            try:
+                models = OllamaClient(form.ollama_base_url.data or "", form.ollama_model.data or "").list_models()
+                if form.ollama_model.data not in models:
+                    flash("Ollama доступен, но выбранная модель не найдена. Выполните ollama pull.", "warning")
+                else:
+                    flash("Подключение к Ollama и выбранная модель доступны.", "success")
+            except OllamaError as error:
+                flash(f"Не удалось подключиться к Ollama: {error}", "danger")
+        else:
+            settings.ollama_base_url = (form.ollama_base_url.data or "").strip().rstrip("/")
+            settings.ollama_model = (form.ollama_model.data or "").strip()
+            settings.ollama_system_prompt = form.ollama_system_prompt.data or ""
+            settings.ollama_classification_prompt = form.ollama_classification_prompt.data or ""
+            db.session.commit()
+            flash("Настройки Ollama сохранены.", "success")
+            return redirect(url_for("settings.ai_settings"))
+    return render_template("settings/ai.html", form=form, active_settings_section="ai")
 
 
 @settings_bp.get("/<string:section>")
