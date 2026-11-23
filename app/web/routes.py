@@ -948,6 +948,12 @@ def accept_employee_invitation_route(token: str) -> ResponseReturnValue:
 def employee_invitations() -> ResponseReturnValue:
     """List pending invitations and issue new single-use invitation links."""
     form = EmployeeInvitationForm()
+    available_roles = db.session.scalars(
+        db.select(Role)
+        .where(Role.is_active, Role.role_type == "MAIN", Role.code != "administrator")
+        .order_by(Role.name)
+    ).all()
+    form.role_id.choices = [(role.id, role.name) for role in available_roles]
     if form.validate_on_submit():
         assert form.email.data is not None
         assert form.name.data is not None
@@ -958,6 +964,7 @@ def employee_invitations() -> ResponseReturnValue:
                 name=form.name.data,
                 position=form.position.data,
                 invited_by_employee_id=current_user.id,
+                role_id=form.role_id.data,
             )
             try:
                 send_employee_invitation_email(invitation, token)
