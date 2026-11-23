@@ -124,6 +124,7 @@ class EmployeeInvitationForm(FlaskForm):
 
     name = StringField("Имя", validators=[DataRequired(), Length(max=120)])
     email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    role_id = SelectField("Основная роль", coerce=int, validators=[DataRequired()])
     position = StringField(
         "Должность",
         validators=[DataRequired(), Length(max=120)],
