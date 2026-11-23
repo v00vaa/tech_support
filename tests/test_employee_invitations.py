@@ -4,6 +4,7 @@ import re
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
+import pytest
 from flask import Flask
 
 from app.extensions import db
@@ -21,8 +22,6 @@ def _new_invitation(admin_id: int, role_id: int, email: str):
         role_id=role_id,
     )
 
-
-import pytest
 
 
 @pytest.fixture
