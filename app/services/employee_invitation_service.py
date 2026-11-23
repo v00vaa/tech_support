@@ -18,6 +18,7 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models.employee import Employee
 from app.models.employee_invitation import EmployeeInvitation
+from app.models.role import Role
 
 
 class InvalidEmployeeInvitation(ValueError):
@@ -38,6 +39,7 @@ def create_employee_invitation(
     name: str,
     position: str,
     invited_by_employee_id: int,
+    role_id: int,
     lifetime_hours: int = 72,
 ) -> tuple[EmployeeInvitation, str]:
     """Persist a new invitation and invalidate earlier pending invitations."""
@@ -48,10 +50,14 @@ def create_employee_invitation(
     if existing_employee is not None:
         raise EmployeeInvitationConflict("Сотрудник с таким email уже существует.")
 
+    role = db.session.get(Role, role_id)
+    if role is None or not role.is_active or role.role_type != "MAIN" or role.code == "administrator":
+        raise ValueError("Для приглашения выберите активную основную роль.")
+
     now = datetime.now(UTC)
     previous = db.session.scalars(
         select(EmployeeInvitation).where(
-            db.func.lower(EmployeeInvitation.email) == normalized_email,
+            func.lower(EmployeeInvitation.email) == normalized_email,
             EmployeeInvitation.accepted_at.is_(None),
             EmployeeInvitation.revoked_at.is_(None),
         )
@@ -67,6 +73,7 @@ def create_employee_invitation(
         token_hash=_token_digest(token),
         expires_at=now + timedelta(hours=lifetime_hours),
         invited_by_employee_id=invited_by_employee_id,
+        role_id=role.id,
         created_at=now,
     )
     db.session.add(invitation)
@@ -149,10 +156,14 @@ def accept_employee_invitation(token: str, password: str) -> Employee:
     """Atomically consume an invitation and create the employee account."""
     invitation = get_valid_employee_invitation(token, lock=True)
     existing_employee = db.session.scalar(
-        select(Employee.id).where(db.func.lower(Employee.email) == invitation.email.casefold())
+        select(Employee.id).where(func.lower(Employee.email) == invitation.email.casefold())
     )
     if existing_employee is not None:
         raise EmployeeInvitationConflict("Учётная запись с таким email уже существует.")
+
+    role = db.session.get(Role, invitation.role_id)
+    if role is None or not role.is_active or role.role_type != "MAIN":
+        raise InvalidEmployeeInvitation
 
     employee = Employee(
         name=invitation.name,
@@ -161,6 +172,7 @@ def accept_employee_invitation(token: str, password: str) -> Employee:
         password_hash=generate_password_hash(password),
         is_active=True,
         must_change_password=False,
+        roles=[role],
     )
     invitation.accepted_at = datetime.now(UTC)
     db.session.add(employee)
