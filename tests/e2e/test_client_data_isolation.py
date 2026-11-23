@@ -35,6 +35,8 @@ def isolated_customer_data(
             login="second-customer",
             email="second-customer@example.com",
         )
+        first_customer.set_password("First-customer-password-123!")
+        second_customer.set_password("Second-customer-password-123!")
         db.session.add_all([first_customer, second_customer])
         db.session.flush()
 
