@@ -2342,16 +2342,15 @@ def moderation_events() -> ResponseReturnValue:
         .order_by(ModerationEvent.created_at.desc(), ModerationEvent.id.desc())
         .limit(100)
     ).all()
-    clients = {
-        client.id: client
-        for client in db.session.scalars(
-            db.select(Client).where(
-                Client.id.in_(
-                    {event.client_id for event in events if event.client_id is not None}
-                )
-            )
-        ).all()
-    } if events else {}
+    client_ids = {event.client_id for event in events if event.client_id is not None}
+    clients = {}
+    if client_ids:
+        clients = {
+            client.id: client
+            for client in db.session.scalars(
+                db.select(Client).where(Client.id.in_(client_ids))
+            ).all()
+        }
     return render_template(
         "settings/moderation_events.html",
         events=events,
