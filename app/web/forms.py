@@ -203,6 +203,21 @@ class WorkflowRouteForm(FlaskForm):
     submit = SubmitField("Сохранить маршрут")
 
 
+class ModerationSettingsForm(FlaskForm):
+    blocked_words = TextAreaField("Запрещённые слова и фразы", validators=[Optional(), Length(max=50000)])
+    invalid_message_examples = TextAreaField("Примеры некорректных сообщений", validators=[Optional(), Length(max=50000)])
+    submit = SubmitField("Сохранить настройки модерации")
+
+
+class OllamaSettingsForm(FlaskForm):
+    ollama_base_url = StringField("Адрес Ollama API", validators=[DataRequired(), Length(max=255)])
+    ollama_model = StringField("Модель", validators=[DataRequired(), Length(max=120)])
+    ollama_system_prompt = TextAreaField("Системный промт", validators=[DataRequired(), Length(max=20000)])
+    ollama_classification_prompt = TextAreaField("Промт классификации", validators=[DataRequired(), Length(max=20000)])
+    save_settings = SubmitField("Сохранить настройки")
+    test_connection = SubmitField("Проверить подключение")
+
+
 class RoleRouteDeleteForm(FlaskForm):
     submit = SubmitField("Удалить")
 
