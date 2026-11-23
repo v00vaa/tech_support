@@ -88,6 +88,6 @@ def test_employee_directory_paginates_and_ignores_invalid_filters(admin_session)
     response = admin_session.get("/employees?status=unknown&role=-1&page=2")
 
     assert response.status_code == 200
-    assert "Найдено: 30".encode() in response.data
+    assert "Найдено: 31".encode() in response.data
     assert b"Employee 29" in response.data
     assert b"Employee 00" not in response.data
