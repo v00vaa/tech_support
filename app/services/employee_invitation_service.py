@@ -91,7 +91,7 @@ def send_employee_invitation_email(invitation: EmployeeInvitation, token: str) -
     if injected is None and (not host or not sender):
         raise RuntimeError("Employee invitation email delivery is not configured")
 
-    invitation_path = url_for("auth.accept_employee_invitation", token=token, _external=False)
+    invitation_path = url_for("auth.accept_employee_invitation_route", token=token, _external=False)
     invitation_url = urljoin(
         current_app.config["PUBLIC_BASE_URL"].rstrip("/") + "/",
         invitation_path.lstrip("/"),
