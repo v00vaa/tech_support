@@ -35,6 +35,7 @@ from app.models import (
     Dialog,
     DialogStatus,
     Employee,
+    EmployeeInvitation,
     GeneralSettings,
     Message,
     Permission,
@@ -43,6 +44,15 @@ from app.models import (
     RoleRoute,
 )
 from app.services import client_service, dialog_service, employee_service, message_service
+from app.services.employee_invitation_service import (
+    EmployeeInvitationConflict,
+    InvalidEmployeeInvitation,
+    accept_employee_invitation,
+    create_employee_invitation,
+    get_valid_employee_invitation,
+    revoke_employee_invitation,
+    send_employee_invitation_email,
+)
 from app.services.access_control_service import (
     can_access_dialog,
     can_delegate_permissions,
@@ -79,6 +89,8 @@ from app.web.forms import (
     DialogEditForm,
     DialogRouteForm,
     EmployeeForm,
+    EmployeeInvitationAcceptForm,
+    EmployeeInvitationForm,
     EmployeeRolesForm,
     GeneralSettingsForm,
     LoginForm,
@@ -897,6 +909,100 @@ def employee_list() -> ResponseReturnValue:
         total=total,
         page_numbers=range(max(1, page - 2), min(total_pages, page + 2) + 1),
     )
+
+
+@auth_bp.route("/accept-invitation/<token>", methods=["GET", "POST"])
+def accept_employee_invitation_route(token: str) -> ResponseReturnValue:
+    """Activate a staff account using a valid single-use invitation."""
+    if current_user.is_authenticated:
+        if isinstance(current_user._get_current_object(), Client):
+            logout_user()
+        else:
+            return redirect(url_for("main.index"))
+
+    try:
+        invitation = get_valid_employee_invitation(token)
+    except InvalidEmployeeInvitation:
+        abort(410, description="Приглашение недействительно или срок его действия истёк.")
+
+    form = EmployeeInvitationAcceptForm()
+    if form.validate_on_submit():
+        try:
+            employee = accept_employee_invitation(token, form.password.data)
+        except InvalidEmployeeInvitation:
+            abort(410, description="Приглашение уже использовано или отозвано.")
+        except EmployeeInvitationConflict as error:
+            db.session.rollback()
+            flash(str(error), "danger")
+        else:
+            login_user(employee, fresh=True)
+            flash("Учётная запись создана. Добро пожаловать в Support Desk!", "success")
+            return redirect(url_for("main.index"))
+
+    return render_template("auth/accept_employee_invitation.html", form=form, invitation=invitation)
+
+
+@employees_bp.route("/invitations", methods=["GET", "POST"])
+@login_required
+@permission_required("employees.create")
+def employee_invitations() -> ResponseReturnValue:
+    """List pending invitations and issue new single-use invitation links."""
+    form = EmployeeInvitationForm()
+    if form.validate_on_submit():
+        assert form.email.data is not None
+        assert form.name.data is not None
+        assert form.position.data is not None
+        try:
+            invitation, token = create_employee_invitation(
+                email=form.email.data,
+                name=form.name.data,
+                position=form.position.data,
+                invited_by_employee_id=current_user.id,
+            )
+            try:
+                send_employee_invitation_email(invitation, token)
+            except Exception:
+                revoke_employee_invitation(invitation)
+                current_app.logger.exception(
+                    "Не удалось отправить приглашение сотруднику id=%s", invitation.id
+                )
+                flash("Не удалось отправить приглашение. Проверьте настройки SMTP.", "danger")
+            else:
+                flash(f"Приглашение отправлено на {invitation.email}.", "success")
+            return redirect(url_for("employees.employee_invitations"))
+        except EmployeeInvitationConflict as error:
+            db.session.rollback()
+            form.email.errors = [*form.email.errors, str(error)]
+
+    invitations = db.session.scalars(
+        db.select(EmployeeInvitation)
+        .where(
+            EmployeeInvitation.accepted_at.is_(None),
+            EmployeeInvitation.revoked_at.is_(None),
+        )
+        .order_by(EmployeeInvitation.created_at.desc())
+        .limit(100)
+    ).all()
+    return render_template(
+        "employees/invitations.html",
+        form=form,
+        invitations=invitations,
+        now=datetime.now(UTC),
+    )
+
+
+@employees_bp.post("/invitations/<int:invitation_id>/revoke")
+@login_required
+@permission_required("employees.create")
+def employee_invitation_revoke(invitation_id: int) -> ResponseReturnValue:
+    invitation = db.get_or_404(EmployeeInvitation, invitation_id)
+    try:
+        revoke_employee_invitation(invitation)
+        flash("Приглашение отозвано.", "success")
+    except InvalidEmployeeInvitation:
+        db.session.rollback()
+        flash("Это приглашение уже использовано.", "warning")
+    return redirect(url_for("employees.employee_invitations"))
 
 
 @employees_bp.route("/create", methods=["GET", "POST"])
