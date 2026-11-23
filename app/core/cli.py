@@ -2,6 +2,7 @@
 
 import signal
 from threading import Event
+from time import monotonic
 
 import click
 from flask import Flask
@@ -10,7 +11,10 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
-from app.services.attachment_storage_service import remove_orphaned_attachment_files
+from app.services.attachment_storage_service import (
+    cleanup_expired_closed_dialogs,
+    remove_orphaned_attachment_files,
+)
 from app.services.rbac_service import ensure_rbac_catalogue
 from app.services.routing_service import process_due_auto_forwards
 
@@ -81,6 +85,13 @@ def register_commands(app: Flask) -> None:
         count = remove_orphaned_attachment_files(min_age_hours)
         click.echo(f"Удалено осиротевших файлов: {count}")
 
+    @app.cli.command("cleanup-expired-dialogs")
+    @click.option("--limit", default=100, show_default=True, type=click.IntRange(min=1, max=1000))
+    def cleanup_expired_dialogs_command(limit: int) -> None:
+        """Delete closed dialogs and attachments after the configured retention period."""
+        count = cleanup_expired_closed_dialogs(limit=limit)
+        click.echo(f"Удалено обращений с истёкшим сроком хранения: {count}")
+
     @app.cli.command("process-auto-forwards")
     def process_auto_forwards_command() -> None:
         """Process role routes whose automatic forwarding threshold has elapsed."""
@@ -108,12 +119,19 @@ def register_commands(app: Flask) -> None:
             signum: signal.signal(signum, request_stop)
             for signum in (signal.SIGINT, signal.SIGTERM)
         }
+        last_retention_cleanup = 0.0
         try:
             while not stop_event.is_set():
                 try:
                     count = process_due_auto_forwards(limit=batch_size)
                     if count:
                         app.logger.info("Автоматически передано обращений: %s", count)
+                    now = monotonic()
+                    if now - last_retention_cleanup >= 24 * 60 * 60:
+                        deleted = cleanup_expired_closed_dialogs(limit=batch_size)
+                        if deleted:
+                            app.logger.info("Удалено обращений по сроку хранения: %s", deleted)
+                        last_retention_cleanup = now
                 except Exception:
                     db.session.rollback()
                     app.logger.exception("Ошибка цикла worker автопередачи")
