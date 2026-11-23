@@ -141,7 +141,8 @@ def test_revoked_employee_invitation_cannot_be_used(
 
     revoked = admin_client.post(f"/employees/invitations/{invitation_id}/revoke")
     assert revoked.status_code == 302
-    assert client.get(f"/accept-invitation/{token}").status_code == 410
+    anonymous_client = app.test_client()
+    assert anonymous_client.get(f"/accept-invitation/{token}").status_code == 410
 
 
 def test_invitation_is_not_sent_when_employee_email_already_exists(
