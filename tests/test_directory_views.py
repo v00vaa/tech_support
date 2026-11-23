@@ -6,30 +6,26 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.models import Client, Employee, Role
+from app.models import Client, Employee
+from app.services.rbac_service import ensure_rbac_catalogue
 
 
 @pytest.fixture
-def directory_records(app: Flask) -> Iterator[int]:
+def directory_records(app: Flask) -> Iterator[dict[str, int]]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
     with app.app_context():
         db.create_all()
-        admin_role = Role(
-            code="administrator",
-            name="Administrator",
-            is_system=True,
-            role_type="MAIN",
-        )
+        administrator_role, _ = ensure_rbac_catalogue()
         admin = Employee(
             name="Directory Admin",
             email="directory-admin@example.com",
             position="Administrator",
             password_hash="unused",
+            roles=[administrator_role],
         )
-        admin.roles.append(admin_role)
         db.session.add(admin)
         for index in range(30):
-            client = Client(
+            customer = Client(
                 name=f"Customer {index:02d}",
                 login=f"customer-{index:02d}",
                 email=f"customer-{index:02d}@example.com",
@@ -42,12 +38,12 @@ def directory_records(app: Flask) -> Iterator[int]:
                 position="Support specialist",
                 password_hash="unused",
                 is_active=index % 2 == 0,
+                roles=[administrator_role],
             )
-            employee.roles.append(admin_role)
-            db.session.add_all([client, employee])
+            db.session.add_all([customer, employee])
         db.session.commit()
-        admin_id = admin.id
-        yield admin_id
+        ids = {"admin_id": admin.id, "admin_role_id": administrator_role.id}
+        yield ids
         db.session.remove()
         db.drop_all()
 
@@ -55,7 +51,7 @@ def directory_records(app: Flask) -> Iterator[int]:
 @pytest.fixture
 def admin_session(client, directory_records):
     with client.session_transaction() as session:
-        session["_user_id"] = f"employee:{directory_records}"
+        session["_user_id"] = f"employee:{directory_records['admin_id']}"
         session["_fresh"] = True
     return client
 
@@ -78,8 +74,9 @@ def test_client_directory_clamps_invalid_page_and_searches_phone(admin_session) 
     assert "Найдено: 1".encode() in response.data
 
 
-def test_employee_directory_filters_status_and_role(admin_session) -> None:
-    response = admin_session.get("/employees?status=active&role=1&q=employee")
+def test_employee_directory_filters_status_and_role(admin_session, directory_records) -> None:
+    role_id = directory_records["admin_role_id"]
+    response = admin_session.get(f"/employees?status=active&role={role_id}&q=employee")
 
     assert response.status_code == 200
     assert "Найдено: 15".encode() in response.data
