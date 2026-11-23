@@ -1,9 +1,14 @@
 """Dialog operations and intentionally small status-transition policy."""
 
 from datetime import UTC, datetime
+from typing import Any, cast
+
+from sqlalchemy import update
+from sqlalchemy.engine import CursorResult
 
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
+from app.models.message import AuthorType, Message
 
 ALLOWED_TRANSITIONS: dict[DialogStatus, set[DialogStatus]] = {
     DialogStatus.OPEN: {DialogStatus.IN_PROGRESS, DialogStatus.CLOSED},
@@ -53,6 +58,45 @@ def assign_employee(dialog: Dialog, employee_id: int | None) -> Dialog:
         dialog.role_assigned_at = datetime.now(UTC)
     db.session.commit()
     return dialog
+
+
+def claim_dialog(dialog_id: int, employee_id: int, role_ids: list[int]) -> bool:
+    """Atomically claim a dialog from one of the employee's queues and record the event."""
+    if not role_ids:
+        return False
+
+    result = cast(
+        CursorResult[Any],
+        db.session.execute(
+            update(Dialog)
+            .where(
+                Dialog.id == dialog_id,
+                Dialog.assigned_role_id.in_(role_ids),
+                Dialog.responsible_employee_id.is_(None),
+                Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+            )
+            .values(
+                responsible_employee_id=employee_id,
+                status=DialogStatus.IN_PROGRESS,
+                updated_at=datetime.now(UTC),
+            )
+        ),
+    )
+    if result.rowcount != 1:
+        db.session.rollback()
+        return False
+
+    db.session.add(
+        Message(
+            dialog_id=dialog_id,
+            author_type=AuthorType.SYSTEM,
+            author_id=None,
+            text="Обращение взял в работу сотрудник.",
+            is_internal=False,
+        )
+    )
+    db.session.commit()
+    return True
 
 
 def change_status(dialog: Dialog, status: DialogStatus) -> Dialog:
