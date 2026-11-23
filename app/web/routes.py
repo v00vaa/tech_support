@@ -740,8 +740,49 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
 @login_required
 @permission_required("clients.view")
 def client_list() -> ResponseReturnValue:
-    clients = db.session.scalars(db.select(Client).order_by(Client.name)).all()
-    return render_template("clients/list.html", clients=clients)
+    """Search and paginate the customer directory on the database side."""
+    search = (request.args.get("q") or "").strip()[:100]
+    linked_filter = request.args.get("linked", "")
+    if linked_filter not in {"linked", "standalone", ""}:
+        linked_filter = ""
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    per_page = 25
+
+    statement = db.select(Client)
+    count_statement = db.select(func.count()).select_from(Client)
+    if search:
+        pattern = f"%{search.casefold()}%"
+        search_clause = (
+            func.lower(Client.name).like(pattern)
+            | func.lower(func.coalesce(Client.login, "")).like(pattern)
+            | func.lower(func.coalesce(Client.email, "")).like(pattern)
+            | func.lower(func.coalesce(Client.phone, "")).like(pattern)
+        )
+        statement = statement.where(search_clause)
+        count_statement = count_statement.where(search_clause)
+    if linked_filter == "linked":
+        statement = statement.where(Client.external_id.is_not(None))
+        count_statement = count_statement.where(Client.external_id.is_not(None))
+    elif linked_filter == "standalone":
+        statement = statement.where(Client.external_id.is_(None))
+        count_statement = count_statement.where(Client.external_id.is_(None))
+
+    total = db.session.scalar(count_statement) or 0
+    total_pages = max((total + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    clients = db.session.scalars(
+        statement.order_by(Client.name, Client.id).offset((page - 1) * per_page).limit(per_page)
+    ).all()
+    return render_template(
+        "clients/list.html",
+        clients=clients,
+        search=search,
+        linked_filter=linked_filter,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        page_numbers=range(max(1, page - 2), min(total_pages, page + 2) + 1),
+    )
 
 
 @clients_bp.route("/create", methods=["GET", "POST"])
@@ -804,8 +845,60 @@ def client_delete(client_id: int) -> ResponseReturnValue:
 @login_required
 @permission_required("employees.view")
 def employee_list() -> ResponseReturnValue:
-    employees = db.session.scalars(db.select(Employee).order_by(Employee.name)).all()
-    return render_template("employees/list.html", employees=employees)
+    """Search, filter, and paginate the employee directory."""
+    search = (request.args.get("q") or "").strip()[:100]
+    status_filter = request.args.get("status", "")
+    if status_filter not in {"active", "inactive", ""}:
+        status_filter = ""
+    role_filter = request.args.get("role", type=int)
+    if role_filter is not None and role_filter < 1:
+        role_filter = None
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
+    per_page = 25
+
+    statement = db.select(Employee)
+    count_statement = db.select(func.count()).select_from(Employee)
+    if search:
+        pattern = f"%{search.casefold()}%"
+        search_clause = (
+            func.lower(Employee.name).like(pattern)
+            | func.lower(Employee.email).like(pattern)
+            | func.lower(Employee.position).like(pattern)
+        )
+        statement = statement.where(search_clause)
+        count_statement = count_statement.where(search_clause)
+    if status_filter == "active":
+        statement = statement.where(Employee.is_active.is_(True))
+        count_statement = count_statement.where(Employee.is_active.is_(True))
+    elif status_filter == "inactive":
+        statement = statement.where(Employee.is_active.is_(False))
+        count_statement = count_statement.where(Employee.is_active.is_(False))
+    if role_filter is not None:
+        role_clause = Employee.roles.any(Role.id == role_filter)
+        statement = statement.where(role_clause)
+        count_statement = count_statement.where(role_clause)
+
+    total = db.session.scalar(count_statement) or 0
+    total_pages = max((total + per_page - 1) // per_page, 1)
+    page = min(page, total_pages)
+    employees = db.session.scalars(
+        statement.order_by(Employee.name, Employee.id)
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    ).all()
+    roles = db.session.scalars(db.select(Role).where(Role.is_active).order_by(Role.name)).all()
+    return render_template(
+        "employees/list.html",
+        employees=employees,
+        search=search,
+        status_filter=status_filter,
+        role_filter=role_filter,
+        roles=roles,
+        page=page,
+        total_pages=total_pages,
+        total=total,
+        page_numbers=range(max(1, page - 2), min(total_pages, page + 2) + 1),
+    )
 
 
 @employees_bp.route("/create", methods=["GET", "POST"])
