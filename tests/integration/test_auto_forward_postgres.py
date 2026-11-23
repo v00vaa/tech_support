@@ -172,7 +172,6 @@ def test_failed_commit_rolls_back_forward_and_event(postgres_app: Flask) -> None
         _cleanup(postgres_app, dialog_ids, source_id, target_id, customer_id)
 
 
-
 def test_parallel_employees_only_one_can_claim_dialog(postgres_app: Flask) -> None:
     """PostgreSQL row locking must allow exactly one employee to claim a queue item."""
     suffix = uuid4().hex
