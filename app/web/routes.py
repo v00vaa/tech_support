@@ -1185,8 +1185,6 @@ def message_create(dialog_id: int) -> ResponseReturnValue:
         if not has_permission(current_user, "dialogs.view") or not has_permission(
             current_user, required_permission
         ):
-            from flask import abort
-
             abort(403)
         message = Message(
             dialog_id=dialog.id,
