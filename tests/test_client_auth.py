@@ -236,7 +236,10 @@ def test_customer_cannot_create_dialog_with_blocked_words(client, customer_recor
 
     assert response.status_code == 400
     with app.app_context():
-        assert db.session.scalar(db.select(Dialog).where(Dialog.subject == "Blocked request")) is None
+        blocked_dialog = db.session.scalar(
+            db.select(Dialog).where(Dialog.subject == "Blocked request")
+        )
+        assert blocked_dialog is None
 
 
 def test_customer_cannot_reply_with_blocked_words(client, customer_records, app) -> None:
