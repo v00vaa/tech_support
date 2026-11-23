@@ -60,8 +60,8 @@ from app.services.employee_invitation_service import (
     revoke_employee_invitation,
     send_employee_invitation_email,
 )
-from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.moderation_service import normalize_entries
+from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.registration_provider import (
     RegistrationProviderError,
     RegistrationTokenInvalid,
@@ -97,6 +97,8 @@ from app.web.forms import (
     GeneralSettingsForm,
     LoginForm,
     MessageForm,
+    ModerationSettingsForm,
+    OllamaSettingsForm,
     RegistrationSettingsForm,
     RoleFirstLineForm,
     RoleForm,
@@ -108,8 +110,6 @@ from app.web.forms import (
     StatusForm,
     WebChannelSettingsForm,
     WorkflowRouteForm,
-    ModerationSettingsForm,
-    OllamaSettingsForm,
 )
 
 main_bp = Blueprint("main", __name__)
@@ -2198,8 +2198,8 @@ def moderation_settings() -> ResponseReturnValue:
         form.blocked_words.data = settings.blocked_words
         form.invalid_message_examples.data = settings.invalid_message_examples
     if form.validate_on_submit():
-        settings.blocked_words = "\n".join(normalize_entries(form.blocked_words.data or ""))
-        settings.invalid_message_examples = "\n".join(normalize_entries(form.invalid_message_examples.data or ""))
+        settings.blocked_words = "\n".join(\n            normalize_entries(form.blocked_words.data or "")\n        )
+        settings.invalid_message_examples = "\n".join(\n            normalize_entries(form.invalid_message_examples.data or "")\n        )
         db.session.commit()
         flash("Настройки модерации сохранены.", "success")
         return redirect(url_for("settings.moderation_settings"))
@@ -2226,9 +2226,9 @@ def ai_settings() -> ResponseReturnValue:
     if form.validate_on_submit():
         if form.test_connection.data:
             try:
-                models = OllamaClient(form.ollama_base_url.data or "", form.ollama_model.data or "").list_models()
+                client = OllamaClient(\n                    form.ollama_base_url.data or "", form.ollama_model.data or ""\n                )\n                models = client.list_models()
                 if form.ollama_model.data not in models:
-                    flash("Ollama доступен, но выбранная модель не найдена. Выполните ollama pull.", "warning")
+                    flash(\n                        "Ollama доступен, но выбранная модель не найдена. Выполните ollama pull.",\n                        "warning",\n                    )
                 else:
                     flash("Подключение к Ollama и выбранная модель доступны.", "success")
             except OllamaError as error:
