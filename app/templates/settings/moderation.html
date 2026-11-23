@@ -7,6 +7,7 @@
   <section class="col-md-9 col-lg-10">
     <h2 class="h3">Модерация сообщений</h2>
     <p class="text-muted">Списки сохраняются в БД. Каждый элемент указывается с новой строки.</p>
+    <a class="btn btn-outline-secondary btn-sm mb-3" href="{{ url_for('settings.moderation_events') }}">Журнал отклонённых сообщений</a>
     <form method="post" class="card"><div class="card-body">
       {{ form.hidden_tag() }}
       <div class="form-check form-switch mb-3">
