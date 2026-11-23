@@ -111,7 +111,7 @@ def test_workflow_editor_requires_routing_permission(client, workflow_system) ->
     assert client.get("/settings/workflow").status_code == 403
     assert (
         client.post(
-            f"/settings/workflow/routes/1/delete",
+            "/settings/workflow/routes/1/delete",
         ).status_code
         == 403
     )
