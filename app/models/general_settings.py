@@ -1,6 +1,6 @@
 """Persistent global application settings."""
 
-from sqlalchemy import CheckConstraint, Text
+from sqlalchemy import Boolean, CheckConstraint, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import Base
@@ -21,9 +21,12 @@ class GeneralSettings(Base):
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     closed_dialog_retention_days: Mapped[int | None] = mapped_column(nullable=True, default=None)
     web_channel_enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
+    blocked_words_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    classifier_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ollama_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     blocked_words: Mapped[str] = mapped_column(Text, nullable=False, default="")
     invalid_message_examples: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    ollama_base_url: Mapped[str] = mapped_column(nullable=False, default="http://localhost:11434")
+    ollama_base_url: Mapped[str] = mapped_column(nullable=False, default="http://ollama:11434")
     ollama_model: Mapped[str] = mapped_column(nullable=False, default="qwen2.5:3b")
     ollama_system_prompt: Mapped[str] = mapped_column(
         Text,
