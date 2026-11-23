@@ -27,9 +27,7 @@ def test_orphan_cleanup_removes_only_old_unreferenced_files(app, tmp_path, monke
         db.session.add(customer)
         db.session.commit()
         dialog = dialog_service.create_dialog(customer.id, None, "Cleanup", "Web")
-        message = message_service.create_message(
-            dialog.id, AuthorType.CLIENT, customer.id, "File"
-        )
+        message = message_service.create_message(dialog.id, AuthorType.CLIENT, customer.id, "File")
         db.session.add(
             Attachment(
                 message_id=message.id,
