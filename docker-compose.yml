@@ -20,7 +20,51 @@ services:
     ports:
       - "5000:8000"
     depends_on:
-      ollama:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  worker:
+    build: .
+    command:
+      - flask
+      - --app
+      - wsgi:app
+      - run-auto-forward-worker
+      - --interval
+      - "30"
+      - --batch-size
+      - "100"
+    environment:
+      SUPPORT_ENVIRONMENT: development
+      SUPPORT_SECRET_KEY: development-only-change-me
+      SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
+      SUPPORT_RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
+      SUPPORT_OLLAMA_BASE_URL: http://ollama:11434
+      SUPPORT_OLLAMA_MODEL: ${SUPPORT_OLLAMA_MODEL:-qwen2.5:3b}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      disable: true
+
+  migrate:
+    build: .
+    command: ["alembic", "upgrade", "head"]
+    environment:
+      SUPPORT_ENVIRONMENT: development
+      SUPPORT_SECRET_KEY: development-only-change-me
+      SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
+    depends_on:
+      db:
+        condition: service_healthy
+
+  ollama:
     image: ollama/ollama:latest
     ports:
       - "11434:11434"
@@ -43,48 +87,6 @@ services:
       ollama:
         condition: service_healthy
     restart: "no"
-
-  migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-
-  worker:
-    build: .
-    command:
-      - flask
-      - --app
-      - wsgi:app
-      - run-auto-forward-worker
-      - --interval
-      - "30"
-      - --batch-size
-      - "100"
-    environment:
-      SUPPORT_ENVIRONMENT: development
-      SUPPORT_SECRET_KEY: development-only-change-me
-      SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
-      SUPPORT_RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
-    depends_on:
-      migrate:
-        condition: service_completed_successfully
-      redis:
-        condition: service_healthy
-    restart: unless-stopped
-    healthcheck:
-      disable: true
-
-  migrate:
-    build: .
-    command: ["alembic", "upgrade", "head"]
-    environment:
-      SUPPORT_ENVIRONMENT: development
-      SUPPORT_SECRET_KEY: development-only-change-me
-      SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@db:5432/support
-    depends_on:
-      db:
-        condition: service_healthy
 
   redis:
     image: redis:7-alpine
