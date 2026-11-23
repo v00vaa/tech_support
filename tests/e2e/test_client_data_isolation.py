@@ -42,13 +42,13 @@ def isolated_customer_data(
 
         first_dialog = Dialog(
             client_id=first_customer.id,
-            subject="First customer's private request",
+            subject="First customer private request",
             status=DialogStatus.OPEN,
             channel="Web",
         )
         second_dialog = Dialog(
             client_id=second_customer.id,
-            subject="Second customer's private request",
+            subject="Second customer private request",
             status=DialogStatus.OPEN,
             channel="Web",
         )
@@ -59,7 +59,7 @@ def isolated_customer_data(
             dialog_id=first_dialog.id,
             author_type=AuthorType.CLIENT,
             author_id=first_customer.id,
-            text="First customer's public message",
+            text="First customer public message",
             is_internal=False,
         )
         own_internal_message = Message(
@@ -73,7 +73,7 @@ def isolated_customer_data(
             dialog_id=second_dialog.id,
             author_type=AuthorType.CLIENT,
             author_id=second_customer.id,
-            text="Second customer's secret message",
+            text="Second customer secret message",
             is_internal=False,
         )
         db.session.add_all([own_public_message, own_internal_message, foreign_message])
@@ -141,15 +141,15 @@ def test_customer_cannot_open_another_customers_dialog_or_messages(
     portal = client.get("/portal/")
     assert portal.status_code == 200
     portal_text = portal.get_data(as_text=True)
-    assert "First customer's private request" in portal_text
-    assert "Second customer's private request" not in portal_text
+    assert "First customer private request" in portal_text
+    assert "Second customer private request" not in portal_text
 
     own_dialog = client.get(f"/portal/dialogs/{ids['own_dialog']}")
     assert own_dialog.status_code == 200
     own_text = own_dialog.get_data(as_text=True)
-    assert "First customer's public message" in own_text
+    assert "First customer public message" in own_text
     assert "Internal employee-only note" not in own_text
-    assert "Second customer's secret message" not in own_text
+    assert "Second customer secret message" not in own_text
 
     assert client.get(f"/portal/dialogs/{ids['foreign_dialog']}").status_code == 404
     assert (
