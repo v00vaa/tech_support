@@ -194,9 +194,7 @@ def accept_employee_invitation(token: str, password: str) -> Employee:
 def revoke_employee_invitation(invitation: EmployeeInvitation) -> None:
     """Revoke an invitation under a row lock so acceptance cannot race the revocation."""
     locked_invitation = db.session.scalar(
-        select(EmployeeInvitation)
-        .where(EmployeeInvitation.id == invitation.id)
-        .with_for_update()
+        select(EmployeeInvitation).where(EmployeeInvitation.id == invitation.id).with_for_update()
     )
     if (
         locked_invitation is None
