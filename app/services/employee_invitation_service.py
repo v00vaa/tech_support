@@ -11,7 +11,7 @@ from email.message import EmailMessage
 from urllib.parse import urljoin
 
 from flask import current_app, url_for
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import generate_password_hash
 
@@ -43,7 +43,7 @@ def create_employee_invitation(
     """Persist a new invitation and invalidate earlier pending invitations."""
     normalized_email = email.strip().casefold()
     existing_employee = db.session.scalar(
-        select(Employee.id).where(db.func.lower(Employee.email) == normalized_email)
+        select(Employee.id).where(func.lower(Employee.email) == normalized_email)
     )
     if existing_employee is not None:
         raise EmployeeInvitationConflict("Сотрудник с таким email уже существует.")
