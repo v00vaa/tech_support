@@ -4,6 +4,7 @@ from app.models.attachment import Attachment
 from app.models.client import Client
 from app.models.dialog import Dialog, DialogStatus
 from app.models.employee import Employee
+from app.models.employee_invitation import EmployeeInvitation
 from app.models.general_settings import GeneralSettings
 from app.models.message import AuthorType, Message
 from app.models.registration_settings import RegistrationSettings
@@ -17,6 +18,7 @@ __all__ = [
     "Dialog",
     "DialogStatus",
     "Employee",
+    "EmployeeInvitation",
     "GeneralSettings",
     "Message",
     "Permission",
