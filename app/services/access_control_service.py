@@ -9,6 +9,7 @@ from typing import Any, TypeVar, cast
 from flask import abort
 from flask_login import current_user
 
+from app.models.dialog import Dialog, DialogStatus
 from app.models.employee import Employee
 from app.models.role import Role
 
@@ -30,6 +31,29 @@ def permission_codes(employee: Employee) -> set[str]:
 def has_permission(employee: Employee, permission_code: str) -> bool:
     """Return whether an active employee has the requested permission."""
     return permission_code in permission_codes(employee)
+
+
+def can_access_dialog(employee: Employee, dialog: Dialog) -> bool:
+    """Return whether an employee may open a dialog in their own work scope."""
+    if not isinstance(employee, Employee) or not employee.is_active:
+        return False
+    if not has_permission(employee, "dialogs.view"):
+        return False
+    if is_active_administrator(employee):
+        return True
+    if dialog.responsible_employee_id == employee.id:
+        return True
+
+    queue_role_ids = {
+        role.id
+        for role in employee.roles
+        if role.is_active and role.role_type == "MAIN" and role.code != "administrator"
+    }
+    return (
+        dialog.responsible_employee_id is None
+        and dialog.assigned_role_id in queue_role_ids
+        and dialog.status in {DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE}
+    )
 
 
 def can_delegate_permissions(employee: Employee, codes: Iterable[str]) -> bool:
