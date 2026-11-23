@@ -43,7 +43,7 @@ try {
         Get-ChildItem -LiteralPath (Join-Path $backupDir "uploads") -File -Recurse |
             ForEach-Object {
                 [PSCustomObject]@{
-                    path = [IO.Path]::GetRelativePath((Join-Path $backupDir "uploads"), $_.FullName)
+                    path = $_.FullName.Substring((Join-Path $backupDir "uploads").Length).TrimStart([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar)
                     sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash
                 }
             }
