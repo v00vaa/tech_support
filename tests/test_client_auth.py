@@ -6,7 +6,7 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, Message, Role
+from app.models import AuthorType, Client, Dialog, Employee, GeneralSettings, Message, Role
 
 
 @pytest.fixture
@@ -218,3 +218,45 @@ def test_employee_and_customer_session_ids_are_namespaced() -> None:
 
     assert customer.get_id() == "client:7"
     assert employee.get_id() == "employee:7"
+
+
+def test_customer_cannot_create_dialog_with_blocked_words(client, customer_records, app) -> None:
+    with app.app_context():
+        db.session.add(GeneralSettings(id=1, blocked_words="spam"))
+        db.session.commit()
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "Blocked request", "message": "This is SPAM"},
+    )
+
+    assert response.status_code == 400
+    with app.app_context():
+        assert (
+            db.session.scalar(db.select(Dialog).where(Dialog.subject == "Blocked request"))
+            is None
+        )
+
+
+def test_customer_cannot_reply_with_blocked_words(client, customer_records, app) -> None:
+    _, _, own_dialog_id = customer_records
+    with app.app_context():
+        db.session.add(GeneralSettings(id=1, blocked_words="spam"))
+        db.session.commit()
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        f"/portal/dialogs/{own_dialog_id}",
+        data={"text": "This is spam"},
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        assert db.session.scalar(db.select(Message).where(Message.text == "This is spam")) is None
