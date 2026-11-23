@@ -979,6 +979,7 @@ def employee_invitations() -> ResponseReturnValue:
         .where(
             EmployeeInvitation.accepted_at.is_(None),
             EmployeeInvitation.revoked_at.is_(None),
+            EmployeeInvitation.expires_at > datetime.now(UTC),
         )
         .order_by(EmployeeInvitation.created_at.desc())
         .limit(100)
