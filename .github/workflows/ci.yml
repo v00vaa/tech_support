@@ -9,7 +9,57 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  lint:
+    name: Ruff
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install project and verification tools
+        run: python -m pip install ".[dev]"
+      - name: Ruff lint
+        run: ruff check app tests
+      - name: Ruff format
+        run: ruff format --check app tests
+
+  typing:
+    name: Mypy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install project and verification tools
+        run: python -m pip install ".[dev]"
+      - name: Mypy
+        run: mypy app
+
+  security:
+    name: Security checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+      - name: Install project and verification tools
+        run: python -m pip install ".[dev]"
+      - name: Bandit
+        run: bandit -c pyproject.toml -r app
+      - name: Dependency audit
+        run: pip-audit
+
+  tests:
+    name: Tests and migrations
     runs-on: ubuntu-latest
     env:
       SUPPORT_TEST_POSTGRES_URL: postgresql+psycopg://support:support@localhost:5432/support_test
@@ -32,13 +82,15 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+          cache: pip
+          cache-dependency-path: pyproject.toml
       - name: Install project and verification tools
         run: python -m pip install ".[dev]"
       - name: Verify a single Alembic head
         run: |
           heads="$(alembic heads)"
-          printf '%s\n' "$heads"
-          test "$(printf '%s\n' "$heads" | grep -c '(head)')" -eq 1
+          printf '%s\\n' "$heads"
+          test "$(printf '%s\\n' "$heads" | grep -c '(head)')" -eq 1
       - name: Verify migrations from an empty PostgreSQL database
         env:
           SUPPORT_DATABASE_URL: postgresql+psycopg://support:support@localhost:5432/support_migrations_test
@@ -47,17 +99,14 @@ jobs:
           createdb --host localhost --username support support_migrations_test
           alembic upgrade head
           alembic current
-      - run: ruff check app tests
-      - run: ruff format --check app tests
-      - run: mypy app
-      - run: bandit -c pyproject.toml -r app
-      - run: pip-audit
-      - run: coverage run --source=app -m pytest -o addopts=""
-      - run: coverage report --fail-under=80
+      - name: Run tests with coverage
+        run: coverage run --source=app -m pytest -o addopts=""
+      - name: Enforce coverage threshold
+        run: coverage report --fail-under=80
 
   docker:
     name: Docker build
-    needs: quality
+    needs: [lint, typing, security, tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
