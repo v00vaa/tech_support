@@ -38,6 +38,7 @@ from app.models import (
     EmployeeInvitation,
     GeneralSettings,
     Message,
+    ModerationEvent,
     Permission,
     RegistrationSettings,
     Role,
@@ -98,6 +99,7 @@ from app.web.forms import (
     GeneralSettingsForm,
     LoginForm,
     MessageForm,
+    ModerationReviewForm,
     ModerationSettingsForm,
     OllamaSettingsForm,
     RegistrationSettingsForm,
@@ -203,27 +205,69 @@ def _detect_attachment_content_type(filename: str, content: bytes) -> str:
 
 def _moderate_customer_message(
     message: str, settings: GeneralSettings | None
-) -> tuple[str | None, bool]:
-    """Return a rejection reason and whether the optional classifier was unavailable."""
+) -> tuple[str | None, bool, str | None, float | None, str | None]:
+    """Return rejection details and whether the optional classifier was unavailable."""
     if settings is None:
-        return None, False
+        return None, False, None, None, None
 
     if settings.blocked_words_enabled:
         blocked_terms = check_message(message, settings.blocked_words)
         if blocked_terms:
-            return "Сообщение содержит запрещённые слова или фразы.", False
+            return (
+                "Сообщение содержит запрещённые слова или фразы.",
+                False,
+                "blocked_words",
+                None,
+                "blocked_words",
+            )
 
     if settings.classifier_enabled and settings.ollama_enabled:
         try:
             classification = classify_message(message, settings)
         except (OllamaError, ValueError):
             current_app.logger.exception("Message classification failed; allowing message")
-            return None, True
+            return None, True, None, None, None
         if classification["is_invalid"]:
             reason = classification["reason"].strip()
-            return reason or "Классификатор определил сообщение как некорректное.", False
+            return (
+                reason or "Классификатор определил сообщение как некорректное.",
+                False,
+                classification["category"],
+                classification["confidence"],
+                "classifier",
+            )
 
-    return None, False
+    return None, False, None, None, None
+
+
+def _record_moderation_rejection(
+    *,
+    client_id: int,
+    dialog_id: int | None,
+    message: str,
+    reason: str,
+    category: str | None,
+    confidence: float | None,
+    source: str,
+) -> None:
+    """Persist rejected message content for authorized staff review."""
+    db.session.add(
+        ModerationEvent(
+            client_id=client_id,
+            dialog_id=dialog_id,
+            source=source,
+            message_text=message,
+            decision="REJECTED",
+            category=category,
+            reason=reason,
+            confidence=confidence,
+        )
+    )
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception("Could not persist moderation rejection event")
 
 
 def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Path]:
@@ -639,10 +683,20 @@ def portal_dialog_create() -> ResponseReturnValue:
 
     form = ClientDialogForm()
     if form.validate_on_submit():
-        rejection_reason, classifier_unavailable = _moderate_customer_message(
-            form.message.data or "", settings
+        raw_message = (form.message.data or "").strip()
+        rejection_reason, classifier_unavailable, category, confidence, source = (
+            _moderate_customer_message(raw_message, settings)
         )
         if rejection_reason:
+            _record_moderation_rejection(
+                client_id=current_user.id,
+                dialog_id=None,
+                message=raw_message,
+                reason=rejection_reason,
+                category=category,
+                confidence=confidence,
+                source=source or "unknown",
+            )
             form.message.errors = [*form.message.errors, rejection_reason]
             return render_template("portal/dialog_form.html", form=form), 400
         if classifier_unavailable:
@@ -735,10 +789,20 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
             global_settings = db.session.get(GeneralSettings, 1)
-            rejection_reason, classifier_unavailable = _moderate_customer_message(
-                form.text.data or "", global_settings
+            raw_message = (form.text.data or "").strip()
+            rejection_reason, classifier_unavailable, category, confidence, source = (
+                _moderate_customer_message(raw_message, global_settings)
             )
             if rejection_reason:
+                _record_moderation_rejection(
+                    client_id=current_user.id,
+                    dialog_id=dialog.id,
+                    message=raw_message,
+                    reason=rejection_reason,
+                    category=category,
+                    confidence=confidence,
+                    source=source or "unknown",
+                )
                 flash(rejection_reason, "danger")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
             if classifier_unavailable:
@@ -2266,6 +2330,54 @@ def moderation_settings() -> ResponseReturnValue:
         example_count=len(normalize_entries(settings.invalid_message_examples)),
         active_settings_section="moderation",
     )
+
+
+@settings_bp.get("/moderation/events")
+@login_required
+@permission_required("settings.view")
+def moderation_events() -> ResponseReturnValue:
+    """Show recent rejected customer messages for staff review."""
+    events = db.session.scalars(
+        db.select(ModerationEvent)
+        .order_by(ModerationEvent.created_at.desc(), ModerationEvent.id.desc())
+        .limit(100)
+    ).all()
+    clients = {
+        client.id: client
+        for client in db.session.scalars(
+            db.select(Client).where(
+                Client.id.in_(
+                    {event.client_id for event in events if event.client_id is not None}
+                )
+            )
+        ).all()
+    } if events else {}
+    return render_template(
+        "settings/moderation_events.html",
+        events=events,
+        clients=clients,
+        review_forms={event.id: ModerationReviewForm() for event in events},
+        active_settings_section="moderation",
+    )
+
+
+@settings_bp.post("/moderation/events/<int:event_id>/review")
+@login_required
+@permission_required("settings.edit")
+def moderation_event_review(event_id: int) -> ResponseReturnValue:
+    """Save the staff review outcome for one moderation event."""
+    event = db.get_or_404(ModerationEvent, event_id)
+    form = ModerationReviewForm()
+    if form.validate_on_submit():
+        event.review_status = form.review_status.data or "REVIEWED"
+        event.review_note = (form.review_note.data or "").strip() or None
+        event.reviewed_by_employee_id = current_user.id
+        event.reviewed_at = datetime.now(UTC)
+        db.session.commit()
+        flash("Результат разбора сохранён.", "success")
+    else:
+        flash("Не удалось сохранить результат разбора.", "danger")
+    return redirect(url_for("settings.moderation_events"))
 
 
 @settings_bp.route("/ai", methods=["GET", "POST"])
