@@ -23,7 +23,6 @@ def _new_invitation(admin_id: int, role_id: int, email: str):
     )
 
 
-
 @pytest.fixture
 def invitation_admin(app: Flask) -> Iterator[tuple[int, int]]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
