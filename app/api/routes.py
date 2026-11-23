@@ -37,11 +37,9 @@ def _dialog_access_clause(employee: Employee) -> ColumnElement[bool] | None:
     clauses = [Dialog.responsible_employee_id == employee.id]
     if queue_role_ids:
         clauses.append(
-            (
-                Dialog.responsible_employee_id.is_(None)
-                & Dialog.assigned_role_id.in_(queue_role_ids)
-                & Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE])
-            )
+            Dialog.responsible_employee_id.is_(None)
+            & Dialog.assigned_role_id.in_(queue_role_ids)
+            & Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE])
         )
     return or_(*clauses)
 
