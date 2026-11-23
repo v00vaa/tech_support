@@ -23,7 +23,7 @@ def find_blocked_terms(message: str, entries: list[str]) -> list[str]:
         words = entry.split()
         if not words:
             continue
-        pattern = r"(?<!\\w)" + r"\\s+".join(re.escape(word) for word in words) + r"(?!\\w)"
+        pattern = r"(?<!\w)" + r"\s+".join(re.escape(word) for word in words) + r"(?!\w)"
         if re.search(pattern, message, flags=re.IGNORECASE | re.UNICODE):
             matches.append(entry)
     return matches
