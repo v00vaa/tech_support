@@ -176,3 +176,36 @@ def test_invitation_is_not_sent_when_employee_email_already_exists(
     assert response.status_code == 200
     assert sent == []
     assert "Сотрудник с таким email уже существует.".encode() in response.data
+
+
+
+def test_failed_email_delivery_revokes_the_created_invitation(
+    app,
+    admin_client,
+    invitation_admin,
+) -> None:
+    def fail_delivery(to: str, subject: str, body: str) -> None:
+        raise OSError("SMTP unavailable")
+
+    app.config["EMPLOYEE_INVITATION_EMAIL_SENDER"] = fail_delivery
+    response = admin_client.post(
+        "/employees/invitations",
+        data={
+            "name": "Undelivered Employee",
+            "email": "undelivered@example.com",
+            "position": "Support specialist",
+            "role_id": str(invitation_admin[1]),
+        },
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 200
+    assert "Не удалось отправить приглашение".encode() in response.data
+    with app.app_context():
+        invitation = db.session.scalar(
+            db.select(EmployeeInvitation).where(
+                EmployeeInvitation.email == "undelivered@example.com"
+            )
+        )
+        assert invitation is not None
+        assert invitation.revoked_at is not None
