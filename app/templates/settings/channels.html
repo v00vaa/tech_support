@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block title %}Каналы · Support Desk{% endblock %}
+{% block content %}
+<div class="row g-4">
+  {% set active_settings_section = 'channels' %}
+  {% include "components/_settings_navigation.html" %}
+  <section class="col-md-9 col-lg-10">
+    <h2 class="h3">Каналы обращений</h2>
+    <p class="text-muted">Управление источниками, из которых клиенты могут создавать обращения.</p>
+    <div class="card mb-4">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span class="fw-semibold">Web — клиентский веб-кабинет</span>
+        {% if settings.web_channel_enabled %}
+        <span class="badge text-bg-success">Приём включён</span>
+        {% else %}
+        <span class="badge text-bg-secondary">Приём приостановлен</span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        <p>Клиенты могут создавать обращения и отвечать на них через веб-кабинет. Приостановка канала запрещает только создание новых обращений: просмотр истории и ответы в существующих обращениях сохраняются.</p>
+        <form method="post">
+          {{ form.hidden_tag() }}
+          <div class="form-check mb-3">
+            {{ form.web_channel_enabled(class_="form-check-input") }}
+            {{ form.web_channel_enabled.label(class_="form-check-label") }}
+          </div>
+          {{ form.submit(class_="btn btn-primary") }}
+        </form>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header fw-semibold">Другие каналы</div>
+      <div class="card-body text-muted">
+        Telegram, VK и виджет пока не подключены и не отображаются как доступные каналы.
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}
