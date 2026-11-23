@@ -25,8 +25,15 @@ def upgrade() -> None:
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("accepted_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("revoked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("role_id", sa.Integer(), nullable=False),
         sa.Column("invited_by_employee_id", sa.Integer(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(
+            ["role_id"],
+            ["roles.id"],
+            name="fk_employee_invitations_role_id_roles",
+            ondelete="RESTRICT",
+        ),
         sa.ForeignKeyConstraint(
             ["invited_by_employee_id"],
             ["employees.id"],
