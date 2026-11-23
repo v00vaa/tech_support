@@ -35,7 +35,18 @@ def test_classify_message_parses_structured_json(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(
         "app.services.ollama_client.urlopen",
         lambda request, timeout: FakeResponse(
-            {"message": {"content": '{"is_invalid": false, "category": "ok", "reason": "", "confidence": 0.9}'}}
+            {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "is_invalid": False,
+                            "category": "ok",
+                            "reason": "",
+                            "confidence": 0.9,
+                        }
+                    )
+                }
+            }
         ),
     )
     result = OllamaClient("http://ollama:11434", "qwen2.5:3b").classify_message(
