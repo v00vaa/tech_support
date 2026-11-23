@@ -60,6 +60,7 @@ from app.services.employee_invitation_service import (
     revoke_employee_invitation,
     send_employee_invitation_email,
 )
+from app.services.classifier_service import classify_message
 from app.services.moderation_service import check_message, normalize_entries
 from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.registration_provider import (
@@ -198,6 +199,31 @@ def _detect_attachment_content_type(filename: str, content: bytes) -> str:
                 return "text/csv" if extension == "csv" else "text/plain"
 
     raise ValueError("Содержимое файла не соответствует его расширению.")
+
+
+def _moderate_customer_message(
+    message: str, settings: GeneralSettings | None
+) -> tuple[str | None, bool]:
+    """Return a rejection reason and whether the optional classifier was unavailable."""
+    if settings is None:
+        return None, False
+
+    if settings.blocked_words_enabled:
+        blocked_terms = check_message(message, settings.blocked_words)
+        if blocked_terms:
+            return "Сообщение содержит запрещённые слова или фразы.", False
+
+    if settings.classifier_enabled and settings.ollama_enabled:
+        try:
+            classification = classify_message(message, settings)
+        except (OllamaError, ValueError):
+            current_app.logger.exception("Message classification failed; allowing message")
+            return None, True
+        if classification["is_invalid"]:
+            reason = classification["reason"].strip()
+            return reason or "Классификатор определил сообщение как некорректное.", False
+
+    return None, False
 
 
 def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Path]:
@@ -613,16 +639,14 @@ def portal_dialog_create() -> ResponseReturnValue:
 
     form = ClientDialogForm()
     if form.validate_on_submit():
-        blocked_terms = check_message(
-            form.message.data or "",
-            settings.blocked_words if settings is not None else "",
+        rejection_reason, classifier_unavailable = _moderate_customer_message(
+            form.message.data or "", settings
         )
-        if blocked_terms:
-            form.message.errors = [
-                *form.message.errors,
-                "Сообщение содержит запрещённые слова или фразы.",
-            ]
+        if rejection_reason:
+            form.message.errors = [*form.message.errors, rejection_reason]
             return render_template("portal/dialog_form.html", form=form), 400
+        if classifier_unavailable:
+            flash("Классификатор временно недоступен; сообщение принято без AI-проверки.", "warning")
 
         first_line_role = db.session.scalar(
             db.select(Role).where(
@@ -708,13 +732,17 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
             global_settings = db.session.get(GeneralSettings, 1)
-            blocked_terms = check_message(
-                form.text.data or "",
-                global_settings.blocked_words if global_settings is not None else "",
+            rejection_reason, classifier_unavailable = _moderate_customer_message(
+                form.text.data or "", global_settings
             )
-            if blocked_terms:
-                flash("Сообщение содержит запрещённые слова или фразы.", "danger")
+            if rejection_reason:
+                flash(rejection_reason, "danger")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+            if classifier_unavailable:
+                flash(
+                    "Классификатор временно недоступен; сообщение принято без AI-проверки.",
+                    "warning",
+                )
 
             dialog.updated_at = datetime.now(UTC)
             message = Message(
@@ -2214,9 +2242,13 @@ def moderation_settings() -> ResponseReturnValue:
     settings = _get_general_settings()
     form = ModerationSettingsForm()
     if request.method == "GET":
+        form.blocked_words_enabled.data = settings.blocked_words_enabled
+        form.classifier_enabled.data = settings.classifier_enabled
         form.blocked_words.data = settings.blocked_words
         form.invalid_message_examples.data = settings.invalid_message_examples
     if form.validate_on_submit():
+        settings.blocked_words_enabled = bool(form.blocked_words_enabled.data)
+        settings.classifier_enabled = bool(form.classifier_enabled.data)
         settings.blocked_words = "\n".join(normalize_entries(form.blocked_words.data or ""))
         settings.invalid_message_examples = "\n".join(
             normalize_entries(form.invalid_message_examples.data or "")
@@ -2243,6 +2275,7 @@ def ai_settings() -> ResponseReturnValue:
     settings = _get_general_settings()
     form = OllamaSettingsForm()
     if request.method == "GET":
+        form.ollama_enabled.data = settings.ollama_enabled
         form.ollama_base_url.data = settings.ollama_base_url
         form.ollama_model.data = settings.ollama_model
         form.ollama_system_prompt.data = settings.ollama_system_prompt
@@ -2265,6 +2298,7 @@ def ai_settings() -> ResponseReturnValue:
             except (OllamaError, ValueError) as error:
                 flash(f"Не удалось подключиться к Ollama: {error}", "danger")
         else:
+            settings.ollama_enabled = bool(form.ollama_enabled.data)
             settings.ollama_base_url = (form.ollama_base_url.data or "").strip().rstrip("/")
             settings.ollama_model = (form.ollama_model.data or "").strip()
             settings.ollama_system_prompt = form.ollama_system_prompt.data or ""
