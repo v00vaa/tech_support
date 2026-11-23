@@ -40,9 +40,7 @@ def remove_orphaned_attachment_files(min_age_hours: int = 24) -> int:
         return 0
 
     referenced = set(
-        db.session.scalars(
-            db.select(Attachment.storage_key).where(Attachment.storage_key != "")
-        )
+        db.session.scalars(db.select(Attachment.storage_key).where(Attachment.storage_key != ""))
     )
     cutoff = datetime.now(UTC).timestamp() - timedelta(hours=min_age_hours).total_seconds()
     removed = 0
