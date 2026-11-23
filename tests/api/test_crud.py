@@ -7,7 +7,7 @@ from flask import Flask
 from flask.testing import FlaskClient
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, Employee, Permission, Role
+from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Permission, Role
 from app.services.dialog_service import create_dialog
 from app.services.message_service import create_message
 from app.services.rbac_service import ensure_rbac_catalogue
@@ -224,7 +224,52 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
             subject="Hidden from scoped agent",
             channel="API",
         )
-        db.session.add_all([visible_dialog, hidden_dialog])
+        claimed_dialog = Dialog(
+            client_id=hidden_customer.id,
+            responsible_employee_id=administrator.id,
+            assigned_role_id=role.id,
+            subject="Claimed by another employee",
+            channel="API",
+            status=DialogStatus.IN_PROGRESS,
+        )
+        closed_queue_dialog = Dialog(
+            client_id=hidden_customer.id,
+            assigned_role_id=role.id,
+            subject="Closed queue dialog",
+            channel="API",
+            status=DialogStatus.CLOSED,
+        )
+        special_role = Role(
+            code="api_special_role",
+            name="API special role",
+            role_type="SPECIAL",
+        )
+        db.session.add(special_role)
+        db.session.flush()
+        scoped_employee.roles.append(special_role)
+        special_role_dialog = Dialog(
+            client_id=hidden_customer.id,
+            assigned_role_id=special_role.id,
+            subject="Special role dialog",
+            channel="API",
+        )
+        owned_closed_dialog = Dialog(
+            client_id=customer.id,
+            responsible_employee_id=scoped_employee.id,
+            subject="Owned closed dialog",
+            channel="API",
+            status=DialogStatus.CLOSED,
+        )
+        db.session.add_all(
+            [
+                visible_dialog,
+                hidden_dialog,
+                claimed_dialog,
+                closed_queue_dialog,
+                special_role_dialog,
+                owned_closed_dialog,
+            ]
+        )
         db.session.flush()
         create_message(
             visible_dialog.id,
@@ -240,8 +285,13 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
             is_internal=True,
         )
         scoped_employee_id = scoped_employee.id
-        hidden_dialog_id = hidden_dialog.id
-        visible_dialog_id = visible_dialog.id
+        hidden_dialog_ids = [
+            hidden_dialog.id,
+            claimed_dialog.id,
+            closed_queue_dialog.id,
+            special_role_dialog.id,
+        ]
+        visible_dialog_ids = [visible_dialog.id, owned_closed_dialog.id]
 
     with api_client.session_transaction() as session:
         session["_user_id"] = f"employee:{scoped_employee_id}"
@@ -249,17 +299,22 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
 
     dialogs_response = api_client.get("/api/v1/dialogs")
     assert dialogs_response.status_code == 200
-    assert [item["id"] for item in dialogs_response.get_json()] == [visible_dialog_id]
+    assert [item["id"] for item in dialogs_response.get_json()] == visible_dialog_ids
 
     clients_response = api_client.get("/api/v1/clients")
     assert clients_response.status_code == 200
     assert len(clients_response.get_json()) == 1
     assert clients_response.get_json()[0]["email"] == "api-customer@example.com"
 
-    hidden_detail = api_client.get(f"/api/v1/dialogs/{hidden_dialog_id}")
-    assert hidden_detail.status_code == 404
+    for hidden_dialog_id in hidden_dialog_ids:
+        hidden_detail = api_client.get(f"/api/v1/dialogs/{hidden_dialog_id}")
+        assert hidden_detail.status_code == 404
+        hidden_messages = api_client.get(
+            f"/api/v1/dialogs/{hidden_dialog_id}/messages"
+        )
+        assert hidden_messages.status_code == 404
 
-    visible_messages = api_client.get(f"/api/v1/dialogs/{visible_dialog_id}/messages")
+    visible_messages = api_client.get(f"/api/v1/dialogs/{visible_dialog_ids[0]}/messages")
     assert visible_messages.status_code == 200
     assert [item["text"] for item in visible_messages.get_json()] == ["Public scoped message"]
 
