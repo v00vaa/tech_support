@@ -119,6 +119,33 @@ class EmployeeForm(FlaskForm):
     submit = SubmitField("Сохранить")
 
 
+class EmployeeInvitationForm(FlaskForm):
+    """Create a time-limited invitation for a new employee."""
+
+    name = StringField("Имя", validators=[DataRequired(), Length(max=120)])
+    email = StringField("Email", validators=[DataRequired(), Email(), Length(max=255)])
+    position = StringField(
+        "Должность",
+        validators=[DataRequired(), Length(max=120)],
+        default="Специалист поддержки",
+    )
+    submit = SubmitField("Отправить приглашение")
+
+
+class EmployeeInvitationAcceptForm(FlaskForm):
+    """Set the initial password using a valid employee invitation."""
+
+    password = PasswordField(
+        "Пароль",
+        validators=[DataRequired(), Length(min=12, max=128)],
+    )
+    confirm_password = PasswordField(
+        "Повторите пароль",
+        validators=[DataRequired(), EqualTo("password", message="Пароли не совпадают.")],
+    )
+    submit = SubmitField("Создать аккаунт")
+
+
 class EmployeeRolesForm(FlaskForm):
     roles = SelectMultipleField("Роли", coerce=int)
     submit = SubmitField("Сохранить роли")
