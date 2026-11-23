@@ -103,8 +103,8 @@ from app.web.forms import (
     RolePermissionsForm,
     RoleRouteDeleteForm,
     RoleRouteForm,
-    WorkflowRouteForm,
     StatusForm,
+    WorkflowRouteForm,
 )
 
 main_bp = Blueprint("main", __name__)
