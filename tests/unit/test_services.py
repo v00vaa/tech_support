@@ -3,7 +3,17 @@
 import pytest
 
 from app.extensions import db
-from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Message, Permission, Role
+from app.models import (
+    Attachment,
+    AuthorType,
+    Client,
+    Dialog,
+    DialogStatus,
+    Employee,
+    Message,
+    Permission,
+    Role,
+)
 from app.services import client_service, dialog_service, employee_service, message_service
 from app.services.access_control_service import (
     can_delegate_permissions,
@@ -115,6 +125,38 @@ def test_dialog_service_crud_assignment_and_status_transitions(app) -> None:
 
         dialog_service.delete_dialog(dialog)
         assert db.session.get(Dialog, dialog.id) is None
+
+
+def test_dialog_deletion_removes_attachment_files_after_commit(app, tmp_path, monkeypatch) -> None:
+    with app.app_context():
+        db.create_all()
+        monkeypatch.setattr(app, "instance_path", str(tmp_path))
+        storage_dir = tmp_path / "uploads"
+        storage_dir.mkdir()
+        stored_file = storage_dir / "document.pdf"
+        stored_file.write_bytes(b"%PDF-1.7")
+        customer = Client(name="Attachment Client", email="attachment-client@example.com")
+        db.session.add(customer)
+        db.session.commit()
+        dialog = dialog_service.create_dialog(customer.id, None, "With attachment", "Web")
+        message = message_service.create_message(
+            dialog.id, AuthorType.CLIENT, customer.id, "See attached"
+        )
+        db.session.add(
+            Attachment(
+                message_id=message.id,
+                filename="document.pdf",
+                storage_key=stored_file.name,
+                content_type="application/pdf",
+                size_bytes=8,
+            )
+        )
+        db.session.commit()
+
+        dialog_service.delete_dialog(dialog)
+
+        assert not stored_file.exists()
+        assert db.session.scalar(db.select(Attachment.id)) is None
 
 
 def test_message_service_updates_and_soft_deletes(app) -> None:
