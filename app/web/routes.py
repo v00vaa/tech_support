@@ -2198,15 +2198,22 @@ def moderation_settings() -> ResponseReturnValue:
         form.blocked_words.data = settings.blocked_words
         form.invalid_message_examples.data = settings.invalid_message_examples
     if form.validate_on_submit():
-        settings.blocked_words = "\n".join(\n            normalize_entries(form.blocked_words.data or "")\n        )
-        settings.invalid_message_examples = "\n".join(\n            normalize_entries(form.invalid_message_examples.data or "")\n        )
+        settings.blocked_words = "\n".join(
+            normalize_entries(form.blocked_words.data or "")
+        )
+        settings.invalid_message_examples = "\n".join(
+            normalize_entries(form.invalid_message_examples.data or "")
+        )
         db.session.commit()
         flash("Настройки модерации сохранены.", "success")
         return redirect(url_for("settings.moderation_settings"))
-    return render_template("settings/moderation.html", form=form,
+    return render_template(
+        "settings/moderation.html",
+        form=form,
         blocked_word_count=len(normalize_entries(settings.blocked_words)),
         example_count=len(normalize_entries(settings.invalid_message_examples)),
-        active_settings_section="moderation")
+        active_settings_section="moderation",
+    )
 
 
 @settings_bp.route("/ai", methods=["GET", "POST"])
@@ -2226,12 +2233,19 @@ def ai_settings() -> ResponseReturnValue:
     if form.validate_on_submit():
         if form.test_connection.data:
             try:
-                client = OllamaClient(\n                    form.ollama_base_url.data or "", form.ollama_model.data or ""\n                )\n                models = client.list_models()
+                client = OllamaClient(
+                    form.ollama_base_url.data or "",
+                    form.ollama_model.data or "",
+                )
+                models = client.list_models()
                 if form.ollama_model.data not in models:
-                    flash(\n                        "Ollama доступен, но выбранная модель не найдена. Выполните ollama pull.",\n                        "warning",\n                    )
+                    flash(
+                        "Ollama доступен, но выбранная модель не найдена. Выполните ollama pull.",
+                        "warning",
+                    )
                 else:
                     flash("Подключение к Ollama и выбранная модель доступны.", "success")
-            except OllamaError as error:
+            except (OllamaError, ValueError) as error:
                 flash(f"Не удалось подключиться к Ollama: {error}", "danger")
         else:
             settings.ollama_base_url = (form.ollama_base_url.data or "").strip().rstrip("/")
@@ -2241,7 +2255,11 @@ def ai_settings() -> ResponseReturnValue:
             db.session.commit()
             flash("Настройки Ollama сохранены.", "success")
             return redirect(url_for("settings.ai_settings"))
-    return render_template("settings/ai.html", form=form, active_settings_section="ai")
+    return render_template(
+        "settings/ai.html",
+        form=form,
+        active_settings_section="ai",
+    )
 
 
 @settings_bp.get("/<string:section>")
