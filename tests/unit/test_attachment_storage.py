@@ -70,9 +70,7 @@ def test_orphan_cleanup_rejects_negative_grace_period(app) -> None:
             raise AssertionError("Negative grace period must be rejected")
 
 
-def test_retention_cleanup_is_disabled_when_never_is_selected(
-    app, tmp_path, monkeypatch
-) -> None:
+def test_retention_cleanup_is_disabled_when_never_is_selected(app, tmp_path, monkeypatch) -> None:
     with app.app_context():
         db.create_all()
         monkeypatch.setattr(app, "instance_path", str(tmp_path))
