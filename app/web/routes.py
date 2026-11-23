@@ -232,7 +232,7 @@ def _moderate_customer_message(
             return (
                 reason or "Классификатор определил сообщение как некорректное.",
                 False,
-                classification["category"],
+                classification["category"][:80],
                 classification["confidence"],
                 "classifier",
             )
