@@ -204,16 +204,31 @@ class WorkflowRouteForm(FlaskForm):
 
 
 class ModerationSettingsForm(FlaskForm):
-    blocked_words = TextAreaField(\n        "Запрещённые слова и фразы", validators=[Optional(), Length(max=50000)]\n    )
-    invalid_message_examples = TextAreaField(\n        "Примеры некорректных сообщений", validators=[Optional(), Length(max=50000)]\n    )
+    blocked_words = TextAreaField(
+        "Запрещённые слова и фразы",
+        validators=[Optional(), Length(max=50000)],
+    )
+    invalid_message_examples = TextAreaField(
+        "Примеры некорректных сообщений",
+        validators=[Optional(), Length(max=50000)],
+    )
     submit = SubmitField("Сохранить настройки модерации")
 
 
 class OllamaSettingsForm(FlaskForm):
-    ollama_base_url = StringField(\n        "Адрес Ollama API", validators=[DataRequired(), Length(max=255)]\n    )
+    ollama_base_url = StringField(
+        "Адрес Ollama API",
+        validators=[DataRequired(), Length(max=255)],
+    )
     ollama_model = StringField("Модель", validators=[DataRequired(), Length(max=120)])
-    ollama_system_prompt = TextAreaField(\n        "Системный промт", validators=[DataRequired(), Length(max=20000)]\n    )
-    ollama_classification_prompt = TextAreaField(\n        "Промт классификации", validators=[DataRequired(), Length(max=20000)]\n    )
+    ollama_system_prompt = TextAreaField(
+        "Системный промт",
+        validators=[DataRequired(), Length(max=20000)],
+    )
+    ollama_classification_prompt = TextAreaField(
+        "Промт классификации",
+        validators=[DataRequired(), Length(max=20000)],
+    )
     save_settings = SubmitField("Сохранить настройки")
     test_connection = SubmitField("Проверить подключение")
 
