@@ -104,8 +104,8 @@ from app.web.forms import (
     RoleRouteDeleteForm,
     RoleRouteForm,
     StatusForm,
-    WorkflowRouteForm,
     WebChannelSettingsForm,
+    WorkflowRouteForm,
 )
 
 main_bp = Blueprint("main", __name__)
