@@ -309,9 +309,7 @@ def test_employee_api_lists_only_objects_in_active_role_scope(
     for hidden_dialog_id in hidden_dialog_ids:
         hidden_detail = api_client.get(f"/api/v1/dialogs/{hidden_dialog_id}")
         assert hidden_detail.status_code == 404
-        hidden_messages = api_client.get(
-            f"/api/v1/dialogs/{hidden_dialog_id}/messages"
-        )
+        hidden_messages = api_client.get(f"/api/v1/dialogs/{hidden_dialog_id}/messages")
         assert hidden_messages.status_code == 404
 
     visible_messages = api_client.get(f"/api/v1/dialogs/{visible_dialog_ids[0]}/messages")
