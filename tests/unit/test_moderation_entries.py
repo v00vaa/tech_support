@@ -64,6 +64,7 @@ def test_add_entries_rejects_unknown_kind(database, app) -> None:
     with app.app_context(), pytest.raises(ValueError):
         add_entries("UNKNOWN", "value")
 
+
 def test_parse_txt_import_uses_selected_kind() -> None:
     records = parse_import_content(" spam \nspam\nphrase", "txt", INVALID_EXAMPLE)
     assert records == [
