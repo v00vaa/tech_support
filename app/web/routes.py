@@ -250,7 +250,7 @@ def _moderate_customer_message(
         if matches:
             match = matches[0]
             return ModerationDecision(
-                "Сообщение содержит запрещённые слова или фразы.",
+                "Сообщение содержит недопустимое выражение. Удалите его или переформулируйте эту часть нейтрально, сохранив суть обращения.",
                 False,
                 match.category or "blocked_words",
                 None,
@@ -295,7 +295,7 @@ def _moderate_customer_message(
         ):
             reason = classification["reason"].strip()
             return ModerationDecision(
-                reason or "Классификатор определил сообщение как некорректное.",
+                reason or "Уточните суть обращения, укажите ожидаемый результат и уже выполненные действия. Если часть сведений недоступна, сообщите об этом и опишите, что известно.",
                 False,
                 classification["category"][:80] or None,
                 classification["confidence"],
