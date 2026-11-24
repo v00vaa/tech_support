@@ -2456,7 +2456,14 @@ def moderation_export() -> ResponseReturnValue:
     writer = csv.writer(output)
     writer.writerow(["kind", "value", "category", "is_active"])
     for entry in entries:
-        writer.writerow(\n            [entry.kind, entry.value, entry.category or "", str(entry.is_active).lower()]\n        )
+        writer.writerow(
+            [
+                entry.kind,
+                entry.value,
+                entry.category or "",
+                str(entry.is_active).lower(),
+            ]
+        )
     return send_file(
         io.BytesIO(("\\ufeff" + output.getvalue()).encode("utf-8")),
         mimetype="text/csv; charset=utf-8",
