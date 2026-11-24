@@ -17,6 +17,7 @@ from flask import (
     current_app,
     flash,
     get_flashed_messages,
+    jsonify,
     make_response,
     redirect,
     render_template,
@@ -775,37 +776,46 @@ def portal_index() -> ResponseReturnValue:
     )
 
 
+def _moderation_applies_to_dialog(dialog: Dialog) -> bool:
+    """Only moderate while a dialog is waiting unclaimed in the first-line queue."""
+    if dialog.responsible_employee_id is not None:
+        return False
+    first_line_role = db.session.scalar(
+        db.select(Role.id).where(
+            Role.is_first_line.is_(True),
+            Role.is_active.is_(True),
+            Role.role_type == "MAIN",
+            Role.scope_role_id.is_(None),
+            Role.code != "administrator",
+        )
+    )
+    return (
+        first_line_role is not None
+        and dialog.assigned_role_id == first_line_role
+        and dialog.status in {DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE}
+    )
+
+
+def _moderation_bypassed_decision() -> ModerationDecision:
+    """Represent a workflow-approved message that must not be blocked by moderation."""
+    return ModerationDecision(None, False, None, None, "workflow", "BYPASSED", None, None, None)
+
+
 @portal_bp.route("/dialogs/new", methods=["GET", "POST"], endpoint="dialog_create")
 @client_required
 def portal_dialog_create() -> ResponseReturnValue:
-    """Create a new customer-owned dialog and its first public message."""
+    """Create a customer dialog after checking its first message."""
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     settings = db.session.get(GeneralSettings, 1)
     if settings is not None and not settings.web_channel_enabled:
-        flash("Приём новых обращений через веб-кабинет временно отключён.", "warning")
+        message = "Приём новых обращений через веб-кабинет временно отключён."
+        if is_ajax:
+            return jsonify(status="error", message=message), 503
+        flash(message, "warning")
         return redirect(url_for("portal.index"))
 
     form = ClientDialogForm()
     if form.validate_on_submit():
-        raw_message = (form.message.data or "").strip()
-        moderation = _moderate_customer_message(raw_message, settings)
-        if moderation.decision == "REJECTED":
-            _record_moderation_decision(
-                client_id=current_user.id,
-                dialog_id=None,
-                message=raw_message,
-                result=moderation,
-            )
-            form.message.errors = [
-                *form.message.errors,
-                moderation.reason or "Сообщение отклонено.",
-            ]
-            return render_template("portal/dialog_form.html", form=form), 400
-        if moderation.classifier_unavailable:
-            flash(
-                "Классификатор временно недоступен; сообщение принято без AI-проверки.",
-                "warning",
-            )
-
         first_line_role = db.session.scalar(
             db.select(Role).where(
                 Role.is_first_line.is_(True),
@@ -816,12 +826,31 @@ def portal_dialog_create() -> ResponseReturnValue:
             )
         )
         if first_line_role is None:
-            flash(
+            message = (
                 "Создание обращений временно недоступно: администратор не настроил "
-                "активную роль первого уровня поддержки.",
-                "danger",
+                "активную роль первого уровня поддержки."
             )
+            if is_ajax:
+                return jsonify(status="error", message=message), 503
+            flash(message, "danger")
             return render_template("portal/dialog_form.html", form=form), 503
+
+        raw_message = (form.message.data or "").strip()
+        moderation = _moderate_customer_message(raw_message, settings)
+        if moderation.decision == "REJECTED":
+            _record_moderation_decision(
+                client_id=current_user.id,
+                dialog_id=None,
+                message=raw_message,
+                result=moderation,
+            )
+            if is_ajax:
+                return jsonify(status="needs_revision", message=moderation.reason), 422
+            form.message.errors = [
+                *form.message.errors,
+                moderation.reason or "Сообщение отклонено.",
+            ]
+            return render_template("portal/dialog_form.html", form=form), 400
 
         now = datetime.now(UTC)
         dialog = Dialog(
@@ -848,7 +877,7 @@ def portal_dialog_create() -> ResponseReturnValue:
             dialog_id=dialog.id,
             author_type=AuthorType.CLIENT,
             author_id=current_user.id,
-            text=(form.message.data or "").strip(),
+            text=raw_message,
             is_internal=False,
         )
         db.session.add(message)
@@ -860,12 +889,15 @@ def portal_dialog_create() -> ResponseReturnValue:
         except ValueError as error:
             db.session.rollback()
             _remove_saved_attachments(saved_paths)
+            if is_ajax:
+                return jsonify(status="error", message=str(error)), 400
             form.message.errors = [*form.message.errors, str(error)]
             return render_template("portal/dialog_form.html", form=form), 400
         except Exception:
             db.session.rollback()
             _remove_saved_attachments(saved_paths)
             raise
+
         _record_moderation_decision(
             client_id=current_user.id,
             dialog_id=dialog.id,
@@ -873,8 +905,24 @@ def portal_dialog_create() -> ResponseReturnValue:
             result=moderation,
             message_id=message.id,
         )
-        flash("Обращение создано.", "success")
-        return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+        destination = url_for("portal.dialog_detail", dialog_id=dialog.id)
+        if is_ajax:
+            return jsonify(
+                status="sent",
+                message="Обращение создано. Сообщение отправлено специалисту.",
+                redirect_url=destination,
+            )
+        if moderation.classifier_unavailable:
+            flash("Классификатор временно недоступен; сообщение принято без AI-проверки.", "warning")
+        flash("Обращение создано. Сообщение отправлено специалисту.", "success")
+        return redirect(destination)
+
+    if is_ajax:
+        errors = {
+            field: [str(error) for error in field_errors]
+            for field, field_errors in form.errors.items()
+        }
+        return jsonify(status="error", message="Проверьте заполнение формы.", errors=errors), 400
     return render_template("portal/dialog_form.html", form=form)
 
 
@@ -892,13 +940,18 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         abort(404)
 
     form = ClientReplyForm()
+    is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     if request.method == "POST":
         if dialog.status == DialogStatus.CLOSED:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
             global_settings = db.session.get(GeneralSettings, 1)
             raw_message = (form.text.data or "").strip()
-            moderation = _moderate_customer_message(raw_message, global_settings)
+            moderation = (
+                _moderate_customer_message(raw_message, global_settings)
+                if _moderation_applies_to_dialog(dialog)
+                else _moderation_bypassed_decision()
+            )
             if moderation.decision == "REJECTED":
                 _record_moderation_decision(
                     client_id=current_user.id,
@@ -906,20 +959,17 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                     message=raw_message,
                     result=moderation,
                 )
+                if is_ajax:
+                    return jsonify(status="needs_revision", message=moderation.reason), 422
                 flash(moderation.reason or "Сообщение отклонено.", "danger")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
-            if moderation.classifier_unavailable:
-                flash(
-                    "Классификатор временно недоступен; сообщение принято без AI-проверки.",
-                    "warning",
-                )
 
             dialog.updated_at = datetime.now(UTC)
             message = Message(
                 dialog_id=dialog.id,
                 author_type=AuthorType.CLIENT,
                 author_id=current_user.id,
-                text=(form.text.data or "").strip(),
+                text=raw_message,
                 is_internal=False,
             )
             db.session.add(message)
@@ -933,6 +983,8 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             except ValueError as error:
                 db.session.rollback()
                 _remove_saved_attachments(saved_paths)
+                if is_ajax:
+                    return jsonify(status="error", message=str(error)), 400
                 form.text.errors = [*form.text.errors, str(error)]
             except Exception:
                 db.session.rollback()
@@ -946,10 +998,27 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                     result=moderation,
                     message_id=message.id,
                 )
-                flash("Сообщение отправлено.", "success")
-                return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
-            flash("Сообщение отправлено.", "success")
-            return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+                destination = url_for("portal.dialog_detail", dialog_id=dialog.id)
+                if is_ajax:
+                    return jsonify(
+                        status="sent",
+                        message="Сообщение отправлено специалисту.",
+                        redirect_url=destination,
+                    )
+                if moderation.classifier_unavailable:
+                    flash(
+                        "Классификатор временно недоступен; сообщение принято без AI-проверки.",
+                        "warning",
+                    )
+                flash("Сообщение отправлено специалисту.", "success")
+                return redirect(destination)
+
+        if is_ajax:
+            errors = {
+                field: [str(error) for error in field_errors]
+                for field, field_errors in form.errors.items()
+            }
+            return jsonify(status="error", message="Проверьте заполнение формы.", errors=errors), 400
 
     before_message_id = request.args.get("before", type=int)
     message_query = db.select(Message).where(
