@@ -13,6 +13,7 @@ from app.models import (
     Employee,
     GeneralSettings,
     Message,
+    ModerationEntry,
     ModerationEvent,
     Role,
 )
@@ -231,7 +232,16 @@ def test_employee_and_customer_session_ids_are_namespaced() -> None:
 
 def test_customer_cannot_create_dialog_with_blocked_words(client, customer_records, app) -> None:
     with app.app_context():
-        db.session.add(GeneralSettings(id=1, blocked_words="spam"))
+        db.session.add_all(
+            [
+                GeneralSettings(id=1, blocked_words_enabled=True),
+                ModerationEntry(
+                    kind="BLOCKED_TERM",
+                    value="spam",
+                    normalized_value="",
+                ),
+            ]
+        )
         db.session.commit()
 
     client.post(
