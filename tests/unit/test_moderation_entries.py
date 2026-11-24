@@ -76,8 +76,8 @@ def test_parse_txt_import_uses_selected_kind() -> None:
 
 def test_parse_csv_import_preserves_category_and_state() -> None:
     content = (
-        "kind,value,category,is_active\n"
-        "BLOCKED_TERM,spam,abuse,false\n"
+        "kind,value,category,is_active,match_type\n"
+        "BLOCKED_TERM,spam,abuse,false,SUBSTRING\n"
         "INVALID_EXAMPLE,offensive text,,true\n"
     )
     assert parse_import_content(content, "csv") == [
