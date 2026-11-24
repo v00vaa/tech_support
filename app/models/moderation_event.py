@@ -26,6 +26,9 @@ class ModerationEvent(Base):
     dialog_id: Mapped[int | None] = mapped_column(
         ForeignKey("dialogs.id", ondelete="SET NULL"), nullable=True, index=True
     )
+    message_id: Mapped[int | None] = mapped_column(
+        ForeignKey("messages.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     source: Mapped[str] = mapped_column(String(30), nullable=False)
     message_text: Mapped[str] = mapped_column(Text, nullable=False)
     decision: Mapped[str] = mapped_column(String(20), nullable=False, default="REJECTED")

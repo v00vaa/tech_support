@@ -453,3 +453,5 @@ def test_accepted_customer_message_is_recorded_in_moderation_journal(
         assert event is not None
         assert event.decision == "ACCEPTED"
         assert event.source == "blocked_words"
+        assert event.message_text == ""
+        assert event.message_id is not None

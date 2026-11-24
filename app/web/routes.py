@@ -346,14 +346,16 @@ def _record_moderation_decision(
     dialog_id: int | None,
     message: str,
     result: ModerationDecision,
+    message_id: int | None = None,
 ) -> None:
     """Persist a complete moderation decision without breaking message delivery."""
     db.session.add(
         ModerationEvent(
             client_id=client_id,
             dialog_id=dialog_id,
+            message_id=message_id,
             source=result.source,
-            message_text=message,
+            message_text=message if result.decision == "REJECTED" else "",
             decision=result.decision,
             category=result.category,
             matched_value=result.matched_value,
@@ -869,6 +871,7 @@ def portal_dialog_create() -> ResponseReturnValue:
             dialog_id=dialog.id,
             message=raw_message,
             result=moderation,
+            message_id=message.id,
         )
         flash("Обращение создано.", "success")
         return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
@@ -941,6 +944,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                     dialog_id=dialog.id,
                     message=raw_message,
                     result=moderation,
+                    message_id=message.id,
                 )
                 flash("Сообщение отправлено.", "success")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))

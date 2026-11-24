@@ -71,7 +71,7 @@
             </div>
           </div>
           <div class="mb-2"><strong>Текст сообщения</strong></div>
-          <pre class="bg-body-tertiary rounded p-3 text-wrap mb-3">{{ event.message_text }}</pre>
+          <pre class="bg-body-tertiary rounded p-3 text-wrap mb-3">{% if event.message_text %}{{ event.message_text }}{% elif event.message_id %}Текст принятого сообщения хранится в обращении (сообщение #{{ event.message_id }}).{% else %}Исходный текст не сохранялся.{% endif %}</pre>
           <div><strong>Причина:</strong> {{ event.reason }}</div>
           {% if event.model_name %}<div><strong>Модель:</strong> {{ event.model_name }}</div>{% endif %}
           {% if event.matched_value %}<div><strong>Совпавшая запись:</strong> {{ event.matched_value }} ({{ event.match_type }})</div>{% endif %}
