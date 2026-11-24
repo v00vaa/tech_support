@@ -17,7 +17,6 @@ from app.models import (
     ModerationEvent,
     Role,
 )
-
 from app.services.moderation_service import normalize_entry
 
 

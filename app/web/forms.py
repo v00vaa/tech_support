@@ -1,7 +1,7 @@
 """Flask-WTF forms for the browser prototype."""
 
 from flask_wtf import FlaskForm
-from flask_wtf.file import MultipleFileField
+from flask_wtf.file import FileField, MultipleFileField
 from wtforms import (
     BooleanField,
     FloatField,
@@ -210,6 +210,22 @@ class WorkflowRouteForm(FlaskForm):
         validators=[Optional(), NumberRange(min=1, max=10080)],
     )
     submit = SubmitField("Сохранить маршрут")
+
+
+class ModerationImportForm(FlaskForm):
+    """Upload a CSV or TXT file with moderation entries."""
+
+    file = FileField("Файл CSV или TXT", validators=[DataRequired()])
+    default_kind = SelectField(
+        "Тип записей для TXT",
+        choices=[
+            ("BLOCKED_TERM", "Запрещённые фразы"),
+            ("INVALID_EXAMPLE", "Примеры классификатора"),
+        ],
+        validators=[DataRequired()],
+        default="BLOCKED_TERM",
+    )
+    submit = SubmitField("Импортировать")
 
 
 class ModerationSettingsForm(FlaskForm):

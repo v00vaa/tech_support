@@ -1,5 +1,6 @@
 """Browser routes split into compact entity blueprints."""
 
+import csv
 import io
 import re
 from collections.abc import Callable
@@ -68,6 +69,8 @@ from app.services.moderation_service import (
     INVALID_EXAMPLE,
     add_entries,
     find_blocked_terms,
+    import_entries,
+    parse_import_content,
     get_active_entries,
 )
 from app.services.ollama_client import OllamaClient, OllamaError
@@ -106,6 +109,7 @@ from app.web.forms import (
     GeneralSettingsForm,
     LoginForm,
     MessageForm,
+    ModerationImportForm,
     ModerationReviewForm,
     ModerationSettingsForm,
     OllamaSettingsForm,
@@ -2360,6 +2364,7 @@ def moderation_settings() -> ResponseReturnValue:
     return render_template(
         "settings/moderation.html",
         form=form,
+        import_form=ModerationImportForm(),
         entries=entries,
         search=search,
         kind_filter=kind_filter,
@@ -2380,6 +2385,83 @@ def moderation_settings() -> ResponseReturnValue:
             )
         ),
         active_settings_section="moderation",
+    )
+
+
+@settings_bp.post("/moderation/import")
+@login_required
+@permission_required("settings.edit")
+def moderation_import() -> ResponseReturnValue:
+    """Import moderation entries from a UTF-8 CSV or TXT file."""
+    form = ModerationImportForm()
+    if not form.validate_on_submit():
+        flash("Выберите корректный файл для импорта.", "danger")
+        return redirect(url_for("settings.moderation_settings"))
+    upload = form.file.data
+    if upload is None or not upload.filename:
+        flash("Файл не выбран.", "danger")
+        return redirect(url_for("settings.moderation_settings"))
+    extension = upload.filename.rsplit(".", 1)[-1].casefold()
+    if extension not in {"csv", "txt"}:
+        flash("Поддерживаются только файлы CSV и TXT.", "danger")
+        return redirect(url_for("settings.moderation_settings"))
+    raw_content = upload.stream.read(2 * 1024 * 1024 + 1)
+    if len(raw_content) > 2 * 1024 * 1024:
+        flash("Размер файла не должен превышать 2 МБ.", "danger")
+        return redirect(url_for("settings.moderation_settings"))
+    try:
+        content = raw_content.decode("utf-8-sig")
+        records = parse_import_content(content, extension, form.default_kind.data or BLOCKED_TERM)
+        added, duplicates = import_entries(records)
+        db.session.commit()
+    except (UnicodeDecodeError, ValueError, csv.Error) as error:
+        db.session.rollback()
+        flash(f"Импорт отменён: {error}", "danger")
+        return redirect(url_for("settings.moderation_settings"))
+    flash(
+        f"Импорт завершён. Добавлено: {added}; пропущено дубликатов: {duplicates}.",
+        "success",
+    )
+    return redirect(url_for("settings.moderation_settings"))
+
+
+@settings_bp.get("/moderation/export")
+@login_required
+@permission_required("settings.view")
+def moderation_export() -> ResponseReturnValue:
+    """Export moderation entries as CSV or active values as TXT."""
+    export_format = (request.args.get("format") or "csv").casefold()
+    kind = (request.args.get("kind") or "").strip()
+    if kind and kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
+        abort(400)
+    query = db.select(ModerationEntry).order_by(ModerationEntry.kind, ModerationEntry.id)
+    if kind:
+        query = query.where(ModerationEntry.kind == kind)
+    entries = db.session.scalars(query).all()
+    if export_format == "txt":
+        if kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
+            abort(400)
+        content = "\\n".join(entry.value for entry in entries if entry.is_active)
+        if content:
+            content += "\\n"
+        return send_file(
+            io.BytesIO(content.encode("utf-8")),
+            mimetype="text/plain; charset=utf-8",
+            as_attachment=True,
+            download_name=f"moderation_{kind.casefold()}.txt",
+        )
+    if export_format != "csv":
+        abort(400)
+    output = io.StringIO(newline="")
+    writer = csv.writer(output)
+    writer.writerow(["kind", "value", "category", "is_active"])
+    for entry in entries:
+        writer.writerow([entry.kind, entry.value, entry.category or "", str(entry.is_active).lower()])
+    return send_file(
+        io.BytesIO(("\\ufeff" + output.getvalue()).encode("utf-8")),
+        mimetype="text/csv; charset=utf-8",
+        as_attachment=True,
+        download_name="moderation_entries.csv",
     )
 
 
