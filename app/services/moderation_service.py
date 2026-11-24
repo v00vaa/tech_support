@@ -4,6 +4,7 @@ import csv
 import hashlib
 import io
 import re
+from collections.abc import Sequence
 
 from sqlalchemy import select
 
@@ -174,7 +175,7 @@ def import_entries(
 
 def find_blocked_entries(
     message: str,
-    entries: list[ModerationEntry],
+    entries: Sequence[ModerationEntry],
 ) -> list[ModerationEntry]:
     """Return matching active entries using their configured match strategy."""
     normalized_message = " ".join(message.split()).casefold()

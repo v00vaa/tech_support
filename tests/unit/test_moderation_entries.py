@@ -10,8 +10,8 @@ from app.services.moderation_service import (
     BLOCKED_TERM,
     INVALID_EXAMPLE,
     add_entries,
-    get_active_entries,
     find_blocked_entries,
+    get_active_entries,
     import_entries,
     parse_import_content,
 )

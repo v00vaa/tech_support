@@ -31,13 +31,12 @@ def test_classifier_rejects_message_at_or_above_confidence_threshold(
     with app.app_context():
         result = _moderate_customer_message("message", _settings(0.85))
 
-    assert result == (
-        "Некорректное сообщение",
-        False,
-        "abuse",
-        0.85,
-        "classifier",
-    )
+    assert result.decision == "REJECTED"
+    assert result.reason == "Некорректное сообщение"
+    assert result.classifier_unavailable is False
+    assert result.category == "abuse"
+    assert result.confidence == 0.85
+    assert result.source == "classifier"
 
 
 def test_classifier_does_not_reject_message_below_confidence_threshold(
@@ -57,7 +56,9 @@ def test_classifier_does_not_reject_message_below_confidence_threshold(
     with app.app_context():
         result = _moderate_customer_message("message", _settings(0.75))
 
-    assert result == (None, False, None, None, None)
+    assert result.decision == "ACCEPTED"
+    assert result.reason == "Классификатор отметил сообщение, но уверенность ниже порога."
+    assert result.confidence == 0.74
 
 
 def test_zero_confidence_threshold_is_supported(app, monkeypatch) -> None:

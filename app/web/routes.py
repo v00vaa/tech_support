@@ -798,7 +798,7 @@ def portal_dialog_create() -> ResponseReturnValue:
                 message=raw_message,
                 result=moderation,
             )
-            form.message.errors = [*form.message.errors, moderation.reason or "Сообщение отклонено."]
+            form.message.errors = [\n                *form.message.errors,\n                moderation.reason or "Сообщение отклонено.",\n            ]
             return render_template("portal/dialog_form.html", form=form), 400
         if moderation.classifier_unavailable:
             flash(
