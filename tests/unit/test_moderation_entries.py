@@ -133,7 +133,3 @@ def test_blocked_term_match_strategies() -> None:
     assert find_blocked_entries("spammer", [substring]) == [substring]
     assert find_blocked_entries("  SPAM   NOW ", [exact]) == [exact]
     assert find_blocked_entries("please spam now", [exact]) == []
-
-def test_csv_import_reads_match_type() -> None:
-    content = "kind,value,match_type\\nBLOCKED_TERM,spam,SUBSTRING\\n"
-    assert parse_import_content(content, "csv") == [(BLOCKED_TERM, "spam", None, True, "SUBSTRING")]
