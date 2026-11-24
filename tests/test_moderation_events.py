@@ -103,7 +103,6 @@ def test_employee_without_settings_edit_cannot_review_event(
 
     assert response.status_code == 403
 
-
 def test_moderation_journal_filters_by_decision(
     client, app: Flask, moderation_review_records: int
 ) -> None:
