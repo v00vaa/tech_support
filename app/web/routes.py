@@ -2364,13 +2364,19 @@ def moderation_settings() -> ResponseReturnValue:
         search=search,
         kind_filter=kind_filter,
         blocked_word_count=db.session.scalar(
-            db.select(func.count()).select_from(ModerationEntry).where(
-                ModerationEntry.kind == BLOCKED_TERM, ModerationEntry.is_active.is_(True)
+            db.select(func.count())
+            .select_from(ModerationEntry)
+            .where(
+                ModerationEntry.kind == BLOCKED_TERM,
+                ModerationEntry.is_active.is_(True),
             )
         ),
         example_count=db.session.scalar(
-            db.select(func.count()).select_from(ModerationEntry).where(
-                ModerationEntry.kind == INVALID_EXAMPLE, ModerationEntry.is_active.is_(True)
+            db.select(func.count())
+            .select_from(ModerationEntry)
+            .where(
+                ModerationEntry.kind == INVALID_EXAMPLE,
+                ModerationEntry.is_active.is_(True),
             )
         ),
         active_settings_section="moderation",
