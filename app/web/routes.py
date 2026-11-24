@@ -69,7 +69,6 @@ from app.services.moderation_service import (
     INVALID_EXAMPLE,
     add_entries,
     find_blocked_entries,
-    get_active_entries,
     import_entries,
     parse_import_content,
 )
@@ -240,7 +239,6 @@ def _moderate_customer_message(
     source = "none"
     if settings.blocked_words_enabled:
         source = "blocked_words"
-        entries = get_active_entries(BLOCKED_TERM)
         records = db.session.scalars(
             db.select(ModerationEntry)
             .where(
@@ -249,7 +247,6 @@ def _moderate_customer_message(
             )
             .order_by(ModerationEntry.id)
         ).all()
-        del entries
         matches = find_blocked_entries(message, records)
         if matches:
             match = matches[0]
@@ -315,7 +312,7 @@ def _moderate_customer_message(
             else "Классификатор не обнаружил нарушений."
         )
         return ModerationDecision(
-            None,
+            reason,
             False,
             classification["category"][:80] or None,
             classification["confidence"],
@@ -2564,6 +2561,7 @@ def moderation_export() -> ResponseReturnValue:
                 entry.category or "",
                 str(entry.is_active).lower(),
                 entry.match_type,
+                entry.match_type,
             ]
         )
     return send_file(
@@ -2602,11 +2600,29 @@ def moderation_entry_delete(entry_id: int) -> ResponseReturnValue:
 @login_required
 @permission_required("settings.view")
 def moderation_events() -> ResponseReturnValue:
-    """Show recent rejected customer messages for staff review."""
+    """Show a filterable, paginated moderation decision journal."""
+    page = max(1, request.args.get("page", 1, type=int) or 1)
+    decision_filter = (request.args.get("decision") or "").strip()
+    source_filter = (request.args.get("source") or "").strip()
+    query = db.select(ModerationEvent)
+    if decision_filter in {"ACCEPTED", "REJECTED", "BYPASSED"}:
+        query = query.where(ModerationEvent.decision == decision_filter)
+    else:
+        decision_filter = ""
+    if source_filter in {"blocked_words", "classifier", "none"}:
+        query = query.where(ModerationEvent.source == source_filter)
+    else:
+        source_filter = ""
+    total = db.session.scalar(
+        db.select(func.count()).select_from(query.subquery())
+    ) or 0
+    per_page = 50
+    pages = max(1, (total + per_page - 1) // per_page)
+    page = min(page, pages)
     events = db.session.scalars(
-        db.select(ModerationEvent)
-        .order_by(ModerationEvent.created_at.desc(), ModerationEvent.id.desc())
-        .limit(100)
+        query.order_by(ModerationEvent.created_at.desc(), ModerationEvent.id.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
     ).all()
     client_ids = {event.client_id for event in events if event.client_id is not None}
     clients: dict[int, Client] = {}
@@ -2622,6 +2638,11 @@ def moderation_events() -> ResponseReturnValue:
         events=events,
         clients=clients,
         review_forms={event.id: ModerationReviewForm() for event in events},
+        decision_filter=decision_filter,
+        source_filter=source_filter,
+        page=page,
+        pages=pages,
+        total=total,
         active_settings_section="moderation",
     )
 
