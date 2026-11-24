@@ -8,7 +8,7 @@
     <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
       <div>
         <h2 class="h3 mb-1">Журнал модерации</h2>
-        <p class="text-muted mb-0">Последние 100 отклонённых сообщений клиентов.</p>
+        <p class="text-muted mb-0">Все решения проверки клиентских сообщений: принятые, отклонённые и пропущенные проверки.</p>
       </div>
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.moderation_settings') }}">Настройки фильтров</a>
     </div>
@@ -16,6 +16,30 @@
       Для разбора сохраняется исходный текст отклонённого сообщения. Доступ к журналу ограничен
       сотрудниками с правом просмотра настроек; изменение результата требует права редактирования настроек.
     </div>
+    <form method="get" class="card card-body mb-3">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label" for="decision">Решение</label>
+          <select class="form-select" id="decision" name="decision">
+            <option value="">Все</option>
+            <option value="ACCEPTED" {% if decision_filter == 'ACCEPTED' %}selected{% endif %}>Принято</option>
+            <option value="REJECTED" {% if decision_filter == 'REJECTED' %}selected{% endif %}>Отклонено</option>
+            <option value="BYPASSED" {% if decision_filter == 'BYPASSED' %}selected{% endif %}>Проверка пропущена</option>
+          </select>
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" for="source">Источник</label>
+          <select class="form-select" id="source" name="source">
+            <option value="">Все</option>
+            <option value="blocked_words" {% if source_filter == 'blocked_words' %}selected{% endif %}>Словарь</option>
+            <option value="classifier" {% if source_filter == 'classifier' %}selected{% endif %}>Классификатор</option>
+            <option value="none" {% if source_filter == 'none' %}selected{% endif %}>Без фильтров</option>
+          </select>
+        </div>
+        <div class="col-md-4"><button class="btn btn-outline-primary w-100" type="submit">Применить фильтры</button></div>
+      </div>
+      <div class="small text-muted mt-2">Найдено записей: {{ total }}. На странице — до 50.</div>
+    </form>
     {% if not events %}
       <div class="card"><div class="card-body text-muted">Отклонённых сообщений пока нет.</div></div>
     {% endif %}
@@ -23,6 +47,9 @@
       <article class="card mb-3">
         <div class="card-header d-flex flex-wrap justify-content-between gap-2">
           <strong>Событие #{{ event.id }} · {{ event.created_at.strftime('%d.%m.%Y %H:%M') }}</strong>
+          <span class="badge {% if event.decision == 'REJECTED' %}text-bg-danger{% elif event.decision == 'BYPASSED' %}text-bg-secondary{% else %}text-bg-success{% endif %}">
+            {{ {"ACCEPTED": "Принято", "REJECTED": "Отклонено", "BYPASSED": "Проверка пропущена"}.get(event.decision, event.decision) }}
+          </span>
           <span class="badge {% if event.review_status == 'NEW' %}text-bg-warning{% else %}text-bg-success{% endif %}">
             {% if event.review_status == 'NEW' %}Ожидает разбора{% elif event.review_status == 'REVIEWED' %}Отклонение подтверждено{% else %}Ложное срабатывание{% endif %}
           </span>
@@ -44,6 +71,8 @@
           <div class="mb-2"><strong>Текст сообщения</strong></div>
           <pre class="bg-body-tertiary rounded p-3 text-wrap mb-3">{{ event.message_text }}</pre>
           <div><strong>Причина:</strong> {{ event.reason }}</div>
+          {% if event.model_name %}<div><strong>Модель:</strong> {{ event.model_name }}</div>{% endif %}
+          {% if event.matched_value %}<div><strong>Совпавшая запись:</strong> {{ event.matched_value }} ({{ event.match_type }})</div>{% endif %}
           {% if event.category %}<div><strong>Категория:</strong> {{ event.category }}</div>{% endif %}
           {% if event.confidence is not none %}<div><strong>Уверенность:</strong> {{ '%.0f'|format(event.confidence * 100) }}%</div>{% endif %}
           {% if event.review_note %}<div class="mt-2"><strong>Комментарий разбора:</strong> {{ event.review_note }}</div>{% endif %}
@@ -66,6 +95,19 @@
         </div>
       </article>
     {% endfor %}
+    {% if pages > 1 %}
+      <nav aria-label="Страницы журнала">
+        <ul class="pagination justify-content-center">
+          <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('settings.moderation_events', page=page-1, decision=decision_filter, source=source_filter) }}">Назад</a>
+          </li>
+          <li class="page-item disabled"><span class="page-link">{{ page }} / {{ pages }}</span></li>
+          <li class="page-item {% if page >= pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('settings.moderation_events', page=page+1, decision=decision_filter, source=source_filter) }}">Далее</a>
+          </li>
+        </ul>
+      </nav>
+    {% endif %}
   </section>
 </div>
 {% endblock %}

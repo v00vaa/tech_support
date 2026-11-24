@@ -25,15 +25,25 @@
         {{ form.classifier_min_confidence(class_="form-control", type="number", min="0", max="1", step="0.01") }}
         <div class="form-text">Сообщение отклоняется при уверенности не ниже указанного значения (0–1).</div>
       </div>
+      <div class="mb-4">
+        {{ form.moderation_event_retention_days.label(class_="form-label fw-semibold") }}
+        {{ form.moderation_event_retention_days(class_="form-select") }}
+        <div class="form-text">Срок хранения записей журнала. «Никогда» — записи не удаляются автоматически.</div>
+      </div>
       <hr><h3 class="h5">Массовое добавление</h3>
       <div class="mb-3">
         {{ form.blocked_entries.label(class_="form-label fw-semibold") }}
         {{ form.blocked_entries(class_="form-control font-monospace", rows="5", placeholder="Одно слово или фраза на строку") }}
+        <div class="row g-2 mt-1">
+          <div class="col-md-6">{{ form.blocked_category.label(class_="form-label") }}{{ form.blocked_category(class_="form-control", placeholder="Например: спам") }}</div>
+          <div class="col-md-6">{{ form.blocked_match_type.label(class_="form-label") }}{{ form.blocked_match_type(class_="form-select") }}</div>
+        </div>
         <div class="form-text">Активных запрещённых записей: {{ blocked_word_count }}.</div>
       </div>
       <div class="mb-3">
         {{ form.example_entries.label(class_="form-label fw-semibold") }}
         {{ form.example_entries(class_="form-control", rows="5", placeholder="Один пример сообщения на строку") }}
+        <div class="mt-2">{{ form.example_category.label(class_="form-label") }}{{ form.example_category(class_="form-control", placeholder="Например: оскорбления") }}</div>
         <div class="form-text">Активных примеров классификатора: {{ example_count }}.</div>
       </div>
       {{ form.submit(class_="btn btn-primary") }}
@@ -46,7 +56,7 @@
         <div class="col-md-4">{{ import_form.default_kind.label(class_="form-label") }}{{ import_form.default_kind(class_="form-select") }}</div>
         <div class="col-md-3">{{ import_form.submit(class_="btn btn-primary w-100") }}</div>
       </form>
-      <p class="small text-muted">CSV: столбцы kind, value, category, is_active. TXT: одна запись на строку; выбранный тип применяется ко всему файлу. UTF-8, максимум 2 МБ и 10 000 записей. Повторные записи не перезаписывают существующие.</p>
+      <p class="small text-muted">CSV: столбцы kind, value, category, is_active, match_type. TXT: одна запись на строку; выбранный тип применяется ко всему файлу. UTF-8, максимум 2 МБ и 10 000 записей. Повторные записи не перезаписывают существующие.</p>
       <div class="d-flex flex-wrap gap-2">
         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('settings.moderation_export', format='csv') }}">Экспорт CSV</a>
         <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('settings.moderation_export', format='txt', kind='BLOCKED_TERM') }}">Экспорт запрещённых фраз TXT</a>
@@ -65,10 +75,13 @@
         <div class="col-md-2"><button class="btn btn-outline-primary w-100" type="submit">Найти</button></div>
       </form>
       {% if entries %}<div class="table-responsive"><table class="table table-sm align-middle">
-        <thead><tr><th>Тип</th><th>Содержание</th><th>Состояние</th><th class="text-end">Действия</th></tr></thead><tbody>
+        <thead><tr><th>Тип</th><th>Содержание</th><th>Категория</th><th>Совпадение</th><th>Состояние</th><th class="text-end">Действия</th></tr></thead><tbody>
         {% for entry in entries %}<tr>
           <td>{{ 'Запрещённая фраза' if entry.kind == 'BLOCKED_TERM' else 'Пример классификатора' }}</td>
-          <td class="text-break">{{ entry.value }}</td><td>{{ 'Активна' if entry.is_active else 'Отключена' }}</td>
+          <td class="text-break">{{ entry.value }}</td>
+          <td>{{ entry.category or "—" }}</td>
+          <td>{% if entry.kind == 'BLOCKED_TERM' %}{{ {"WHOLE_WORD": "Целое слово/фраза", "SUBSTRING": "Подстрока", "EXACT": "Полное сообщение"}.get(entry.match_type, entry.match_type) }}{% else %}—{% endif %}</td>
+          <td>{{ 'Активна' if entry.is_active else 'Отключена' }}</td>
           <td class="text-end text-nowrap">
             <form method="post" action="{{ url_for('settings.moderation_entry_toggle', entry_id=entry.id) }}" class="d-inline">
               {{ form.csrf_token }}<button class="btn btn-sm btn-outline-secondary" type="submit">{{ 'Отключить' if entry.is_active else 'Включить' }}</button>

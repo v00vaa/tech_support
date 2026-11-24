@@ -267,6 +267,9 @@ def test_customer_cannot_create_dialog_with_blocked_words(client, customer_recor
         assert event.client_id == customer_records[0]
         assert event.dialog_id is None
         assert event.source == "blocked_words"
+        assert event.decision == "REJECTED"
+        assert event.matched_value == "spam"
+        assert event.match_type == "WHOLE_WORD"
         assert event.review_status == "NEW"
 
 
@@ -373,6 +376,8 @@ def test_classifier_rejects_invalid_customer_message(
         )
         assert event is not None
         assert event.source == "classifier"
+        assert event.decision == "REJECTED"
+        assert event.model_name == "qwen2.5:3b"
         assert event.category == "abuse"
         assert event.confidence == 0.99
         rejected_dialog = db.session.scalar(
@@ -419,3 +424,32 @@ def test_customer_cannot_open_moderation_journal(client, customer_records) -> No
     response = client.get("/settings/moderation/events")
 
     assert response.status_code == 403
+
+
+
+def test_accepted_customer_message_is_recorded_in_moderation_journal(
+    client, customer_records, app
+) -> None:
+    with app.app_context():
+        db.session.add(
+            GeneralSettings(id=1, blocked_words_enabled=True, classifier_enabled=False)
+        )
+        db.session.commit()
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "Allowed request", "message": "Normal support request"},
+    )
+    assert response.status_code == 302
+    with app.app_context():
+        event = db.session.scalar(
+            db.select(ModerationEvent).where(
+                ModerationEvent.message_text == "Normal support request"
+            )
+        )
+        assert event is not None
+        assert event.decision == "ACCEPTED"
+        assert event.source == "blocked_words"

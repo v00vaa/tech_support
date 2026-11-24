@@ -11,6 +11,7 @@ from app.services.moderation_service import (
     INVALID_EXAMPLE,
     add_entries,
     get_active_entries,
+    find_blocked_entries,
     import_entries,
     parse_import_content,
 )
@@ -68,8 +69,8 @@ def test_add_entries_rejects_unknown_kind(database, app) -> None:
 def test_parse_txt_import_uses_selected_kind() -> None:
     records = parse_import_content(" spam \nspam\nphrase", "txt", INVALID_EXAMPLE)
     assert records == [
-        (INVALID_EXAMPLE, "spam", None, True),
-        (INVALID_EXAMPLE, "phrase", None, True),
+        (INVALID_EXAMPLE, "spam", None, True, "WHOLE_WORD"),
+        (INVALID_EXAMPLE, "phrase", None, True, "WHOLE_WORD"),
     ]
 
 
@@ -80,8 +81,8 @@ def test_parse_csv_import_preserves_category_and_state() -> None:
         "INVALID_EXAMPLE,offensive text,,true\n"
     )
     assert parse_import_content(content, "csv") == [
-        (BLOCKED_TERM, "spam", "abuse", False),
-        (INVALID_EXAMPLE, "offensive text", None, True),
+        (BLOCKED_TERM, "spam", "abuse", False, "WHOLE_WORD"),
+        (INVALID_EXAMPLE, "offensive text", None, True, "WHOLE_WORD"),
     ]
 
 
@@ -98,8 +99,8 @@ def test_import_entries_skips_duplicates_without_overwriting(database, app) -> N
         db.session.commit()
         added, duplicates = import_entries(
             [
-                (BLOCKED_TERM, "SPAM", "other", False),
-                (INVALID_EXAMPLE, "invalid sample", "abuse", False),
+                (BLOCKED_TERM, "SPAM", "other", False, "WHOLE_WORD"),
+                (INVALID_EXAMPLE, "invalid sample", "abuse", False, "WHOLE_WORD"),
             ]
         )
         db.session.commit()
@@ -116,3 +117,30 @@ def test_parse_import_rejects_oversized_record_count() -> None:
     content = "\n".join(f"term-{index}" for index in range(10001))
     with pytest.raises(ValueError):
         parse_import_content(content, "txt")
+
+
+
+def test_blocked_term_match_strategies() -> None:
+    whole_word = ModerationEntry(
+        kind=BLOCKED_TERM,
+        value="spam",
+        normalized_value="x",
+        match_type="WHOLE_WORD",
+    )
+    substring = ModerationEntry(
+        kind=BLOCKED_TERM,
+        value="spam",
+        normalized_value="y",
+        match_type="SUBSTRING",
+    )
+    exact = ModerationEntry(
+        kind=BLOCKED_TERM,
+        value="spam now",
+        normalized_value="z",
+        match_type="EXACT",
+    )
+    assert find_blocked_entries("a spam message", [whole_word]) == [whole_word]
+    assert find_blocked_entries("spammer", [whole_word]) == []
+    assert find_blocked_entries("spammer", [substring]) == [substring]
+    assert find_blocked_entries("  SPAM   NOW ", [exact]) == [exact]
+    assert find_blocked_entries("please spam now", [exact]) == []
