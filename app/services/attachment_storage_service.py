@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import current_app
 
 from app.extensions import db
-from app.models import Attachment, Dialog, DialogStatus, GeneralSettings
+from app.models import Attachment, Dialog, DialogStatus, GeneralSettings, ModerationEvent
 
 
 def _storage_directory() -> Path:
@@ -104,3 +104,28 @@ def cleanup_expired_closed_dialogs(limit: int = 100) -> int:
             db.session.rollback()
             current_app.logger.exception("Could not delete expired closed dialog %s", dialog_id)
     return removed
+
+
+def cleanup_expired_moderation_events(limit: int = 500) -> int:
+    """Delete moderation journal records after their independently configured retention."""
+    if limit < 1:
+        raise ValueError("limit must be positive")
+    settings = db.session.get(GeneralSettings, 1)
+    if settings is None or settings.moderation_event_retention_days is None:
+        return 0
+    cutoff = datetime.now(UTC) - timedelta(days=settings.moderation_event_retention_days)
+    expired_ids = list(
+        db.session.scalars(
+            db.select(ModerationEvent.id)
+            .where(ModerationEvent.created_at <= cutoff)
+            .order_by(ModerationEvent.created_at, ModerationEvent.id)
+            .limit(limit)
+        )
+    )
+    if not expired_ids:
+        return 0
+    result = db.session.execute(
+        db.delete(ModerationEvent).where(ModerationEvent.id.in_(expired_ids))
+    )
+    db.session.commit()
+    return int(result.rowcount or 0)

@@ -13,6 +13,7 @@ from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
 from app.services.attachment_storage_service import (
     cleanup_expired_closed_dialogs,
+    cleanup_expired_moderation_events,
     remove_orphaned_attachment_files,
 )
 from app.services.rbac_service import ensure_rbac_catalogue
@@ -92,6 +93,13 @@ def register_commands(app: Flask) -> None:
         count = cleanup_expired_closed_dialogs(limit=limit)
         click.echo(f"Удалено обращений с истёкшим сроком хранения: {count}")
 
+    @app.cli.command("cleanup-moderation-events")
+    @click.option("--limit", default=500, show_default=True, type=click.IntRange(min=1, max=5000))
+    def cleanup_moderation_events_command(limit: int) -> None:
+        """Delete moderation journal records past their configured retention."""
+        count = cleanup_expired_moderation_events(limit=limit)
+        click.echo(f"Удалено записей журнала модерации: {count}")
+
     @app.cli.command("process-auto-forwards")
     def process_auto_forwards_command() -> None:
         """Process role routes whose automatic forwarding threshold has elapsed."""
@@ -131,6 +139,11 @@ def register_commands(app: Flask) -> None:
                         deleted = cleanup_expired_closed_dialogs(limit=batch_size)
                         if deleted:
                             app.logger.info("Удалено обращений по сроку хранения: %s", deleted)
+                        deleted_events = cleanup_expired_moderation_events(limit=batch_size)
+                        if deleted_events:
+                            app.logger.info(
+                                "Удалено записей журнала модерации: %s", deleted_events
+                            )
                         last_retention_cleanup = now
                 except Exception:
                     db.session.rollback()
