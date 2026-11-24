@@ -74,7 +74,7 @@ def downgrade() -> None:
     examples = [row["value"] for row in rows if row["kind"] == "INVALID_EXAMPLE"]
     connection.execute(
         sa.text("UPDATE general_settings SET blocked_words = :blocked, invalid_message_examples = :examples WHERE id = 1"),
-        {"blocked": "\\n".join(blocked), "examples": "\\n".join(examples)},
+        {"blocked": "\n".join(blocked), "examples": "\n".join(examples)},
     )
     op.drop_index("ix_moderation_entries_is_active", table_name="moderation_entries")
     op.drop_index("ix_moderation_entries_kind", table_name="moderation_entries")
