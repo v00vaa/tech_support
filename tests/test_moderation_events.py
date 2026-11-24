@@ -8,6 +8,7 @@ from flask import Flask
 from app.extensions import db
 from app.models import Client, Employee, ModerationEvent, Permission, Role
 
+
 @pytest.fixture
 def moderation_review_records(app: Flask) -> Iterator[int]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)

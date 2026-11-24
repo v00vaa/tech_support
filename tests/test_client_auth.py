@@ -19,6 +19,7 @@ from app.models import (
 )
 from app.services.moderation_service import normalize_entry
 
+
 @pytest.fixture
 def customer_records(app: Flask) -> Iterator[tuple[int, int, int]]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
