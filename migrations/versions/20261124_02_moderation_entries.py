@@ -5,6 +5,8 @@ Revises: 20261124_01
 Create Date: 2026-11-24
 """
 
+import hashlib
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -15,7 +17,8 @@ depends_on = None
 
 
 def _normalize(value: str) -> str:
-    return " ".join(value.split()).casefold()
+    normalized = " ".join(value.split()).casefold()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def upgrade() -> None:
@@ -24,7 +27,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column("kind", sa.String(length=30), nullable=False),
         sa.Column("value", sa.Text(), nullable=False),
-        sa.Column("normalized_value", sa.String(length=1000), nullable=False),
+        sa.Column("normalized_value", sa.String(length=64), nullable=False),
         sa.Column("category", sa.String(length=80), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
@@ -47,8 +50,6 @@ def upgrade() -> None:
             normalized = _normalize(value)
             if not value or normalized in seen:
                 continue
-            if len(normalized) > 1000:
-                raise ValueError("Legacy moderation entry exceeds 1000 normalized characters.")
             seen.add(normalized)
             rows.append({"kind": kind, "value": value, "normalized_value": normalized})
     if rows:

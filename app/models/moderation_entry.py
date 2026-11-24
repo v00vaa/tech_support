@@ -23,7 +23,7 @@ class ModerationEntry(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     kind: Mapped[str] = mapped_column(String(30), nullable=False, index=True)
     value: Mapped[str] = mapped_column(Text, nullable=False)
-    normalized_value: Mapped[str] = mapped_column(String(1000), nullable=False)
+    normalized_value: Mapped[str] = mapped_column(String(64), nullable=False)
     category: Mapped[str | None] = mapped_column(String(80))
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(

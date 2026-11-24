@@ -1,5 +1,6 @@
 """Deterministic moderation helpers for customer messages."""
 
+import hashlib
 import re
 
 from sqlalchemy import select
@@ -26,7 +27,8 @@ def normalize_entries(raw_value: str) -> list[str]:
 
 def normalize_entry(value: str) -> str:
     """Normalize one value for case-insensitive uniqueness."""
-    return " ".join(value.split()).strip().casefold()
+    normalized = " ".join(value.split()).strip().casefold()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
 
 
 def get_active_entries(kind: str) -> list[str]:
@@ -55,8 +57,6 @@ def add_entries(kind: str, raw_value: str) -> tuple[int, int]:
         if normalized in existing:
             duplicates += 1
             continue
-        if len(normalized) > 1000:
-            raise ValueError("Нормализованная запись не должна превышать 1000 символов.")
         db.session.add(
             ModerationEntry(kind=kind, value=value, normalized_value=normalized, is_active=True)
         )
