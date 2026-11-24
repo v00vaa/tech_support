@@ -120,6 +120,7 @@ def cleanup_expired_moderation_events(limit: int = 500) -> int:
             .where(ModerationEvent.created_at <= cutoff)
             .order_by(ModerationEvent.created_at, ModerationEvent.id)
             .limit(limit)
+            .with_for_update(skip_locked=True)
         )
     )
     if not expired_ids:

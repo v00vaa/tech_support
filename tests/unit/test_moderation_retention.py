@@ -4,6 +4,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from sqlalchemy import func
 
 from app.extensions import db
 from app.models import GeneralSettings, ModerationEvent
@@ -36,7 +37,7 @@ def test_moderation_journal_retention_defaults_to_never(
         db.session.commit()
 
         assert cleanup_expired_moderation_events() == 0
-        assert db.session.scalar(db.select(db.func.count()).select_from(ModerationEvent)) == 1
+        assert db.session.scalar(db.select(func.count()).select_from(ModerationEvent)) == 1
 
 
 def test_moderation_journal_cleanup_removes_only_expired_records(

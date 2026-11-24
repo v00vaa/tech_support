@@ -2563,9 +2563,9 @@ def moderation_export() -> ResponseReturnValue:
     if export_format == "txt":
         if kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
             abort(400)
-        content = "\\n".join(entry.value for entry in entries if entry.is_active)
+        content = "\n".join(entry.value for entry in entries if entry.is_active)
         if content:
-            content += "\\n"
+            content += "\n"
         return send_file(
             io.BytesIO(content.encode("utf-8")),
             mimetype="text/plain; charset=utf-8",
@@ -2588,7 +2588,7 @@ def moderation_export() -> ResponseReturnValue:
             ]
         )
     return send_file(
-        io.BytesIO(("\\ufeff" + output.getvalue()).encode("utf-8")),
+        io.BytesIO(("\ufeff" + output.getvalue()).encode("utf-8")),
         mimetype="text/csv; charset=utf-8",
         as_attachment=True,
         download_name="moderation_entries.csv",
@@ -2676,6 +2676,8 @@ def moderation_events() -> ResponseReturnValue:
 def moderation_event_review(event_id: int) -> ResponseReturnValue:
     """Save the staff review outcome for one moderation event."""
     event = db.get_or_404(ModerationEvent, event_id)
+    if event.decision != "REJECTED":
+        abort(400, description="Разбирать можно только отклонённые сообщения.")
     form = ModerationReviewForm()
     if form.validate_on_submit():
         event.review_status = form.review_status.data or "REVIEWED"
