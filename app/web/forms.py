@@ -4,8 +4,8 @@ from flask_wtf import FlaskForm
 from flask_wtf.file import MultipleFileField
 from wtforms import (
     BooleanField,
-    HiddenField,
     FloatField,
+    HiddenField,
     IntegerField,
     PasswordField,
     SelectField,
@@ -14,7 +14,15 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, InputRequired, Length, NumberRange, Optional
+from wtforms.validators import (
+    DataRequired,
+    Email,
+    EqualTo,
+    InputRequired,
+    Length,
+    NumberRange,
+    Optional,
+)
 
 from app.models.dialog import DialogStatus
 
