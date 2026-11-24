@@ -6,8 +6,6 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
-from app.services.moderation_service import normalize_entry
-
 from app.models import (
     AuthorType,
     Client,
@@ -19,6 +17,8 @@ from app.models import (
     ModerationEvent,
     Role,
 )
+
+from app.services.moderation_service import normalize_entry
 
 
 @pytest.fixture
