@@ -274,7 +274,16 @@ def test_customer_cannot_create_dialog_with_blocked_words(client, customer_recor
 def test_customer_cannot_reply_with_blocked_words(client, customer_records, app) -> None:
     _, _, own_dialog_id = customer_records
     with app.app_context():
-        db.session.add(GeneralSettings(id=1, blocked_words="spam"))
+        db.session.add_all(
+            [
+                GeneralSettings(id=1, blocked_words_enabled=True),
+                ModerationEntry(
+                    kind="BLOCKED_TERM",
+                    value="spam",
+                    normalized_value=normalize_entry("spam"),
+                ),
+            ]
+        )
         db.session.commit()
 
     client.post(
