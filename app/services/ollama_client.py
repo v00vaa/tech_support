@@ -71,9 +71,15 @@ class OllamaClient:
         classification_prompt: str,
     ) -> dict[str, Any]:
         """Classify a message and parse the model's JSON response."""
-        prompt = classification_prompt.replace(
+        instructions = classification_prompt.replace(
             "{invalid_examples}", "\n".join(invalid_examples)
-        ).replace("{message}", message)
+        ).replace(
+            "{message}",
+            "[Текст сообщения передаётся отдельно в пользовательском сообщении.]",
+        )
+        system_content = "\n\n".join(
+            part.strip() for part in (system_prompt, instructions) if part.strip()
+        )
         result = self._request(
             "/api/chat",
             {
@@ -82,8 +88,8 @@ class OllamaClient:
                 "format": "json",
                 "options": {"temperature": 0},
                 "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": prompt},
+                    {"role": "system", "content": system_content},
+                    {"role": "user", "content": message},
                 ],
             },
         )
@@ -97,4 +103,13 @@ class OllamaClient:
             raise OllamaError("Ollama вернула некорректный JSON классификации.") from error
         if not isinstance(parsed, dict) or not isinstance(parsed.get("is_invalid"), bool):
             raise OllamaError("Ответ классификатора не содержит boolean is_invalid.")
+        if not isinstance(parsed.get("category"), str):
+            raise OllamaError("Ответ классификатора не содержит строковое поле category.")
+        if not isinstance(parsed.get("reason"), str):
+            raise OllamaError("Ответ классификатора не содержит строковое поле reason.")
+        confidence = parsed.get("confidence")
+        if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+            raise OllamaError("Ответ классификатора не содержит числовое поле confidence.")
+        if not 0 <= confidence <= 1:
+            raise OllamaError("Уверенность классификатора должна быть в диапазоне от 0 до 1.")
         return parsed

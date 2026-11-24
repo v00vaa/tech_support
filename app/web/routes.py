@@ -227,7 +227,9 @@ def _moderate_customer_message(
         except (OllamaError, ValueError):
             current_app.logger.exception("Message classification failed; allowing message")
             return None, True, None, None, None
-        if classification["is_invalid"]:
+        if classification["is_invalid"] and (
+            classification["confidence"] >= settings.classifier_min_confidence
+        ):
             reason = classification["reason"].strip()
             return (
                 reason or "Классификатор определил сообщение как некорректное.",
@@ -235,6 +237,13 @@ def _moderate_customer_message(
                 classification["category"][:80],
                 classification["confidence"],
                 "classifier",
+            )
+        if classification["is_invalid"]:
+            current_app.logger.info(
+                "Classifier flagged a message below the rejection threshold "
+                "(confidence=%.3f, threshold=%.3f)",
+                classification["confidence"],
+                settings.classifier_min_confidence,
             )
 
     return None, False, None, None, None
@@ -2311,11 +2320,13 @@ def moderation_settings() -> ResponseReturnValue:
     if request.method == "GET":
         form.blocked_words_enabled.data = settings.blocked_words_enabled
         form.classifier_enabled.data = settings.classifier_enabled
+        form.classifier_min_confidence.data = settings.classifier_min_confidence
         form.blocked_words.data = settings.blocked_words
         form.invalid_message_examples.data = settings.invalid_message_examples
     if form.validate_on_submit():
         settings.blocked_words_enabled = bool(form.blocked_words_enabled.data)
         settings.classifier_enabled = bool(form.classifier_enabled.data)
+        settings.classifier_min_confidence = float(form.classifier_min_confidence.data or 0.75)
         settings.blocked_words = "\n".join(normalize_entries(form.blocked_words.data or ""))
         settings.invalid_message_examples = "\n".join(
             normalize_entries(form.invalid_message_examples.data or "")

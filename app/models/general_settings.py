@@ -1,6 +1,6 @@
 """Persistent global application settings."""
 
-from sqlalchemy import Boolean, CheckConstraint, Text
+from sqlalchemy import Boolean, CheckConstraint, Float, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.extensions import Base
@@ -16,6 +16,10 @@ class GeneralSettings(Base):
             "closed_dialog_retention_days IS NULL OR closed_dialog_retention_days > 0",
             name="ck_general_settings_retention_positive",
         ),
+        CheckConstraint(
+            "classifier_min_confidence >= 0 AND classifier_min_confidence <= 1",
+            name="ck_general_settings_classifier_confidence_range",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
@@ -23,6 +27,7 @@ class GeneralSettings(Base):
     web_channel_enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
     blocked_words_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     classifier_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    classifier_min_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
     ollama_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     blocked_words: Mapped[str] = mapped_column(Text, nullable=False, default="")
     invalid_message_examples: Mapped[str] = mapped_column(Text, nullable=False, default="")

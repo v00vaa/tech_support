@@ -32,9 +32,11 @@ def test_list_models_reads_ollama_tags(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_classify_message_parses_structured_json(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(
-        "app.services.ollama_client.urlopen",
-        lambda request, timeout: FakeResponse(
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout):
+        captured.update(json.loads(request.data.decode("utf-8")))
+        return FakeResponse(
             {
                 "message": {
                     "content": json.dumps(
@@ -47,8 +49,9 @@ def test_classify_message_parses_structured_json(monkeypatch: pytest.MonkeyPatch
                     )
                 }
             }
-        ),
-    )
+        )
+
+    monkeypatch.setattr("app.services.ollama_client.urlopen", fake_urlopen)
     result = OllamaClient("http://ollama:11434", "qwen2.5:3b").classify_message(
         "Здравствуйте",
         ["оскорбление"],
@@ -56,12 +59,42 @@ def test_classify_message_parses_structured_json(monkeypatch: pytest.MonkeyPatch
         "Примеры: {invalid_examples}; текст: {message}",
     )
     assert result["is_invalid"] is False
+    messages = captured["messages"]
+    assert isinstance(messages, list)
+    assert messages[0]["role"] == "system"
+    assert "оскорбление" in messages[0]["content"]
+    assert "{message}" not in messages[0]["content"]
+    assert messages[1] == {"role": "user", "content": "Здравствуйте"}
 
 
 def test_ollama_rejects_invalid_classifier_payload(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(
         "app.services.ollama_client.urlopen",
         lambda request, timeout: FakeResponse({"message": {"content": '{"invalid": true}'}}),
+    )
+    with pytest.raises(OllamaError):
+        OllamaClient("http://ollama:11434", "qwen2.5:3b").classify_message(
+            "message", [], "system", "{message}"
+        )
+
+
+def test_ollama_rejects_out_of_range_confidence(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.services.ollama_client.urlopen",
+        lambda request, timeout: FakeResponse(
+            {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "is_invalid": True,
+                            "category": "abuse",
+                            "reason": "test",
+                            "confidence": 1.5,
+                        }
+                    )
+                }
+            }
+        ),
     )
     with pytest.raises(OllamaError):
         OllamaClient("http://ollama:11434", "qwen2.5:3b").classify_message(

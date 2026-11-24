@@ -5,6 +5,7 @@ from flask_wtf.file import MultipleFileField
 from wtforms import (
     BooleanField,
     HiddenField,
+    FloatField,
     IntegerField,
     PasswordField,
     SelectField,
@@ -206,6 +207,11 @@ class WorkflowRouteForm(FlaskForm):
 class ModerationSettingsForm(FlaskForm):
     blocked_words_enabled = BooleanField("Включить фильтр запрещённых слов")
     classifier_enabled = BooleanField("Включить классификатор некорректных сообщений")
+    classifier_min_confidence = FloatField(
+        "Минимальная уверенность для отклонения",
+        validators=[DataRequired(), NumberRange(min=0, max=1)],
+        default=0.75,
+    )
     blocked_words = TextAreaField(
         "Запрещённые слова и фразы",
         validators=[Optional(), Length(max=50000)],
