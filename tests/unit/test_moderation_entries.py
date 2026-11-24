@@ -65,7 +65,7 @@ def test_add_entries_rejects_unknown_kind(database, app) -> None:
         add_entries("UNKNOWN", "value")
 
 def test_parse_txt_import_uses_selected_kind() -> None:
-    records = parse_import_content(" spam \\nspam\\nphrase", "txt", INVALID_EXAMPLE)
+    records = parse_import_content(" spam \nspam\nphrase", "txt", INVALID_EXAMPLE)
     assert records == [
         (INVALID_EXAMPLE, "spam", None, True),
         (INVALID_EXAMPLE, "phrase", None, True),
@@ -74,9 +74,9 @@ def test_parse_txt_import_uses_selected_kind() -> None:
 
 def test_parse_csv_import_preserves_category_and_state() -> None:
     content = (
-        "kind,value,category,is_active\\n"
-        "BLOCKED_TERM,spam,abuse,false\\n"
-        "INVALID_EXAMPLE,offensive text,,true\\n"
+        "kind,value,category,is_active\n"
+        "BLOCKED_TERM,spam,abuse,false\n"
+        "INVALID_EXAMPLE,offensive text,,true\n"
     )
     assert parse_import_content(content, "csv") == [
         (BLOCKED_TERM, "spam", "abuse", False),
@@ -86,9 +86,9 @@ def test_parse_csv_import_preserves_category_and_state() -> None:
 
 def test_parse_csv_rejects_unknown_kind_and_invalid_boolean() -> None:
     with pytest.raises(ValueError):
-        parse_import_content("kind,value\\nUNKNOWN,spam\\n", "csv")
+        parse_import_content("kind,value\nUNKNOWN,spam\n", "csv")
     with pytest.raises(ValueError):
-        parse_import_content("kind,value,is_active\\nBLOCKED_TERM,spam,maybe\\n", "csv")
+        parse_import_content("kind,value,is_active\nBLOCKED_TERM,spam,maybe\n", "csv")
 
 
 def test_import_entries_skips_duplicates_without_overwriting(database, app) -> None:
@@ -112,6 +112,6 @@ def test_import_entries_skips_duplicates_without_overwriting(database, app) -> N
 
 
 def test_parse_import_rejects_oversized_record_count() -> None:
-    content = "\\n".join(f"term-{index}" for index in range(10001))
+    content = "\n".join(f"term-{index}" for index in range(10001))
     with pytest.raises(ValueError):
         parse_import_content(content, "txt")
