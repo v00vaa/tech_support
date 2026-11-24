@@ -14,7 +14,7 @@ from wtforms import (
     SubmitField,
     TextAreaField,
 )
-from wtforms.validators import DataRequired, Email, EqualTo, Length, NumberRange, Optional
+from wtforms.validators import DataRequired, Email, EqualTo, InputRequired, Length, NumberRange, Optional
 
 from app.models.dialog import DialogStatus
 
@@ -209,7 +209,7 @@ class ModerationSettingsForm(FlaskForm):
     classifier_enabled = BooleanField("Включить классификатор некорректных сообщений")
     classifier_min_confidence = FloatField(
         "Минимальная уверенность для отклонения",
-        validators=[DataRequired(), NumberRange(min=0, max=1)],
+        validators=[InputRequired(), NumberRange(min=0, max=1)],
         default=0.75,
     )
     blocked_words = TextAreaField(

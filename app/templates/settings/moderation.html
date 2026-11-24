@@ -21,6 +21,12 @@
         <div class="form-text">Для работы классификатора также должна быть включена модель Ollama на вкладке AI.</div>
       </div>
       <div class="mb-4">
+        {{ form.classifier_min_confidence.label(class_="form-label fw-semibold") }}
+        {{ form.classifier_min_confidence(class_="form-control", type="number", min="0", max="1", step="0.01") }}
+        <div class="form-text">Сообщение отклоняется классификатором только при уверенности не ниже указанного значения. Допустимый диапазон: от 0 до 1.</div>
+        {% for error in form.classifier_min_confidence.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      <div class="mb-4">
         {{ form.blocked_words.label(class_="form-label fw-semibold") }}
         {{ form.blocked_words(class_="form-control font-monospace", rows="10", placeholder="слово\nзапрещённая фраза") }}
         <div class="form-text">Проверка без учёта регистра, по границам слов и фраз. Записей: {{ blocked_word_count }}.</div>

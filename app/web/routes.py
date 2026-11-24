@@ -2326,7 +2326,11 @@ def moderation_settings() -> ResponseReturnValue:
     if form.validate_on_submit():
         settings.blocked_words_enabled = bool(form.blocked_words_enabled.data)
         settings.classifier_enabled = bool(form.classifier_enabled.data)
-        settings.classifier_min_confidence = float(form.classifier_min_confidence.data or 0.75)
+        settings.classifier_min_confidence = float(
+            form.classifier_min_confidence.data
+            if form.classifier_min_confidence.data is not None
+            else 0.75
+        )
         settings.blocked_words = "\n".join(normalize_entries(form.blocked_words.data or ""))
         settings.invalid_message_examples = "\n".join(
             normalize_entries(form.invalid_message_examples.data or "")

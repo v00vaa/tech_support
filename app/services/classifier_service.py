@@ -25,6 +25,8 @@ def classify_message(message: str, settings: GeneralSettings) -> MessageClassifi
         system_prompt=settings.ollama_system_prompt,
         classification_prompt=settings.ollama_classification_prompt,
     )
+    if not isinstance(result.get("is_invalid"), bool):
+        raise ValueError("Классификатор вернул некорректный признак is_invalid.")
     confidence = result.get("confidence")
     if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
         raise ValueError("Классификатор вернул некорректную уверенность.")
