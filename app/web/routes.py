@@ -2561,7 +2561,6 @@ def moderation_export() -> ResponseReturnValue:
                 entry.category or "",
                 str(entry.is_active).lower(),
                 entry.match_type,
-                entry.match_type,
             ]
         )
     return send_file(

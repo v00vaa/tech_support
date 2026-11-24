@@ -13,7 +13,7 @@
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.moderation_settings') }}">Настройки фильтров</a>
     </div>
     <div class="alert alert-warning">
-      Для разбора сохраняется исходный текст отклонённого сообщения. Доступ к журналу ограничен
+      В журнале сохраняется исходный текст каждого проверенного сообщения. Доступ ограничен сотрудниками с правом просмотра настроек; разбор отклонений требует права редактирования настроек. Доступ к журналу ограничен
       сотрудниками с правом просмотра настроек; изменение результата требует права редактирования настроек.
     </div>
     <form method="get" class="card card-body mb-3">
@@ -41,7 +41,7 @@
       <div class="small text-muted mt-2">Найдено записей: {{ total }}. На странице — до 50.</div>
     </form>
     {% if not events %}
-      <div class="card"><div class="card-body text-muted">Отклонённых сообщений пока нет.</div></div>
+      <div class="card"><div class="card-body text-muted">Записей пока нет.</div></div>
     {% endif %}
     {% for event in events %}
       <article class="card mb-3">
@@ -50,9 +50,11 @@
           <span class="badge {% if event.decision == 'REJECTED' %}text-bg-danger{% elif event.decision == 'BYPASSED' %}text-bg-secondary{% else %}text-bg-success{% endif %}">
             {{ {"ACCEPTED": "Принято", "REJECTED": "Отклонено", "BYPASSED": "Проверка пропущена"}.get(event.decision, event.decision) }}
           </span>
-          <span class="badge {% if event.review_status == 'NEW' %}text-bg-warning{% else %}text-bg-success{% endif %}">
-            {% if event.review_status == 'NEW' %}Ожидает разбора{% elif event.review_status == 'REVIEWED' %}Отклонение подтверждено{% else %}Ложное срабатывание{% endif %}
-          </span>
+          {% if event.decision == 'REJECTED' %}
+            <span class="badge {% if event.review_status == 'NEW' %}text-bg-warning{% else %}text-bg-success{% endif %}">
+              {% if event.review_status == 'NEW' %}Ожидает разбора{% elif event.review_status == 'REVIEWED' %}Отклонение подтверждено{% else %}Ложное срабатывание{% endif %}
+            </span>
+          {% endif %}
         </div>
         <div class="card-body">
           <div class="row g-3 mb-3">
@@ -76,7 +78,7 @@
           {% if event.category %}<div><strong>Категория:</strong> {{ event.category }}</div>{% endif %}
           {% if event.confidence is not none %}<div><strong>Уверенность:</strong> {{ '%.0f'|format(event.confidence * 100) }}%</div>{% endif %}
           {% if event.review_note %}<div class="mt-2"><strong>Комментарий разбора:</strong> {{ event.review_note }}</div>{% endif %}
-          {% if has_permission(current_user, 'settings.edit') %}
+          {% if event.decision == 'REJECTED' and has_permission(current_user, 'settings.edit') %}
             <form method="post" action="{{ url_for('settings.moderation_event_review', event_id=event.id) }}" class="border-top mt-3 pt-3">
               {{ review_forms[event.id].hidden_tag() }}
               <div class="row g-2 align-items-end">
