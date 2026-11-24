@@ -104,3 +104,27 @@ def test_employee_without_settings_edit_cannot_review_event(
     )
 
     assert response.status_code == 403
+
+
+
+def test_moderation_journal_filters_by_decision(
+    client, app: Flask, moderation_review_records: int
+) -> None:
+    with app.app_context():
+        db.session.add(
+            ModerationEvent(
+                source="blocked_words",
+                message_text="",
+                reason="No violation",
+                decision="ACCEPTED",
+            )
+        )
+        db.session.commit()
+    client.post(
+        "/login",
+        data={"email": "reviewer@example.com", "password": "reviewer-password"},
+    )
+    response = client.get("/settings/moderation/events?decision=ACCEPTED")
+    assert response.status_code == 200
+    assert b"Найдено записей: 1" in response.data
+    assert b"Example rejected text" not in response.data

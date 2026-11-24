@@ -81,7 +81,7 @@ def test_parse_csv_import_preserves_category_and_state() -> None:
         "INVALID_EXAMPLE,offensive text,,true\n"
     )
     assert parse_import_content(content, "csv") == [
-        (BLOCKED_TERM, "spam", "abuse", False, "WHOLE_WORD"),
+        (BLOCKED_TERM, "spam", "abuse", False, "SUBSTRING"),
         (INVALID_EXAMPLE, "offensive text", None, True, "WHOLE_WORD"),
     ]
 
@@ -144,3 +144,11 @@ def test_blocked_term_match_strategies() -> None:
     assert find_blocked_entries("spammer", [substring]) == [substring]
     assert find_blocked_entries("  SPAM   NOW ", [exact]) == [exact]
     assert find_blocked_entries("please spam now", [exact]) == []
+
+
+
+def test_csv_import_reads_match_type() -> None:
+    content = "kind,value,match_type\\nBLOCKED_TERM,spam,SUBSTRING\\n"
+    assert parse_import_content(content, "csv") == [
+        (BLOCKED_TERM, "spam", None, True, "SUBSTRING")
+    ]

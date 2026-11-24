@@ -26,7 +26,7 @@ from flask import (
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import func, update
+from sqlalchemy import func, or_, update
 
 from app.extensions import db
 from app.models import (
@@ -2420,6 +2420,7 @@ def moderation_settings() -> ResponseReturnValue:
     form = ModerationSettingsForm()
     search = (request.args.get("q") or "").strip()
     kind_filter = request.args.get("kind", "")
+    page = max(1, request.args.get("page", 1, type=int) or 1)
     if request.method == "GET":
         form.blocked_words_enabled.data = settings.blocked_words_enabled
         form.classifier_enabled.data = settings.classifier_enabled
@@ -2461,8 +2462,24 @@ def moderation_settings() -> ResponseReturnValue:
     if kind_filter in {BLOCKED_TERM, INVALID_EXAMPLE}:
         query = query.where(ModerationEntry.kind == kind_filter)
     if search:
-        query = query.where(ModerationEntry.value.ilike(f"%{search}%"))
-    entries = db.session.scalars(query.limit(200)).all()
+        pattern = f"%{search}%"
+        query = query.where(
+            or_(
+                ModerationEntry.value.ilike(pattern),
+                ModerationEntry.category.ilike(pattern),
+            )
+        )
+    total_entries = db.session.scalar(
+        db.select(func.count()).select_from(query.subquery())
+    ) or 0
+    per_page = 50
+    pages = max(1, (total_entries + per_page - 1) // per_page)
+    page = min(page, pages)
+    entries = db.session.scalars(
+        query.order_by(ModerationEntry.kind, ModerationEntry.id.desc())
+        .offset((page - 1) * per_page)
+        .limit(per_page)
+    ).all()
     return render_template(
         "settings/moderation.html",
         form=form,
@@ -2470,6 +2487,9 @@ def moderation_settings() -> ResponseReturnValue:
         entries=entries,
         search=search,
         kind_filter=kind_filter,
+        page=page,
+        pages=pages,
+        total_entries=total_entries,
         blocked_word_count=db.session.scalar(
             db.select(func.count())
             .select_from(ModerationEntry)
