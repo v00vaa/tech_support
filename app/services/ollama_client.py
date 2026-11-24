@@ -79,7 +79,8 @@ class OllamaClient:
         )
         mandatory_guidance = (
             "Правила обратной связи клиенту: если сообщение действительно требует уточнения, "
-            "в поле reason объясни конкретную проблему и перечисли понятные действия для исправления. "
+            "в поле reason объясни конкретную проблему и перечисли понятные действия "
+            "для исправления. "
             "Не требуй сведения, которые клиент объективно не может получить. Если клиент прямо "
             "указывает, что данные недоступны, не считай одно это основанием для отклонения: "
             "предложи альтернативу — описать уже известные обстоятельства, указать причину "
@@ -88,7 +89,9 @@ class OllamaClient:
             "установи is_invalid=false. Не выдумывай факты и не проси пароли, токены или секреты."
         )
         system_content = "\n\n".join(
-            part.strip() for part in (system_prompt, instructions, mandatory_guidance) if part.strip()
+            part.strip()
+            for part in (system_prompt, instructions, mandatory_guidance)
+            if part.strip()
         )
         result = self._request(
             "/api/chat",
