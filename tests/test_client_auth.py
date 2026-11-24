@@ -47,7 +47,12 @@ def customer_records(app: Flask) -> Iterator[tuple[int, int, int]]:
         dialog = Dialog(client_id=other.id, subject="Private request", channel="Web")
         db.session.add(dialog)
         db.session.flush()
-        own_dialog = Dialog(client_id=customer.id, subject="My request", channel="Web")
+        own_dialog = Dialog(
+            client_id=customer.id,
+            assigned_role_id=first_line_role.id,
+            subject="My request",
+            channel="Web",
+        )
         db.session.add(own_dialog)
         db.session.flush()
         db.session.add_all(
@@ -306,6 +311,73 @@ def test_customer_cannot_reply_with_blocked_words(client, customer_records, app)
         assert event is not None
         assert event.dialog_id == own_dialog_id
 
+
+def test_customer_reply_bypasses_moderation_after_first_line_claims_dialog(
+    client, customer_records, app
+) -> None:
+    _, _, own_dialog_id = customer_records
+    with app.app_context():
+        dialog = db.session.get(Dialog, own_dialog_id)
+        employee = db.session.scalar(
+            db.select(Employee).where(Employee.email == "employee@example.com")
+        )
+        assert dialog is not None
+        assert employee is not None
+        dialog.responsible_employee_id = employee.id
+        db.session.add_all(
+            [
+                GeneralSettings(id=1, blocked_words_enabled=True),
+                ModerationEntry(
+                    kind="BLOCKED_TERM",
+                    value="spam",
+                    normalized_value=normalize_entry("spam"),
+                ),
+            ]
+        )
+        db.session.commit()
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        f"/portal/dialogs/{own_dialog_id}",
+        data={"text": "This is spam"},
+    )
+
+    assert response.status_code == 302
+    with app.app_context():
+        message = db.session.scalar(
+            db.select(Message).where(Message.text == "This is spam")
+        )
+        assert message is not None
+        event = db.session.scalar(
+            db.select(ModerationEvent).where(ModerationEvent.message_id == message.id)
+        )
+        assert event is not None
+        assert event.decision == "BYPASSED"
+        assert event.source == "workflow"
+
+
+def test_customer_can_create_dialog_ajax_confirms_delivery_to_specialist(
+    client, customer_records
+) -> None:
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "AJAX request", "message": "Please help"},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+    )
+
+    assert response.status_code == 200
+    payload = response.get_json()
+    assert payload is not None
+    assert payload["status"] == "sent"
+    assert "специалисту" in payload["message"]
+    assert payload["redirect_url"].startswith("/portal/dialogs/")
 
 def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
     client, customer_records, app
