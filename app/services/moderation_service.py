@@ -44,10 +44,19 @@ def get_active_entries(kind: str) -> list[str]:
     )
 
 
-def add_entries(kind: str, raw_value: str) -> tuple[int, int]:
+def add_entries(
+    kind: str,
+    raw_value: str,
+    category: str | None = None,
+    match_type: str = "WHOLE_WORD",
+) -> tuple[int, int]:
     """Add unique multiline entries and return added and duplicate counts."""
     if kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
         raise ValueError("Неизвестный тип записи модерации.")
+    if match_type not in {"WHOLE_WORD", "SUBSTRING", "EXACT"}:
+        raise ValueError("Неизвестный способ совпадения.")
+    if category is not None and len(category) > 80:
+        raise ValueError("Категория не должна превышать 80 символов.")
     existing = set(
         db.session.scalars(
             select(ModerationEntry.normalized_value).where(ModerationEntry.kind == kind)
@@ -60,7 +69,14 @@ def add_entries(kind: str, raw_value: str) -> tuple[int, int]:
             duplicates += 1
             continue
         db.session.add(
-            ModerationEntry(kind=kind, value=value, normalized_value=normalized, is_active=True)
+            ModerationEntry(
+                kind=kind,
+                value=value,
+                normalized_value=normalized,
+                category=category or None,
+                match_type=match_type if kind == BLOCKED_TERM else "WHOLE_WORD",
+                is_active=True,
+            )
         )
         existing.add(normalized)
         added += 1
@@ -71,13 +87,16 @@ def parse_import_content(
     content: str,
     file_format: str,
     default_kind: str = BLOCKED_TERM,
-) -> list[tuple[str, str, str | None, bool]]:
+) -> list[tuple[str, str, str | None, bool, str]]:
     """Parse CSV/TXT import data into validated moderation records."""
     if default_kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
         raise ValueError("Неизвестный тип записей модерации.")
-    records: list[tuple[str, str, str | None, bool]] = []
+    records: list[tuple[str, str, str | None, bool, str]] = []
     if file_format == "txt":
-        records.extend((default_kind, value, None, True) for value in normalize_entries(content))
+        records.extend(
+            (default_kind, value, None, True, "WHOLE_WORD")
+            for value in normalize_entries(content)
+        )
     elif file_format == "csv":
         reader = csv.DictReader(io.StringIO(content))
         required = {"kind", "value"}
@@ -88,15 +107,26 @@ def parse_import_content(
             value = " ".join((row.get("value") or "").split()).strip()
             category = (row.get("category") or "").strip() or None
             active_raw = (row.get("is_active") or "true").strip().casefold()
+            match_type = (row.get("match_type") or "WHOLE_WORD").strip().upper()
             if kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
                 raise ValueError("CSV содержит неизвестный тип записи.")
             if not value:
                 continue
             if category and len(category) > 80:
                 raise ValueError("Категория не должна превышать 80 символов.")
+            if match_type not in {"WHOLE_WORD", "SUBSTRING", "EXACT"}:
+                raise ValueError("CSV содержит неизвестный способ совпадения.")
             if active_raw not in {"true", "false", "1", "0", "yes", "no"}:
                 raise ValueError("Поле is_active должно содержать true или false.")
-            records.append((kind, value, category, active_raw in {"true", "1", "yes"}))
+            records.append(
+                (
+                    kind,
+                    value,
+                    category,
+                    active_raw in {"true", "1", "yes"},
+                    match_type if kind == BLOCKED_TERM else "WHOLE_WORD",
+                )
+            )
     else:
         raise ValueError("Поддерживаются только файлы CSV и TXT.")
     if len(records) > 10000:
@@ -105,7 +135,7 @@ def parse_import_content(
 
 
 def import_entries(
-    records: list[tuple[str, str, str | None, bool]],
+    records: list[tuple[str, str, str | None, bool, str]],
 ) -> tuple[int, int]:
     """Import validated records, skipping duplicates without overwriting existing ones."""
     existing = {
@@ -115,9 +145,13 @@ def import_entries(
         ).all()
     }
     added = duplicates = 0
-    for kind, value, category, is_active in records:
+    for kind, value, category, is_active, match_type in records:
         if kind not in {BLOCKED_TERM, INVALID_EXAMPLE}:
             raise ValueError("Неизвестный тип записи модерации.")
+        if match_type not in {"WHOLE_WORD", "SUBSTRING", "EXACT"}:
+            raise ValueError("Неизвестный способ совпадения.")
+        if category is not None and len(category) > 80:
+            raise ValueError("Категория не должна превышать 80 символов.")
         normalized = normalize_entry(value)
         normalized_value = " ".join(value.split()).strip()
         if not normalized_value or (kind, normalized) in existing:
@@ -129,12 +163,41 @@ def import_entries(
                 value=normalized_value,
                 normalized_value=normalized,
                 category=category,
+                match_type=match_type if kind == BLOCKED_TERM else "WHOLE_WORD",
                 is_active=is_active,
             )
         )
         existing.add((kind, normalized))
         added += 1
     return added, duplicates
+
+
+def find_blocked_entries(
+    message: str,
+    entries: list[ModerationEntry],
+) -> list[ModerationEntry]:
+    """Return matching active entries using their configured match strategy."""
+    normalized_message = " ".join(message.split()).casefold()
+    matches: list[ModerationEntry] = []
+    for entry in entries:
+        normalized_value = " ".join(entry.value.split()).casefold()
+        if not normalized_value:
+            continue
+        if entry.match_type == "EXACT":
+            matched = normalized_message == normalized_value
+        elif entry.match_type == "SUBSTRING":
+            matched = normalized_value in message.casefold()
+        else:
+            words = entry.value.split()
+            pattern = r"(?<!\\w)" + r"\\s+".join(
+                re.escape(word) for word in words
+            ) + r"(?!\\w)"
+            matched = re.search(
+                pattern, message, flags=re.IGNORECASE | re.UNICODE
+            ) is not None
+        if matched:
+            matches.append(entry)
+    return matches
 
 
 def find_blocked_terms(message: str, entries: list[str]) -> list[str]:

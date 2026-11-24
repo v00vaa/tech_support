@@ -18,6 +18,10 @@ class ModerationEntry(Base):
             "kind IN ('BLOCKED_TERM', 'INVALID_EXAMPLE')",
             name="ck_moderation_entry_kind",
         ),
+        CheckConstraint(
+            "match_type IN ('WHOLE_WORD', 'SUBSTRING', 'EXACT')",
+            name="ck_moderation_entry_match_type",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -25,6 +29,7 @@ class ModerationEntry(Base):
     value: Mapped[str] = mapped_column(Text, nullable=False)
     normalized_value: Mapped[str] = mapped_column(String(64), nullable=False)
     category: Mapped[str | None] = mapped_column(String(80))
+    match_type: Mapped[str] = mapped_column(String(20), nullable=False, default="WHOLE_WORD")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, index=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=lambda: datetime.now(UTC)

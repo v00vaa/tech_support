@@ -17,6 +17,10 @@ class GeneralSettings(Base):
             name="ck_general_settings_retention_positive",
         ),
         CheckConstraint(
+            "moderation_event_retention_days IS NULL OR moderation_event_retention_days > 0",
+            name="ck_general_settings_moderation_retention_positive",
+        ),
+        CheckConstraint(
             "classifier_min_confidence >= 0 AND classifier_min_confidence <= 1",
             name="ck_general_settings_classifier_confidence_range",
         ),
@@ -24,6 +28,7 @@ class GeneralSettings(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, default=1)
     closed_dialog_retention_days: Mapped[int | None] = mapped_column(nullable=True, default=None)
+    moderation_event_retention_days: Mapped[int | None] = mapped_column(nullable=True, default=None)
     web_channel_enabled: Mapped[bool] = mapped_column(nullable=False, default=True)
     blocked_words_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     classifier_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
