@@ -20,9 +20,7 @@ def moderation_database(app) -> Iterator[None]:
         db.drop_all()
 
 
-def test_moderation_journal_retention_defaults_to_never(
-    moderation_database, app
-) -> None:
+def test_moderation_journal_retention_defaults_to_never(moderation_database, app) -> None:
     with app.app_context():
         db.session.add(GeneralSettings(id=1))
         db.session.add(
@@ -40,9 +38,7 @@ def test_moderation_journal_retention_defaults_to_never(
         assert db.session.scalar(db.select(func.count()).select_from(ModerationEvent)) == 1
 
 
-def test_moderation_journal_cleanup_removes_only_expired_records(
-    moderation_database, app
-) -> None:
+def test_moderation_journal_cleanup_removes_only_expired_records(moderation_database, app) -> None:
     with app.app_context():
         db.session.add(GeneralSettings(id=1, moderation_event_retention_days=30))
         now = datetime.now(UTC)
@@ -89,4 +85,4 @@ def test_moderation_journal_cleanup_respects_batch_limit(moderation_database, ap
         db.session.commit()
 
         assert cleanup_expired_moderation_events(limit=2) == 2
-        assert db.session.scalar(db.select(db.func.count()).select_from(ModerationEvent)) == 1
+        assert db.session.scalar(db.select(func.count()).select_from(ModerationEvent)) == 1

@@ -95,8 +95,7 @@ def parse_import_content(
     records: list[tuple[str, str, str | None, bool, str]] = []
     if file_format == "txt":
         records.extend(
-            (default_kind, value, None, True, "WHOLE_WORD")
-            for value in normalize_entries(content)
+            (default_kind, value, None, True, "WHOLE_WORD") for value in normalize_entries(content)
         )
     elif file_format == "csv":
         reader = csv.DictReader(io.StringIO(content))
@@ -187,15 +186,11 @@ def find_blocked_entries(
         if entry.match_type == "EXACT":
             matched = normalized_message == normalized_value
         elif entry.match_type == "SUBSTRING":
-            matched = normalized_value in message.casefold()
+            matched = normalized_value in normalized_message
         else:
             words = entry.value.split()
-            pattern = r"(?<!\w)" + r"\s+".join(
-                re.escape(word) for word in words
-            ) + r"(?!\w)"
-            matched = re.search(
-                pattern, message, flags=re.IGNORECASE | re.UNICODE
-            ) is not None
+            pattern = r"(?<!\w)" + r"\s+".join(re.escape(word) for word in words) + r"(?!\w)"
+            matched = re.search(pattern, message, flags=re.IGNORECASE | re.UNICODE) is not None
         if matched:
             matches.append(entry)
     return matches

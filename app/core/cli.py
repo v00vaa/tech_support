@@ -141,9 +141,7 @@ def register_commands(app: Flask) -> None:
                             app.logger.info("Удалено обращений по сроку хранения: %s", deleted)
                         deleted_events = cleanup_expired_moderation_events(limit=batch_size)
                         if deleted_events:
-                            app.logger.info(
-                                "Удалено записей журнала модерации: %s", deleted_events
-                            )
+                            app.logger.info("Удалено записей журнала модерации: %s", deleted_events)
                         last_retention_cleanup = now
                 except Exception:
                     db.session.rollback()

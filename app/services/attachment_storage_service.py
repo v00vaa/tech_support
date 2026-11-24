@@ -125,8 +125,6 @@ def cleanup_expired_moderation_events(limit: int = 500) -> int:
     )
     if not expired_ids:
         return 0
-    db.session.execute(
-        db.delete(ModerationEvent).where(ModerationEvent.id.in_(expired_ids))
-    )
+    db.session.execute(db.delete(ModerationEvent).where(ModerationEvent.id.in_(expired_ids)))
     db.session.commit()
     return len(expired_ids)

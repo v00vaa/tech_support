@@ -232,9 +232,7 @@ def _moderate_customer_message(
 ) -> ModerationDecision:
     """Evaluate deterministic rules first, then the optional AI classifier."""
     if settings is None:
-        return ModerationDecision(
-            None, False, None, None, "none", "BYPASSED", None, None, None
-        )
+        return ModerationDecision(None, False, None, None, "none", "BYPASSED", None, None, None)
 
     source = "none"
     if settings.blocked_words_enabled:
@@ -361,7 +359,8 @@ def _record_moderation_decision(
             matched_value=result.matched_value,
             match_type=result.match_type,
             model_name=result.model_name,
-            reason=result.reason or (
+            reason=result.reason
+            or (
                 "Сообщение принято: нарушений не обнаружено."
                 if result.decision == "ACCEPTED"
                 else "Проверка модерации не выполнялась."
@@ -2447,12 +2446,12 @@ def moderation_settings() -> ResponseReturnValue:
             BLOCKED_TERM,
             form.blocked_entries.data or "",
             (form.blocked_category.data or "").strip() or None,
-            form.blocked_match_type.data or "WHOLE_WORD"
+            form.blocked_match_type.data or "WHOLE_WORD",
         )
         examples_added, examples_duplicates = add_entries(
             INVALID_EXAMPLE,
             form.example_entries.data or "",
-            (form.example_category.data or "").strip() or None
+            (form.example_category.data or "").strip() or None,
         )
         db.session.commit()
         flash(
@@ -2472,9 +2471,7 @@ def moderation_settings() -> ResponseReturnValue:
                 ModerationEntry.category.ilike(pattern),
             )
         )
-    total_entries = db.session.scalar(
-        db.select(func.count()).select_from(query.subquery())
-    ) or 0
+    total_entries = db.session.scalar(db.select(func.count()).select_from(query.subquery())) or 0
     per_page = 50
     pages = max(1, (total_entries + per_page - 1) // per_page)
     page = min(page, pages)
@@ -2639,9 +2636,7 @@ def moderation_events() -> ResponseReturnValue:
         query = query.where(ModerationEvent.source == source_filter)
     else:
         source_filter = ""
-    total = db.session.scalar(
-        db.select(func.count()).select_from(query.subquery())
-    ) or 0
+    total = db.session.scalar(db.select(func.count()).select_from(query.subquery())) or 0
     per_page = 50
     pages = max(1, (total + per_page - 1) // per_page)
     page = min(page, pages)

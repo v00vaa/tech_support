@@ -431,9 +431,7 @@ def test_accepted_customer_message_is_recorded_in_moderation_journal(
     client, customer_records, app
 ) -> None:
     with app.app_context():
-        db.session.add(
-            GeneralSettings(id=1, blocked_words_enabled=True, classifier_enabled=False)
-        )
+        db.session.add(GeneralSettings(id=1, blocked_words_enabled=True, classifier_enabled=False))
         db.session.commit()
     client.post(
         "/client/login",
