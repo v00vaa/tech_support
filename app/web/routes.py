@@ -69,9 +69,9 @@ from app.services.moderation_service import (
     INVALID_EXAMPLE,
     add_entries,
     find_blocked_terms,
+    get_active_entries,
     import_entries,
     parse_import_content,
-    get_active_entries,
 )
 from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.registration_provider import (
@@ -2456,7 +2456,7 @@ def moderation_export() -> ResponseReturnValue:
     writer = csv.writer(output)
     writer.writerow(["kind", "value", "category", "is_active"])
     for entry in entries:
-        writer.writerow([entry.kind, entry.value, entry.category or "", str(entry.is_active).lower()])
+        writer.writerow(\n            [entry.kind, entry.value, entry.category or "", str(entry.is_active).lower()]\n        )
     return send_file(
         io.BytesIO(("\\ufeff" + output.getvalue()).encode("utf-8")),
         mimetype="text/csv; charset=utf-8",
