@@ -53,6 +53,7 @@ def moderation_review_records(app: Flask) -> Iterator[int]:
         db.session.remove()
         db.drop_all()
 
+
 def test_employee_with_settings_permission_can_review_moderation_event(
     client, app: Flask, moderation_review_records: int
 ) -> None:
@@ -80,6 +81,7 @@ def test_employee_with_settings_permission_can_review_moderation_event(
         assert event.reviewed_by_employee_id is not None
         assert event.reviewed_at is not None
 
+
 def test_employee_without_settings_edit_cannot_review_event(
     client, app: Flask, moderation_review_records: int
 ) -> None:
@@ -101,6 +103,7 @@ def test_employee_without_settings_edit_cannot_review_event(
     )
 
     assert response.status_code == 403
+
 
 def test_moderation_journal_filters_by_decision(
     client, app: Flask, moderation_review_records: int

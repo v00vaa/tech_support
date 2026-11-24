@@ -80,6 +80,7 @@ def customer_records(app: Flask) -> Iterator[tuple[int, int, int]]:
         db.session.remove()
         db.drop_all()
 
+
 def test_customer_can_login_and_open_portal(client, customer_records) -> None:
     response = client.post(
         "/client/login",
@@ -93,6 +94,7 @@ def test_customer_can_login_and_open_portal(client, customer_records) -> None:
     assert portal_response.status_code == 200
     assert b"Customer One" in portal_response.data
 
+
 def test_customer_cannot_open_staff_pages(client, customer_records) -> None:
     client.post(
         "/client/login",
@@ -102,6 +104,7 @@ def test_customer_cannot_open_staff_pages(client, customer_records) -> None:
     response = client.get("/clients")
 
     assert response.status_code == 403
+
 
 def test_customer_cannot_read_another_customers_dialog(client, customer_records) -> None:
     _, other_dialog_id, _ = customer_records
@@ -114,6 +117,7 @@ def test_customer_cannot_read_another_customers_dialog(client, customer_records)
 
     assert response.status_code == 404
 
+
 def test_customer_login_rejects_invalid_password(client, customer_records) -> None:
     response = client.post(
         "/client/login",
@@ -123,6 +127,7 @@ def test_customer_login_rejects_invalid_password(client, customer_records) -> No
     assert response.status_code == 200
     assert "Неверный логин или пароль".encode() in response.data
 
+
 def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
     response = client.post(
         "/login",
@@ -131,6 +136,7 @@ def test_employee_cannot_open_customer_portal(client, customer_records) -> None:
 
     assert response.status_code == 302
     assert client.get("/portal/").status_code == 403
+
 
 def test_customer_sees_public_messages_but_not_internal_notes(client, customer_records) -> None:
     _, _, own_dialog_id = customer_records
@@ -144,6 +150,7 @@ def test_customer_sees_public_messages_but_not_internal_notes(client, customer_r
     assert response.status_code == 200
     assert b"PUBLIC-ANSWER" in response.data
     assert b"INTERNAL-ONLY-CONTENT" not in response.data
+
 
 def test_customer_can_create_a_support_dialog(client, customer_records, app) -> None:
     client.post(
@@ -163,6 +170,7 @@ def test_customer_can_create_a_support_dialog(client, customer_records, app) -> 
         assert dialog.assigned_role_id is not None
         assert dialog.assigned_role.is_first_line is True
         assert dialog.role_assigned_at is not None
+
 
 def test_customer_cannot_create_dialog_without_first_line_configuration(
     client, customer_records, app
@@ -188,6 +196,7 @@ def test_customer_cannot_create_dialog_without_first_line_configuration(
             db.session.scalar(db.select(Dialog).where(Dialog.subject == "Unrouted request")) is None
         )
 
+
 def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None:
     _, _, own_dialog_id = customer_records
     client.post(
@@ -206,6 +215,7 @@ def test_customer_can_reply_to_own_dialog(client, customer_records, app) -> None
         assert message.author_type == AuthorType.CLIENT
         assert message.is_internal is False
 
+
 def test_employee_and_customer_session_ids_are_namespaced() -> None:
     customer = Client(id=7, name="Customer", login="customer")
     employee = Employee(
@@ -218,6 +228,7 @@ def test_employee_and_customer_session_ids_are_namespaced() -> None:
 
     assert customer.get_id() == "client:7"
     assert employee.get_id() == "employee:7"
+
 
 def test_customer_cannot_create_dialog_with_blocked_words(client, customer_records, app) -> None:
     with app.app_context():
@@ -260,6 +271,7 @@ def test_customer_cannot_create_dialog_with_blocked_words(client, customer_recor
         assert event.match_type == "WHOLE_WORD"
         assert event.review_status == "NEW"
 
+
 def test_customer_cannot_reply_with_blocked_words(client, customer_records, app) -> None:
     _, _, own_dialog_id = customer_records
     with app.app_context():
@@ -293,6 +305,7 @@ def test_customer_cannot_reply_with_blocked_words(client, customer_records, app)
         assert event is not None
         assert event.dialog_id == own_dialog_id
 
+
 def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
     client, customer_records, app
 ) -> None:
@@ -321,6 +334,7 @@ def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
             db.select(Dialog).where(Dialog.subject == "Allowed while filter disabled")
         )
         assert dialog is not None
+
 
 def test_classifier_rejects_invalid_customer_message(
     client, customer_records, app, monkeypatch
@@ -370,6 +384,7 @@ def test_classifier_rejects_invalid_customer_message(
         )
         assert rejected_dialog is None
 
+
 def test_classifier_is_not_called_when_ollama_is_disabled(
     client, customer_records, app, monkeypatch
 ) -> None:
@@ -398,6 +413,7 @@ def test_classifier_is_not_called_when_ollama_is_disabled(
 
     assert response.status_code == 302
 
+
 def test_customer_cannot_open_moderation_journal(client, customer_records) -> None:
     client.post(
         "/client/login",
@@ -407,6 +423,7 @@ def test_customer_cannot_open_moderation_journal(client, customer_records) -> No
     response = client.get("/settings/moderation/events")
 
     assert response.status_code == 403
+
 
 def test_accepted_customer_message_is_recorded_in_moderation_journal(
     client, customer_records, app
