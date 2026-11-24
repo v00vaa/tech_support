@@ -189,9 +189,9 @@ def find_blocked_entries(
             matched = normalized_value in message.casefold()
         else:
             words = entry.value.split()
-            pattern = r"(?<!\\w)" + r"\\s+".join(
+            pattern = r"(?<!\w)" + r"\s+".join(
                 re.escape(word) for word in words
-            ) + r"(?!\\w)"
+            ) + r"(?!\w)"
             matched = re.search(
                 pattern, message, flags=re.IGNORECASE | re.UNICODE
             ) is not None
