@@ -7,7 +7,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from functools import wraps
 from pathlib import Path
-from typing import Any
+from typing import Any, NamedTuple
 from uuid import uuid4
 from zipfile import BadZipFile, ZipFile
 
@@ -68,7 +68,7 @@ from app.services.moderation_service import (
     BLOCKED_TERM,
     INVALID_EXAMPLE,
     add_entries,
-    find_blocked_terms,
+    find_blocked_entries,
     get_active_entries,
     import_entries,
     parse_import_content,
@@ -214,80 +214,167 @@ def _detect_attachment_content_type(filename: str, content: bytes) -> str:
     raise ValueError("Содержимое файла не соответствует его расширению.")
 
 
+class ModerationDecision(NamedTuple):
+    """Complete outcome of one customer-message moderation pass."""
+
+    reason: str | None
+    classifier_unavailable: bool
+    category: str | None
+    confidence: float | None
+    source: str
+    decision: str
+    model_name: str | None
+    matched_value: str | None
+    match_type: str | None
+
+
 def _moderate_customer_message(
     message: str, settings: GeneralSettings | None
-) -> tuple[str | None, bool, str | None, float | None, str | None]:
-    """Return rejection details and whether the optional classifier was unavailable."""
+) -> ModerationDecision:
+    """Evaluate deterministic rules first, then the optional AI classifier."""
     if settings is None:
-        return None, False, None, None, None
+        return ModerationDecision(
+            None, False, None, None, "none", "BYPASSED", None, None, None
+        )
 
+    source = "none"
     if settings.blocked_words_enabled:
-        blocked_terms = find_blocked_terms(message, get_active_entries(BLOCKED_TERM))
-        if blocked_terms:
-            return (
+        source = "blocked_words"
+        entries = get_active_entries(BLOCKED_TERM)
+        records = db.session.scalars(
+            db.select(ModerationEntry)
+            .where(
+                ModerationEntry.kind == BLOCKED_TERM,
+                ModerationEntry.is_active.is_(True),
+            )
+            .order_by(ModerationEntry.id)
+        ).all()
+        del entries
+        matches = find_blocked_entries(message, records)
+        if matches:
+            match = matches[0]
+            return ModerationDecision(
                 "Сообщение содержит запрещённые слова или фразы.",
                 False,
-                "blocked_words",
+                match.category or "blocked_words",
                 None,
                 "blocked_words",
+                "REJECTED",
+                None,
+                match.value,
+                match.match_type,
             )
 
-    if settings.classifier_enabled and settings.ollama_enabled:
+    if settings.classifier_enabled:
+        source = "classifier"
+        if not settings.ollama_enabled:
+            return ModerationDecision(
+                None,
+                True,
+                None,
+                None,
+                source,
+                "BYPASSED",
+                None,
+                None,
+                None,
+            )
         try:
             classification = classify_message(message, settings)
         except (OllamaError, ValueError):
             current_app.logger.exception("Message classification failed; allowing message")
-            return None, True, None, None, None
+            return ModerationDecision(
+                None,
+                True,
+                None,
+                None,
+                source,
+                "BYPASSED",
+                settings.ollama_model,
+                None,
+                None,
+            )
         if classification["is_invalid"] and (
             classification["confidence"] >= settings.classifier_min_confidence
         ):
             reason = classification["reason"].strip()
-            return (
+            return ModerationDecision(
                 reason or "Классификатор определил сообщение как некорректное.",
                 False,
-                classification["category"][:80],
+                classification["category"][:80] or None,
                 classification["confidence"],
-                "classifier",
+                source,
+                "REJECTED",
+                settings.ollama_model,
+                None,
+                None,
             )
-        if classification["is_invalid"]:
-            current_app.logger.info(
-                "Classifier flagged a message below the rejection threshold "
-                "(confidence=%.3f, threshold=%.3f)",
-                classification["confidence"],
-                settings.classifier_min_confidence,
-            )
+        reason = (
+            "Классификатор отметил сообщение, но уверенность ниже порога."
+            if classification["is_invalid"]
+            else "Классификатор не обнаружил нарушений."
+        )
+        return ModerationDecision(
+            None,
+            False,
+            classification["category"][:80] or None,
+            classification["confidence"],
+            source,
+            "ACCEPTED",
+            settings.ollama_model,
+            None,
+            None,
+        )
 
-    return None, False, None, None, None
+    if not settings.blocked_words_enabled:
+        return ModerationDecision(
+            None, False, None, None, "none", "BYPASSED", None, None, None
+        )
+    return ModerationDecision(
+        None,
+        False,
+        None,
+        None,
+        source,
+        "ACCEPTED",
+        None,
+        None,
+        None,
+    )
 
 
-def _record_moderation_rejection(
+def _record_moderation_decision(
     *,
     client_id: int,
     dialog_id: int | None,
     message: str,
-    reason: str,
-    category: str | None,
-    confidence: float | None,
-    source: str,
+    result: ModerationDecision,
 ) -> None:
-    """Persist rejected message content for authorized staff review."""
+    """Persist a complete moderation decision without breaking message delivery."""
     db.session.add(
         ModerationEvent(
             client_id=client_id,
             dialog_id=dialog_id,
-            source=source,
+            source=result.source,
             message_text=message,
-            decision="REJECTED",
-            category=category,
-            reason=reason,
-            confidence=confidence,
+            decision=result.decision,
+            category=result.category,
+            matched_value=result.matched_value,
+            match_type=result.match_type,
+            model_name=result.model_name,
+            reason=result.reason or (
+                "Сообщение принято: нарушений не обнаружено."
+                if result.decision == "ACCEPTED"
+                else "Проверка модерации не выполнялась."
+            ),
+            confidence=result.confidence,
         )
     )
     try:
         db.session.commit()
     except Exception:
         db.session.rollback()
-        current_app.logger.exception("Could not persist moderation rejection event")
+        current_app.logger.exception("Could not persist moderation decision event")
 
 
 def _store_message_attachments(message: Message, uploads: list[Any]) -> list[Path]:
@@ -704,22 +791,17 @@ def portal_dialog_create() -> ResponseReturnValue:
     form = ClientDialogForm()
     if form.validate_on_submit():
         raw_message = (form.message.data or "").strip()
-        rejection_reason, classifier_unavailable, category, confidence, source = (
-            _moderate_customer_message(raw_message, settings)
-        )
-        if rejection_reason:
-            _record_moderation_rejection(
+        moderation = _moderate_customer_message(raw_message, settings)
+        if moderation.decision == "REJECTED":
+            _record_moderation_decision(
                 client_id=current_user.id,
                 dialog_id=None,
                 message=raw_message,
-                reason=rejection_reason,
-                category=category,
-                confidence=confidence,
-                source=source or "unknown",
+                result=moderation,
             )
-            form.message.errors = [*form.message.errors, rejection_reason]
+            form.message.errors = [*form.message.errors, moderation.reason or "Сообщение отклонено."]
             return render_template("portal/dialog_form.html", form=form), 400
-        if classifier_unavailable:
+        if moderation.classifier_unavailable:
             flash(
                 "Классификатор временно недоступен; сообщение принято без AI-проверки.",
                 "warning",
@@ -785,6 +867,12 @@ def portal_dialog_create() -> ResponseReturnValue:
             db.session.rollback()
             _remove_saved_attachments(saved_paths)
             raise
+        _record_moderation_decision(
+            client_id=current_user.id,
+            dialog_id=dialog.id,
+            message=raw_message,
+            result=moderation,
+        )
         flash("Обращение создано.", "success")
         return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
     return render_template("portal/dialog_form.html", form=form)
@@ -810,22 +898,17 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         if form.validate_on_submit():
             global_settings = db.session.get(GeneralSettings, 1)
             raw_message = (form.text.data or "").strip()
-            rejection_reason, classifier_unavailable, category, confidence, source = (
-                _moderate_customer_message(raw_message, global_settings)
-            )
-            if rejection_reason:
-                _record_moderation_rejection(
+            moderation = _moderate_customer_message(raw_message, global_settings)
+            if moderation.decision == "REJECTED":
+                _record_moderation_decision(
                     client_id=current_user.id,
                     dialog_id=dialog.id,
                     message=raw_message,
-                    reason=rejection_reason,
-                    category=category,
-                    confidence=confidence,
-                    source=source or "unknown",
+                    result=moderation,
                 )
-                flash(rejection_reason, "danger")
+                flash(moderation.reason or "Сообщение отклонено.", "danger")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
-            if classifier_unavailable:
+            if moderation.classifier_unavailable:
                 flash(
                     "Классификатор временно недоступен; сообщение принято без AI-проверки.",
                     "warning",
@@ -856,6 +939,12 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                 _remove_saved_attachments(saved_paths)
                 raise
             else:
+                _record_moderation_decision(
+                    client_id=current_user.id,
+                    dialog_id=dialog.id,
+                    message=raw_message,
+                    result=moderation,
+                )
                 flash("Сообщение отправлено.", "success")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
             flash("Сообщение отправлено.", "success")
@@ -2334,6 +2423,11 @@ def moderation_settings() -> ResponseReturnValue:
         form.blocked_words_enabled.data = settings.blocked_words_enabled
         form.classifier_enabled.data = settings.classifier_enabled
         form.classifier_min_confidence.data = settings.classifier_min_confidence
+        form.moderation_event_retention_days.data = (
+            str(settings.moderation_event_retention_days)
+            if settings.moderation_event_retention_days is not None
+            else ""
+        )
     if form.validate_on_submit():
         settings.blocked_words_enabled = bool(form.blocked_words_enabled.data)
         settings.classifier_enabled = bool(form.classifier_enabled.data)
@@ -2342,11 +2436,18 @@ def moderation_settings() -> ResponseReturnValue:
             if form.classifier_min_confidence.data is not None
             else 0.75
         )
+        retention_value = form.moderation_event_retention_days.data
+        settings.moderation_event_retention_days = int(retention_value) if retention_value else None
         blocked_added, blocked_duplicates = add_entries(
-            BLOCKED_TERM, form.blocked_entries.data or ""
+            BLOCKED_TERM,
+            form.blocked_entries.data or "",
+            (form.blocked_category.data or "").strip() or None,
+            form.blocked_match_type.data or "WHOLE_WORD"
         )
         examples_added, examples_duplicates = add_entries(
-            INVALID_EXAMPLE, form.example_entries.data or ""
+            INVALID_EXAMPLE,
+            form.example_entries.data or "",
+            (form.example_category.data or "").strip() or None
         )
         db.session.commit()
         flash(
@@ -2454,7 +2555,7 @@ def moderation_export() -> ResponseReturnValue:
         abort(400)
     output = io.StringIO(newline="")
     writer = csv.writer(output)
-    writer.writerow(["kind", "value", "category", "is_active"])
+    writer.writerow(["kind", "value", "category", "is_active", "match_type"])
     for entry in entries:
         writer.writerow(
             [
@@ -2462,6 +2563,7 @@ def moderation_export() -> ResponseReturnValue:
                 entry.value,
                 entry.category or "",
                 str(entry.is_active).lower(),
+                entry.match_type,
             ]
         )
     return send_file(

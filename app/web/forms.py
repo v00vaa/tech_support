@@ -231,6 +231,35 @@ class ModerationImportForm(FlaskForm):
 class ModerationSettingsForm(FlaskForm):
     blocked_words_enabled = BooleanField("Включить фильтр запрещённых слов")
     classifier_enabled = BooleanField("Включить классификатор некорректных сообщений")
+    moderation_event_retention_days = SelectField(
+        "Срок хранения журнала модерации",
+        choices=[
+            ("", "Никогда"),
+            ("30", "30 дней"),
+            ("90", "90 дней"),
+            ("180", "180 дней"),
+            ("365", "365 дней"),
+        ],
+        validators=[Optional()],
+    )
+    blocked_category = StringField(
+        "Категория запрещённых фраз",
+        validators=[Optional(), Length(max=80)],
+    )
+    blocked_match_type = SelectField(
+        "Способ совпадения",
+        choices=[
+            ("WHOLE_WORD", "Целое слово или фраза"),
+            ("SUBSTRING", "Вхождение в любом месте"),
+            ("EXACT", "Полное совпадение сообщения"),
+        ],
+        validators=[DataRequired()],
+        default="WHOLE_WORD",
+    )
+    example_category = StringField(
+        "Категория примеров классификатора",
+        validators=[Optional(), Length(max=80)],
+    )
     classifier_min_confidence = FloatField(
         "Минимальная уверенность для отклонения",
         validators=[InputRequired(), NumberRange(min=0, max=1)],
