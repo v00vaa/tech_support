@@ -7,6 +7,7 @@ from app.models.employee import Employee
 from app.models.employee_invitation import EmployeeInvitation
 from app.models.general_settings import GeneralSettings
 from app.models.message import AuthorType, Message
+from app.models.moderation_entry import ModerationEntry
 from app.models.moderation_event import ModerationEvent
 from app.models.registration_settings import RegistrationSettings
 from app.models.role import Permission, Role
@@ -22,6 +23,7 @@ __all__ = [
     "EmployeeInvitation",
     "GeneralSettings",
     "Message",
+    "ModerationEntry",
     "ModerationEvent",
     "Permission",
     "Role",

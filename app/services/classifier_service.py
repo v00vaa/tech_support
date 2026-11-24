@@ -3,7 +3,7 @@
 from typing import TypedDict
 
 from app.models.general_settings import GeneralSettings
-from app.services.moderation_service import normalize_entries
+from app.services.moderation_service import INVALID_EXAMPLE, get_active_entries
 from app.services.ollama_client import OllamaClient
 
 
@@ -21,7 +21,7 @@ def classify_message(message: str, settings: GeneralSettings) -> MessageClassifi
     client = OllamaClient(settings.ollama_base_url, settings.ollama_model)
     result = client.classify_message(
         message=message,
-        invalid_examples=normalize_entries(settings.invalid_message_examples),
+        invalid_examples=get_active_entries(INVALID_EXAMPLE),
         system_prompt=settings.ollama_system_prompt,
         classification_prompt=settings.ollama_classification_prompt,
     )

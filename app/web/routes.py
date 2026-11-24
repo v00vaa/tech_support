@@ -38,6 +38,7 @@ from app.models import (
     EmployeeInvitation,
     GeneralSettings,
     Message,
+    ModerationEntry,
     ModerationEvent,
     Permission,
     RegistrationSettings,
@@ -62,7 +63,13 @@ from app.services.employee_invitation_service import (
     revoke_employee_invitation,
     send_employee_invitation_email,
 )
-from app.services.moderation_service import check_message, normalize_entries
+from app.services.moderation_service import (
+    BLOCKED_TERM,
+    INVALID_EXAMPLE,
+    add_entries,
+    find_blocked_terms,
+    get_active_entries,
+)
 from app.services.ollama_client import OllamaClient, OllamaError
 from app.services.registration_provider import (
     RegistrationProviderError,
@@ -211,7 +218,7 @@ def _moderate_customer_message(
         return None, False, None, None, None
 
     if settings.blocked_words_enabled:
-        blocked_terms = check_message(message, settings.blocked_words)
+        blocked_terms = find_blocked_terms(message, get_active_entries(BLOCKED_TERM))
         if blocked_terms:
             return (
                 "Сообщение содержит запрещённые слова или фразы.",
@@ -2317,12 +2324,12 @@ def moderation_settings() -> ResponseReturnValue:
         abort(403)
     settings = _get_general_settings()
     form = ModerationSettingsForm()
+    search = (request.args.get("q") or "").strip()
+    kind_filter = request.args.get("kind", "")
     if request.method == "GET":
         form.blocked_words_enabled.data = settings.blocked_words_enabled
         form.classifier_enabled.data = settings.classifier_enabled
         form.classifier_min_confidence.data = settings.classifier_min_confidence
-        form.blocked_words.data = settings.blocked_words
-        form.invalid_message_examples.data = settings.invalid_message_examples
     if form.validate_on_submit():
         settings.blocked_words_enabled = bool(form.blocked_words_enabled.data)
         settings.classifier_enabled = bool(form.classifier_enabled.data)
@@ -2331,20 +2338,67 @@ def moderation_settings() -> ResponseReturnValue:
             if form.classifier_min_confidence.data is not None
             else 0.75
         )
-        settings.blocked_words = "\n".join(normalize_entries(form.blocked_words.data or ""))
-        settings.invalid_message_examples = "\n".join(
-            normalize_entries(form.invalid_message_examples.data or "")
+        blocked_added, blocked_duplicates = add_entries(
+            BLOCKED_TERM, form.blocked_entries.data or ""
+        )
+        examples_added, examples_duplicates = add_entries(
+            INVALID_EXAMPLE, form.example_entries.data or ""
         )
         db.session.commit()
-        flash("Настройки модерации сохранены.", "success")
+        flash(
+            f"Настройки сохранены. Добавлено: {blocked_added + examples_added}; "
+            f"дубликатов пропущено: {blocked_duplicates + examples_duplicates}.",
+            "success",
+        )
         return redirect(url_for("settings.moderation_settings"))
+    query = db.select(ModerationEntry).order_by(ModerationEntry.kind, ModerationEntry.id.desc())
+    if kind_filter in {BLOCKED_TERM, INVALID_EXAMPLE}:
+        query = query.where(ModerationEntry.kind == kind_filter)
+    if search:
+        query = query.where(ModerationEntry.value.ilike(f"%{search}%"))
+    entries = db.session.scalars(query.limit(200)).all()
     return render_template(
         "settings/moderation.html",
         form=form,
-        blocked_word_count=len(normalize_entries(settings.blocked_words)),
-        example_count=len(normalize_entries(settings.invalid_message_examples)),
+        entries=entries,
+        search=search,
+        kind_filter=kind_filter,
+        blocked_word_count=db.session.scalar(
+            db.select(func.count()).select_from(ModerationEntry).where(
+                ModerationEntry.kind == BLOCKED_TERM, ModerationEntry.is_active.is_(True)
+            )
+        ),
+        example_count=db.session.scalar(
+            db.select(func.count()).select_from(ModerationEntry).where(
+                ModerationEntry.kind == INVALID_EXAMPLE, ModerationEntry.is_active.is_(True)
+            )
+        ),
         active_settings_section="moderation",
     )
+
+
+@settings_bp.post("/moderation/entries/<int:entry_id>/toggle")
+@login_required
+@permission_required("settings.edit")
+def moderation_entry_toggle(entry_id: int) -> ResponseReturnValue:
+    """Activate or deactivate one moderation entry."""
+    entry = db.get_or_404(ModerationEntry, entry_id)
+    entry.is_active = not entry.is_active
+    db.session.commit()
+    flash("Состояние записи изменено.", "success")
+    return redirect(url_for("settings.moderation_settings"))
+
+
+@settings_bp.post("/moderation/entries/<int:entry_id>/delete")
+@login_required
+@permission_required("settings.edit")
+def moderation_entry_delete(entry_id: int) -> ResponseReturnValue:
+    """Delete one moderation entry."""
+    entry = db.get_or_404(ModerationEntry, entry_id)
+    db.session.delete(entry)
+    db.session.commit()
+    flash("Запись удалена.", "success")
+    return redirect(url_for("settings.moderation_settings"))
 
 
 @settings_bp.get("/moderation/events")

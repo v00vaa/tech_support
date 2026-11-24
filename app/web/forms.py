@@ -220,12 +220,12 @@ class ModerationSettingsForm(FlaskForm):
         validators=[InputRequired(), NumberRange(min=0, max=1)],
         default=0.75,
     )
-    blocked_words = TextAreaField(
-        "Запрещённые слова и фразы",
+    blocked_entries = TextAreaField(
+        "Новые запрещённые слова и фразы",
         validators=[Optional(), Length(max=50000)],
     )
-    invalid_message_examples = TextAreaField(
-        "Примеры некорректных сообщений",
+    example_entries = TextAreaField(
+        "Новые примеры некорректных сообщений",
         validators=[Optional(), Length(max=50000)],
     )
     submit = SubmitField("Сохранить настройки модерации")
