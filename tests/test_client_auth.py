@@ -6,6 +6,8 @@ import pytest
 from flask import Flask
 
 from app.extensions import db
+from app.services.moderation_service import normalize_entry
+
 from app.models import (
     AuthorType,
     Client,
@@ -238,7 +240,7 @@ def test_customer_cannot_create_dialog_with_blocked_words(client, customer_recor
                 ModerationEntry(
                     kind="BLOCKED_TERM",
                     value="spam",
-                    normalized_value="",
+                    normalized_value=normalize_entry("spam"),
                 ),
             ]
         )
