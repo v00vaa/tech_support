@@ -15,7 +15,7 @@ def _settings(threshold: float) -> GeneralSettings:
 
 
 def test_classifier_rejects_message_at_or_above_confidence_threshold(
-    app, monkeypatch
+    app, monkeypatch,
 ) -> None:
     monkeypatch.setattr(
         "app.web.routes.classify_message",
