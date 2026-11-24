@@ -15,6 +15,9 @@
   .client-message.client { align-self:flex-end; color:#174b35; background:#dcf3e6; border-bottom-right-radius:.25rem; }
   .client-message.employee { align-self:flex-start; color:#193b69; background:#e6efff; border-bottom-left-radius:.25rem; }
   .client-message.system { align-self:center; max-width:90%; color:#465466; background:#e9edf2; text-align:center; font-size:.875rem; }
+  .moderation-feedback { border-radius:.65rem; padding:.75rem 1rem; }
+  .moderation-processing { display:flex; align-items:center; gap:.6rem; color:var(--support-color-text-muted); }
+  .moderation-processing .spinner-border { width:1.1rem; height:1.1rem; }
   @media(max-width:767.98px) { .client-messenger { grid-template-columns:1fr; } .client-ticket-list { max-height:250px; overflow-y:auto; } .client-chat-log { min-height:320px; } .client-message { max-width:92%; } }
 </style>
 {% endblock %}
@@ -89,11 +92,13 @@
 
     {% if dialog.status.value != 'CLOSED' %}
       <div class="p-3 border-top">
-        <form method="post" enctype="multipart/form-data" novalidate>
+        <form method="post" enctype="multipart/form-data" novalidate data-moderation-form>
           {{ form.hidden_tag() }}
           {{ form.text(class_="form-control mb-2", rows="3", placeholder="Напишите сообщение…") }}
           {{ form.attachments(class_="form-control form-control-sm mb-2", multiple=true, accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip") }}
           <div class="small text-muted mb-2">До 5 файлов, не более 10 МБ каждый.</div>
+          <div class="moderation-feedback alert d-none mb-2" data-moderation-feedback role="status" aria-live="polite"></div>
+          <div class="moderation-processing small mb-2 d-none" data-moderation-processing role="status"><span class="spinner-border" aria-hidden="true"></span><span>Обработка сообщения…</span></div>
           {% for error in form.text.errors %}<div class="text-danger small mb-2">{{ error }}</div>{% endfor %}
           <div class="d-flex justify-content-end">{{ form.submit(class_="btn btn-primary") }}</div>
         </form>
@@ -110,6 +115,54 @@
   (() => {
     const log = document.getElementById('client-chat-log');
     if (log) log.scrollTop = log.scrollHeight;
+
+    document.querySelectorAll('[data-moderation-form]').forEach((form) => {
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const button = form.querySelector('button[type="submit"], input[type="submit"]');
+        const processing = form.querySelector('[data-moderation-processing]');
+        const feedback = form.querySelector('[data-moderation-feedback]');
+        if (button?.disabled) return;
+
+        if (feedback) {
+          feedback.className = 'moderation-feedback alert d-none mb-2';
+          feedback.textContent = '';
+        }
+        if (processing) processing.classList.remove('d-none');
+        if (button) button.disabled = true;
+
+        try {
+          const response = await fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+          });
+          const result = await response.json();
+          if (result.status === 'sent' && result.redirect_url) {
+            window.location.assign(result.redirect_url);
+            return;
+          }
+          if (feedback) {
+            feedback.classList.remove('d-none');
+            feedback.classList.add(result.status === 'needs_revision' ? 'alert-warning' : 'alert-danger');
+            feedback.textContent = result.message || 'Не удалось отправить сообщение.';
+            if (result.errors) {
+              const details = Object.values(result.errors).flat().join(' ');
+              if (details) feedback.textContent += ' ' + details;
+            }
+          }
+        } catch (_error) {
+          if (feedback) {
+            feedback.classList.remove('d-none');
+            feedback.classList.add('alert-danger');
+            feedback.textContent = 'Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз.';
+          }
+        } finally {
+          if (processing) processing.classList.add('d-none');
+          if (button) button.disabled = false;
+        }
+      });
+    });
   })();
 </script>
 {% endblock %}
