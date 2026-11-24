@@ -798,7 +798,9 @@ def _moderation_applies_to_dialog(dialog: Dialog) -> bool:
 
 def _moderation_bypassed_decision() -> ModerationDecision:
     """Represent a workflow-approved message that must not be blocked by moderation."""
-    return ModerationDecision(None, False, None, None, "workflow", "BYPASSED", None, None, None)
+    return ModerationDecision(
+        None, False, None, None, "workflow", "BYPASSED", None, None, None
+    )
 
 
 @portal_bp.route("/dialogs/new", methods=["GET", "POST"], endpoint="dialog_create")
@@ -913,7 +915,10 @@ def portal_dialog_create() -> ResponseReturnValue:
                 redirect_url=destination,
             )
         if moderation.classifier_unavailable:
-            flash("Классификатор временно недоступен; сообщение принято без AI-проверки.", "warning")
+            flash(
+                "Классификатор временно недоступен; сообщение принято без AI-проверки.",
+                "warning",
+            )
         flash("Обращение создано. Сообщение отправлено специалисту.", "success")
         return redirect(destination)
 
@@ -1018,7 +1023,10 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                 field: [str(error) for error in field_errors]
                 for field, field_errors in form.errors.items()
             }
-            return jsonify(status="error", message="Проверьте заполнение формы.", errors=errors), 400
+            return (
+                jsonify(status="error", message="Проверьте заполнение формы.", errors=errors),
+                400,
+            )
 
     before_message_id = request.args.get("before", type=int)
     message_query = db.select(Message).where(
