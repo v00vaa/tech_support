@@ -126,5 +126,5 @@ def test_moderation_journal_filters_by_decision(
     )
     response = client.get("/settings/moderation/events?decision=ACCEPTED")
     assert response.status_code == 200
-    assert b"Найдено записей: 1" in response.data
+    assert "Найдено записей: 1".encode("utf-8") in response.data
     assert b"Example rejected text" not in response.data
