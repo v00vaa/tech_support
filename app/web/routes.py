@@ -915,6 +915,7 @@ def portal_dialog_create() -> ResponseReturnValue:
         )
         destination = url_for("portal.dialog_detail", dialog_id=dialog.id)
         if is_ajax:
+            flash("Обращение создано. Сообщение отправлено специалисту.", "success")
             return jsonify(
                 status="sent",
                 message="Обращение создано. Сообщение отправлено специалисту.",
@@ -1011,6 +1012,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                 )
                 destination = url_for("portal.dialog_detail", dialog_id=dialog.id)
                 if is_ajax:
+                    flash("Сообщение отправлено специалисту.", "success")
                     return jsonify(
                         status="sent",
                         message="Сообщение отправлено специалисту.",
