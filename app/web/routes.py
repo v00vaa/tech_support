@@ -322,9 +322,7 @@ def _moderate_customer_message(
         )
 
     if not settings.blocked_words_enabled:
-        return ModerationDecision(
-            None, False, None, None, "none", "BYPASSED", None, None, None
-        )
+        return ModerationDecision(None, False, None, None, "none", "BYPASSED", None, None, None)
     return ModerationDecision(
         None,
         False,

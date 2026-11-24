@@ -16,7 +16,6 @@ from app.services.moderation_service import (
     parse_import_content,
 )
 
-
 @pytest.fixture
 def database(app) -> Iterator[None]:
     with app.app_context():

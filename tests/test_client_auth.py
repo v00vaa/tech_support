@@ -19,7 +19,6 @@ from app.models import (
 )
 from app.services.moderation_service import normalize_entry
 
-
 @pytest.fixture
 def customer_records(app: Flask) -> Iterator[tuple[int, int, int]]:
     app.config.update(TESTING=True, WTF_CSRF_ENABLED=False)
@@ -408,7 +407,6 @@ def test_customer_cannot_open_moderation_journal(client, customer_records) -> No
     response = client.get("/settings/moderation/events")
 
     assert response.status_code == 403
-
 
 def test_accepted_customer_message_is_recorded_in_moderation_journal(
     client, customer_records, app
