@@ -2,75 +2,184 @@
 
 {% block title %}Рабочее место · Support Desk{% endblock %}
 
-{% block styles %}
-<style>
-  .inbox-layout { display:grid; grid-template-columns:minmax(280px,380px) minmax(0,1fr); gap:1rem; min-height:65vh; }
-  .inbox-panel { min-width:0; border:1px solid var(--support-color-border); border-radius:var(--support-radius-md); background:var(--support-color-surface); overflow:hidden; }
-  .inbox-scroll { max-height:68vh; overflow-y:auto; }
-  .inbox-item { display:block; padding:.85rem 1rem; color:inherit; text-decoration:none; border-bottom:1px solid var(--support-color-border); }
-  .inbox-item:hover { background:#f1f5ff; }
-  .inbox-stat { border-radius:.5rem; background:#f8fafc; padding:.75rem; }
-  @media(max-width:767.98px) { .inbox-layout { grid-template-columns:1fr; } .inbox-scroll { max-height:45vh; } }
-</style>
-{% endblock %}
-
 {% block content %}
-<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-  <div><div class="small text-muted">Рабочее место сотрудника</div><h1 class="h3 mb-0">Обращения</h1></div>
-</div>
+<header class="page-heading">
+  <div>
+    <p class="page-eyebrow">Рабочее место сотрудника</p>
+    <h1>Обращения</h1>
+    <p class="page-description">
+      Ваши обращения и очереди доступных основных ролей.
+    </p>
+  </div>
+</header>
 
 <div class="inbox-layout">
-  <section class="inbox-panel">
+  <section class="inbox-panel" aria-label="Список обращений">
     <div class="p-3 border-bottom">
-      <strong>Мои обращения и очереди</strong>
-      <input class="form-control form-control-sm mt-2" type="search" placeholder="Поиск…" data-inbox-search>
+      <label class="form-label" for="inbox-search">Мои обращения и очереди</label>
+      <input
+        class="form-control form-control-sm"
+        id="inbox-search"
+        type="search"
+        placeholder="Поиск по обращениям"
+        autocomplete="off"
+        data-inbox-search
+      >
     </div>
-    <ul class="nav nav-pills nav-fill p-2 gap-1" role="tablist">
-      <li class="nav-item"><button class="nav-link active" data-bs-toggle="tab" data-bs-target="#inbox-mine" type="button">Мои</button></li>
-      <li class="nav-item"><button class="nav-link" data-bs-toggle="tab" data-bs-target="#inbox-queues" type="button">Очереди</button></li>
+
+    <ul class="nav nav-pills nav-fill gap-1 p-2" role="tablist">
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link active"
+          id="inbox-mine-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#inbox-mine"
+          type="button"
+          role="tab"
+          aria-controls="inbox-mine"
+          aria-selected="true"
+        >
+          Мои
+        </button>
+      </li>
+      <li class="nav-item" role="presentation">
+        <button
+          class="nav-link"
+          id="inbox-queues-tab"
+          data-bs-toggle="tab"
+          data-bs-target="#inbox-queues"
+          type="button"
+          role="tab"
+          aria-controls="inbox-queues"
+          aria-selected="false"
+        >
+          Очереди
+        </button>
+      </li>
     </ul>
+
     <div class="tab-content inbox-scroll">
-      <div class="tab-pane fade show active" id="inbox-mine">
+      <div
+        class="tab-pane fade show active"
+        id="inbox-mine"
+        role="tabpanel"
+        aria-labelledby="inbox-mine-tab"
+        tabindex="0"
+      >
         {% for dialog in own_dialogs %}
-          <a class="inbox-item" href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}" data-inbox-item>
-            <div class="d-flex justify-content-between gap-2"><strong class="text-truncate">#{{ dialog.id }} · {{ dialog.subject }}</strong><span class="badge text-bg-light">{{ dialog.status.value.replace('_',' ') }}</span></div>
-            <div class="small text-muted mt-1">{{ dialog.client.name }} · {{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}</div>
+          <a
+            class="inbox-item"
+            href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}"
+            data-inbox-item
+          >
+            <div class="d-flex justify-content-between gap-2">
+              <strong class="text-truncate">
+                #{{ dialog.id }} · {{ dialog.subject }}
+              </strong>
+              <span class="badge text-bg-light">
+                {{ dialog.status.value.replace('_', ' ') }}
+              </span>
+            </div>
+            <div class="small text-muted mt-1">
+              {{ dialog.client.name }} ·
+              {{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}
+            </div>
           </a>
-        {% else %}<p class="small text-muted p-3">У вас пока нет обращений в ответственности.</p>{% endfor %}
+        {% else %}
+          <p class="empty-state small mb-0">
+            У вас пока нет обращений в ответственности.
+          </p>
+        {% endfor %}
       </div>
-      <div class="tab-pane fade" id="inbox-queues">
+
+      <div
+        class="tab-pane fade"
+        id="inbox-queues"
+        role="tabpanel"
+        aria-labelledby="inbox-queues-tab"
+        tabindex="0"
+      >
         {% for role in queue_roles %}
-          <div class="border-bottom">
+          <section class="border-bottom" aria-label="Очередь {{ role.name }}">
             <div class="p-3 bg-body-tertiary">
               <strong>{{ role.name }}</strong>
-              <div class="d-flex gap-3 small text-muted mt-1"><span>Ожидают: {{ queue_stats[role.id].waiting }}</span><span>В работе: {{ queue_stats[role.id].active }}</span></div>
-            </div>
-            {% for dialog in queue_dialogs[role.id] %}
-              <div class="inbox-item" data-inbox-item>
-                <a class="text-decoration-none" href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}">
-                  <strong class="d-block text-truncate">#{{ dialog.id }} · {{ dialog.subject }}</strong>
-                  <span class="small text-muted">{{ dialog.client.name }} · {{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}</span>
-                </a>
-                <form method="post" action="{{ url_for('dialogs.dialog_claim', dialog_id=dialog.id) }}" class="mt-2">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="btn btn-sm btn-outline-success" type="submit">Взять обращение</button>
-                </form>
+              <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
+                <span>Ожидают: {{ queue_stats[role.id].waiting }}</span>
+                <span>В работе: {{ queue_stats[role.id].active }}</span>
               </div>
-            {% else %}<p class="small text-muted p-3 mb-0">Очередь пуста.</p>{% endfor %}
-          </div>
-        {% else %}<p class="small text-muted p-3">Вы не состоите ни в одной активной основной роли. Очереди недоступны.</p>{% endfor %}
+            </div>
+
+            {% for dialog in queue_dialogs[role.id] %}
+              <article class="inbox-item" data-inbox-item>
+                <a
+                  class="text-decoration-none"
+                  href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}"
+                >
+                  <strong class="d-block text-truncate">
+                    #{{ dialog.id }} · {{ dialog.subject }}
+                  </strong>
+                  <span class="small text-muted">
+                    {{ dialog.client.name }} ·
+                    {{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}
+                  </span>
+                </a>
+
+                <form
+                  class="mt-2"
+                  method="post"
+                  action="{{ url_for('dialogs.dialog_claim', dialog_id=dialog.id) }}"
+                >
+                  <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                  >
+                  <button
+                    class="btn btn-sm btn-outline-success"
+                    type="submit"
+                  >
+                    Взять обращение
+                  </button>
+                </form>
+              </article>
+            {% else %}
+              <p class="small text-muted p-3 mb-0">Очередь пуста.</p>
+            {% endfor %}
+          </section>
+        {% else %}
+          <p class="empty-state small mb-0">
+            Вы не состоите ни в одной активной основной роли.
+            Очереди недоступны.
+          </p>
+        {% endfor %}
       </div>
     </div>
   </section>
 
-  <section class="inbox-panel p-4 d-flex flex-column justify-content-center">
-    <div class="text-center mx-auto" style="max-width:520px">
-      <div class="display-5 text-muted mb-3">☏</div>
-      <h2 class="h4">Выберите обращение</h2>
-      <p class="text-muted">В левой панели находятся только ваши обращения и очереди ролей, в которых вы состоите. Откройте обращение, чтобы ответить клиенту, посмотреть историю или внутренние заметки.</p>
-      <div class="row g-2 text-start mt-3">
+  <section
+    class="inbox-panel empty-state d-flex flex-column justify-content-center"
+    aria-labelledby="inbox-empty-heading"
+  >
+    <div class="mx-auto" style="max-width: 520px">
+      <div class="display-5 mb-3" aria-hidden="true">☏</div>
+      <h2 class="h4" id="inbox-empty-heading">Выберите обращение</h2>
+      <p>
+        В левой панели находятся только ваши обращения и очереди ролей,
+        в которых вы состоите. Откройте обращение, чтобы ответить клиенту,
+        посмотреть историю или внутренние заметки.
+      </p>
+
+      <div class="row g-2 mt-3 text-start">
         {% for role in queue_roles %}
-          <div class="col-sm-6"><div class="inbox-stat"><div class="small text-muted">{{ role.name }}</div><div class="h4 mb-0">{{ queue_stats[role.id].waiting }}</div><div class="small text-muted">ожидают назначения</div></div></div>
+          <div class="col-sm-6">
+            <div class="inbox-stat">
+              <div class="small text-muted">{{ role.name }}</div>
+              <div class="h4 mb-0">
+                {{ queue_stats[role.id].waiting }}
+              </div>
+              <div class="small text-muted">ожидают назначения</div>
+            </div>
+          </div>
         {% endfor %}
       </div>
     </div>
@@ -81,12 +190,20 @@
 {% block scripts %}
 <script>
   (() => {
-    const search = document.querySelector('[data-inbox-search]');
-    if (!search) return;
-    search.addEventListener('input', () => {
-      const query = search.value.trim().toLocaleLowerCase();
-      document.querySelectorAll('[data-inbox-item]').forEach((item) => {
-        item.hidden = !item.textContent.toLocaleLowerCase().includes(query);
+    const searchInput = document.querySelector("[data-inbox-search]");
+
+    if (!searchInput) {
+      return;
+    }
+
+    const inboxItems = document.querySelectorAll("[data-inbox-item]");
+
+    searchInput.addEventListener("input", () => {
+      const query = searchInput.value.trim().toLocaleLowerCase();
+
+      inboxItems.forEach((item) => {
+        const itemText = item.textContent.toLocaleLowerCase();
+        item.hidden = !itemText.includes(query);
       });
     });
   })();
