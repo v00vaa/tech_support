@@ -115,7 +115,6 @@ def test_classifier_validates_confidence(monkeypatch: pytest.MonkeyPatch) -> Non
     with pytest.raises(ValueError):
         classify_message("bad", GeneralSettings(id=1))
 
-
 def test_support_reply_action(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
