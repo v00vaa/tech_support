@@ -332,6 +332,7 @@ def test_customer_can_create_dialog_ajax_confirms_delivery_to_specialist(
     assert "специалисту" in payload["message"]
     assert payload["redirect_url"].startswith("/portal/dialogs/")
 
+
 def test_customer_new_dialog_uses_background_moderation_and_status_endpoint(
     client, customer_records, app
 ) -> None:
