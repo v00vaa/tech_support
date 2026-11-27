@@ -27,7 +27,7 @@ from flask import (
 )
 from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required, login_user, logout_user
-from sqlalchemy import func, or_, update
+from sqlalchemy import exists, func, or_, update
 
 from app.extensions import db
 from app.models import (
@@ -229,7 +229,10 @@ class ModerationDecision(NamedTuple):
 
 
 def _moderate_customer_message(
-    message: str, settings: GeneralSettings | None
+    message: str,
+    settings: GeneralSettings | None,
+    *,
+    include_classifier: bool = True,
 ) -> ModerationDecision:
     """Evaluate deterministic rules first, then the optional AI classifier."""
     if settings is None:
@@ -262,7 +265,7 @@ def _moderate_customer_message(
                 match.match_type,
             )
 
-    if settings.classifier_enabled:
+    if settings.classifier_enabled and include_classifier:
         source = "classifier"
         if not settings.ollama_enabled:
             return ModerationDecision(
@@ -799,6 +802,7 @@ def _moderation_applies_to_dialog(dialog: Dialog) -> bool:
         first_line_role is not None
         and dialog.assigned_role_id == first_line_role
         and dialog.status in {DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE}
+        and not _dialog_has_unresolved_moderation(dialog.id)
     )
 
 
@@ -844,7 +848,12 @@ def portal_dialog_create() -> ResponseReturnValue:
             return render_template("portal/dialog_form.html", form=form), 503
 
         raw_message = (form.message.data or "").strip()
-        moderation = _moderate_customer_message(raw_message, settings)
+        async_moderation = _should_queue_ai_moderation(settings)
+        moderation = _moderate_customer_message(
+            raw_message,
+            settings,
+            include_classifier=not async_moderation,
+        )
         if moderation.decision == "REJECTED":
             _record_moderation_decision(
                 client_id=current_user.id,
@@ -887,6 +896,13 @@ def portal_dialog_create() -> ResponseReturnValue:
             author_id=current_user.id,
             text=raw_message,
             is_internal=False,
+            moderation_status=(
+                "PENDING"
+                if async_moderation
+                else "BYPASSED"
+                if moderation.decision == "BYPASSED"
+                else "ACCEPTED"
+            ),
         )
         db.session.add(message)
         db.session.flush()
@@ -906,14 +922,25 @@ def portal_dialog_create() -> ResponseReturnValue:
             _remove_saved_attachments(saved_paths)
             raise
 
-        _record_moderation_decision(
-            client_id=current_user.id,
-            dialog_id=dialog.id,
-            message=raw_message,
-            result=moderation,
-            message_id=message.id,
-        )
+        if not async_moderation:
+            _record_moderation_decision(
+                client_id=current_user.id,
+                dialog_id=dialog.id,
+                message=raw_message,
+                result=moderation,
+                message_id=message.id,
+            )
         destination = url_for("portal.dialog_detail", dialog_id=dialog.id)
+        if async_moderation:
+            flash("Сообщение принято. Выполняется проверка.", "info")
+            if is_ajax:
+                return jsonify(
+                    status="processing",
+                    message="Сообщение принято. Выполняется проверка.",
+                    redirect_url=destination,
+                    message_id=message.id,
+                ), 202
+            return redirect(destination)
         if is_ajax:
             flash("Обращение создано. Сообщение отправлено специалисту.", "success")
             return jsonify(
@@ -938,6 +965,32 @@ def portal_dialog_create() -> ResponseReturnValue:
     return render_template("portal/dialog_form.html", form=form)
 
 
+@portal_bp.get("/messages/<int:message_id>/moderation", endpoint="moderation_status")
+@client_required
+def portal_moderation_status(message_id: int) -> ResponseReturnValue:
+    """Return the moderation state of a message owned by the authenticated customer."""
+    message = db.session.scalar(
+        db.select(Message)
+        .join(Dialog, Message.dialog_id == Dialog.id)
+        .where(
+            Message.id == message_id,
+            Message.author_type == AuthorType.CLIENT,
+            Message.deleted_at.is_(None),
+            Dialog.client_id == current_user.id,
+        )
+    )
+    if message is None:
+        abort(404)
+    state = message.moderation_status
+    if state in {"PENDING", "PROCESSING"}:
+        return jsonify(status="processing")
+    if state == "REJECTED":
+        return jsonify(status="needs_revision", reason=message.moderation_reason or "")
+    if state == "SUPERSEDED":
+        return jsonify(status="superseded")
+    return jsonify(status="sent")
+
+
 @portal_bp.route("/dialogs/<int:dialog_id>", methods=["GET", "POST"], endpoint="dialog_detail")
 @client_required
 def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
@@ -957,11 +1010,26 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
         if dialog.status == DialogStatus.CLOSED:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
+            if _dialog_has_unresolved_moderation(dialog.id, include_rejected=False):
+                message = "Дождитесь завершения проверки предыдущего сообщения."
+                if is_ajax:
+                    return jsonify(status="error", message=message), 409
+                flash(message, "warning")
+                return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
+
             global_settings = db.session.get(GeneralSettings, 1)
             raw_message = (form.text.data or "").strip()
+            moderation_applies = _moderation_applies_to_dialog(dialog)
+            async_moderation = moderation_applies and _should_queue_ai_moderation(
+                global_settings
+            )
             moderation = (
-                _moderate_customer_message(raw_message, global_settings)
-                if _moderation_applies_to_dialog(dialog)
+                _moderate_customer_message(
+                    raw_message,
+                    global_settings,
+                    include_classifier=not async_moderation,
+                )
+                if moderation_applies
                 else _moderation_bypassed_decision()
             )
             if moderation.decision == "REJECTED":
@@ -983,6 +1051,21 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                 author_id=current_user.id,
                 text=raw_message,
                 is_internal=False,
+                moderation_status=(
+                    "PENDING"
+                    if async_moderation
+                    else "BYPASSED"
+                    if moderation.decision == "BYPASSED"
+                    else "ACCEPTED"
+                ),
+            )
+            db.session.execute(
+                update(Message)
+                .where(
+                    Message.dialog_id == dialog.id,
+                    Message.moderation_status == "REJECTED",
+                )
+                .values(moderation_status="SUPERSEDED")
             )
             db.session.add(message)
             db.session.flush()
@@ -1003,14 +1086,25 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
                 _remove_saved_attachments(saved_paths)
                 raise
             else:
-                _record_moderation_decision(
-                    client_id=current_user.id,
-                    dialog_id=dialog.id,
-                    message=raw_message,
-                    result=moderation,
-                    message_id=message.id,
-                )
+                if not async_moderation:
+                    _record_moderation_decision(
+                        client_id=current_user.id,
+                        dialog_id=dialog.id,
+                        message=raw_message,
+                        result=moderation,
+                        message_id=message.id,
+                    )
                 destination = url_for("portal.dialog_detail", dialog_id=dialog.id)
+                if async_moderation:
+                    flash("Сообщение принято. Выполняется проверка.", "info")
+                    if is_ajax:
+                        return jsonify(
+                            status="processing",
+                            message="Сообщение принято. Выполняется проверка.",
+                            redirect_url=destination,
+                            message_id=message.id,
+                        ), 202
+                    return redirect(destination)
                 if is_ajax:
                     flash("Сообщение отправлено специалисту.", "success")
                     return jsonify(
@@ -1449,6 +1543,11 @@ def dialog_list() -> ResponseReturnValue:
                 Dialog.assigned_role_id == role.id,
                 Dialog.responsible_employee_id.is_(None),
                 Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+                ~exists().where(
+                    Message.dialog_id == Dialog.id,
+                    Message.moderation_status.in_(["PENDING", "PROCESSING", "REJECTED"]),
+                    Message.deleted_at.is_(None),
+                ),
             )
             .order_by(Dialog.updated_at.asc())
             .limit(50)
@@ -1461,6 +1560,11 @@ def dialog_list() -> ResponseReturnValue:
                     Dialog.assigned_role_id == role.id,
                     Dialog.responsible_employee_id.is_(None),
                     Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+                    ~exists().where(
+                        Message.dialog_id == Dialog.id,
+                        Message.moderation_status.in_(["PENDING", "PROCESSING", "REJECTED"]),
+                        Message.deleted_at.is_(None),
+                    ),
                 )
             )
             or 0,
@@ -1500,6 +1604,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         Message.dialog_id == dialog.id,
         Message.is_internal.is_(False),
         Message.deleted_at.is_(None),
+        Message.moderation_status.in_(["ACCEPTED", "BYPASSED"]),
     )
     if before_message_id:
         message_query = message_query.where(Message.id < before_message_id)
@@ -1526,6 +1631,7 @@ def dialog_detail(dialog_id: int) -> ResponseReturnValue:
         .where(
             Message.dialog_id == dialog.id,
             Message.deleted_at.is_(None),
+            Message.moderation_status.in_(["ACCEPTED", "BYPASSED"]),
         )
     )
     if not can_view_notes:
@@ -1833,6 +1939,8 @@ def attachment_download(attachment_id: int) -> ResponseReturnValue:
     else:
         if not can_access_dialog(current_user, message.dialog):
             abort(403)
+        if message.moderation_status not in {"ACCEPTED", "BYPASSED"}:
+            abort(404)
         if message.is_internal and not has_permission(current_user, "dialogs.add_internal_note"):
             abort(403)
 
