@@ -464,6 +464,32 @@ def test_classifier_rejects_invalid_customer_message_in_background(
         assert event.model_name == "qwen2.5:3b"
         assert event.category == "abuse"
         assert event.confidence == 0.99
+        dialog_id = dialog.id
+
+    retry_response = client.post(
+        f"/portal/dialogs/{dialog_id}",
+        data={"text": "The issue started yesterday and affects login."},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+    )
+    assert retry_response.status_code == 202
+    retry_payload = retry_response.get_json()
+    assert retry_payload is not None
+    assert retry_payload["status"] == "processing"
+
+    with app.app_context():
+        rejected_message = db.session.scalar(
+            db.select(Message).where(Message.text == "Bad message")
+        )
+        retry_message = db.session.scalar(
+            db.select(Message).where(
+                Message.dialog_id == dialog_id,
+                Message.text == "The issue started yesterday and affects login.",
+            )
+        )
+        assert rejected_message is not None
+        assert rejected_message.moderation_status == "SUPERSEDED"
+        assert retry_message is not None
+        assert retry_message.moderation_status == "PENDING"
 
 
 def test_classifier_is_not_called_when_ollama_is_disabled(
