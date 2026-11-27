@@ -1019,6 +1019,19 @@ def portal_moderation_status(message_id: int) -> ResponseReturnValue:
         return jsonify(status="needs_revision", reason=message.moderation_reason or "")
     if state == "SUPERSEDED":
         return jsonify(status="superseded")
+    follow_up = db.session.scalar(
+        db.select(Message.id)
+        .where(
+            Message.dialog_id == message.dialog_id,
+            Message.id > message.id,
+            Message.author_type == AuthorType.SYSTEM,
+            Message.is_internal.is_(False),
+            Message.deleted_at.is_(None),
+        )
+        .limit(1)
+    )
+    if follow_up is not None:
+        return jsonify(status="refresh")
     return jsonify(status="sent")
 
 
