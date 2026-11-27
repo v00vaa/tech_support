@@ -2962,6 +2962,15 @@ def ai_settings() -> ResponseReturnValue:
             except (OllamaError, ValueError) as error:
                 flash(f"Не удалось подключиться к Ollama: {error}", "danger")
         else:
+            if form.ai_assistant_enabled.data and not form.ollama_enabled.data:
+                form.ai_assistant_enabled.errors.append(
+                    "Для работы AI-помощника необходимо включить использование Ollama."
+                )
+                return render_template(
+                    "settings/ai.html",
+                    form=form,
+                    active_settings_section="ai",
+                ), 400
             settings.ollama_enabled = bool(form.ollama_enabled.data)
             settings.ollama_base_url = (form.ollama_base_url.data or "").strip().rstrip("/")
             settings.ollama_model = (form.ollama_model.data or "").strip()
