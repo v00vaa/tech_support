@@ -2915,6 +2915,9 @@ def ai_settings() -> ResponseReturnValue:
         form.ollama_model.data = settings.ollama_model
         form.ollama_system_prompt.data = settings.ollama_system_prompt
         form.ollama_classification_prompt.data = settings.ollama_classification_prompt
+        form.ai_assistant_enabled.data = settings.ai_assistant_enabled
+        form.ai_assistant_context.data = settings.ai_assistant_context
+        form.ai_assistant_prompt.data = settings.ai_assistant_prompt
     if form.validate_on_submit():
         if form.test_connection.data:
             try:
@@ -2938,8 +2941,11 @@ def ai_settings() -> ResponseReturnValue:
             settings.ollama_model = (form.ollama_model.data or "").strip()
             settings.ollama_system_prompt = form.ollama_system_prompt.data or ""
             settings.ollama_classification_prompt = form.ollama_classification_prompt.data or ""
+            settings.ai_assistant_enabled = bool(form.ai_assistant_enabled.data)
+            settings.ai_assistant_context = form.ai_assistant_context.data or ""
+            settings.ai_assistant_prompt = form.ai_assistant_prompt.data or ""
             db.session.commit()
-            flash("Настройки Ollama сохранены.", "success")
+            flash("Настройки Ollama и AI-помощника сохранены.", "success")
             return redirect(url_for("settings.ai_settings"))
     return render_template(
         "settings/ai.html",

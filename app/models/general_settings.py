@@ -34,6 +34,17 @@ class GeneralSettings(Base):
     classifier_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     classifier_min_confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.75)
     ollama_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ai_assistant_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    ai_assistant_context: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    ai_assistant_prompt: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+        default=(
+            "Ты — помощник первой линии технической поддержки. Помогай клиенту понять "
+            "возможную причину проблемы, выполнить безопасные действия и предоставить "
+            "недостающие сведения."
+        ),
+    )
     blocked_words: Mapped[str] = mapped_column(Text, nullable=False, default="")
     invalid_message_examples: Mapped[str] = mapped_column(Text, nullable=False, default="")
     ollama_base_url: Mapped[str] = mapped_column(nullable=False, default="http://ollama:11434")

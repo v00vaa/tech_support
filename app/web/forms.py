@@ -291,6 +291,15 @@ class OllamaSettingsForm(FlaskForm):
         "Промт классификации",
         validators=[DataRequired(), Length(max=20000)],
     )
+    ai_assistant_enabled = BooleanField("Включить AI-помощника для клиента")
+    ai_assistant_context = TextAreaField(
+        "Сведения об основной системе",
+        validators=[Optional(), Length(max=20000)],
+    )
+    ai_assistant_prompt = TextAreaField(
+        "Промт AI-помощника",
+        validators=[Optional(), Length(max=20000)],
+    )
     save_settings = SubmitField("Сохранить настройки")
     test_connection = SubmitField("Проверить подключение")
 

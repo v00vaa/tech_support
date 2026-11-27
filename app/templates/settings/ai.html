@@ -6,7 +6,7 @@
   {% include "components/_settings_navigation.html" %}
   <section class="col-md-9 col-lg-10">
     <h2 class="h3">Локальная AI-модель</h2>
-    <p class="text-muted">Настройка локального Ollama API и промтов классификатора.</p>
+    <p class="text-muted">Настройка локальной модели, классификатора и помощника, который уточняет данные у клиента до передачи обращения специалисту.</p>
     <form method="post" class="card"><div class="card-body">
       {{ form.hidden_tag() }}
       <div class="form-check form-switch mb-4">
@@ -37,12 +37,31 @@
         <div class="form-text">Подстановки: {invalid_examples} и {message}. Ожидается JSON с полем is_invalid.</div>
         {% for error in form.ollama_classification_prompt.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
       </div>
+      <hr class="my-4">
+      <h3 class="h5">AI-помощник клиента</h3>
+      <div class="form-check form-switch mb-3">
+        {{ form.ai_assistant_enabled(class_="form-check-input", role="switch") }}
+        {{ form.ai_assistant_enabled.label(class_="form-check-label fw-semibold") }}
+        <div class="form-text">Помощник работает только для обращений, ещё не взятых специалистом первой линии. Он не блокирует сообщения: при ошибке модели обращение остаётся в очереди поддержки.</div>
+      </div>
+      <div class="mb-3">
+        {{ form.ai_assistant_context.label(class_="form-label fw-semibold") }}
+        {{ form.ai_assistant_context(class_="form-control", rows="6", placeholder="Описание продукта, доступные функции, типовые ограничения, инструкции и известные ошибки…") }}
+        <div class="form-text">Здесь указываются только достоверные сведения, которыми модель может пользоваться. Не добавляйте пароли, токены и секреты. Пустой или неполный контекст означает, что помощник должен задавать уточняющие вопросы, а не придумывать ответ.</div>
+        {% for error in form.ai_assistant_context.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
+      <div class="mb-3">
+        {{ form.ai_assistant_prompt.label(class_="form-label fw-semibold") }}
+        {{ form.ai_assistant_prompt(class_="form-control font-monospace", rows="7") }}
+        <div class="form-text">Модель возвращает действие NEED_INFO, SUGGEST_FIX или FORWARD_TO_SPECIALIST и текст ответа клиенту.</div>
+        {% for error in form.ai_assistant_prompt.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+      </div>
       <div class="d-flex flex-wrap gap-2">
         {{ form.save_settings(class_="btn btn-primary") }}
         {{ form.test_connection(class_="btn btn-outline-secondary") }}
       </div>
     </div></form>
-    <div class="alert alert-info mt-3 mb-0">Проверка подключения обращается к /api/tags и проверяет наличие выбранной модели. Compose загружает модель при первом запуске. Для запуска классификации должны быть включены и модель Ollama, и классификатор на вкладке «Модерация».</div>
+    <div class="alert alert-info mt-3 mb-0">Проверка подключения обращается к /api/tags и проверяет наличие выбранной модели. Compose загружает модель при первом запуске. Для фоновой проверки сообщений или работы AI-помощника должны быть включены Ollama и соответствующий переключатель.</div>
   </section>
 </div>
 {% endblock %}
