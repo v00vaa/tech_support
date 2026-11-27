@@ -347,7 +347,7 @@ def _moderate_customer_message(
 
 
 def _should_queue_ai_processing(settings: GeneralSettings | None) -> bool:
-    """Use the background worker only when the optional Ollama classifier is active."""
+    """Queue the Ollama pipeline when classification or customer guidance is enabled."""
     return bool(
         settings
         and settings.ollama_enabled
@@ -879,7 +879,7 @@ def portal_dialog_create() -> ResponseReturnValue:
             return render_template("portal/dialog_form.html", form=form), 503
 
         raw_message = (form.message.data or "").strip()
-        async_moderation = _should_queue_ai_moderation(settings)
+        async_moderation = _should_queue_ai_processing(settings)
         moderation = _moderate_customer_message(
             raw_message,
             settings,
@@ -1051,7 +1051,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             global_settings = db.session.get(GeneralSettings, 1)
             raw_message = (form.text.data or "").strip()
             moderation_applies = _moderation_applies_to_dialog(dialog)
-            async_moderation = moderation_applies and _should_queue_ai_moderation(global_settings)
+            async_moderation = moderation_applies and _should_queue_ai_processing(global_settings)
             moderation = (
                 _moderate_customer_message(
                     raw_message,
