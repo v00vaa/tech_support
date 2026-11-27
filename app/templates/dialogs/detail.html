@@ -2,29 +2,7 @@
 
 {% block title %}{{ dialog.subject }} · Обращение #{{ dialog.id }}{% endblock %}
 
-{% block styles %}
-<style>
-  .messenger-shell { display:grid; grid-template-columns:minmax(260px, 330px) minmax(0,1fr); gap:1rem; min-height: min(78vh, 900px); }
-  .messenger-sidebar,.messenger-main { min-width:0; border:1px solid var(--support-color-border); border-radius:var(--support-radius-md); background:var(--support-color-surface); box-shadow:var(--support-shadow-sm); }
-  .messenger-sidebar { display:flex; flex-direction:column; overflow:hidden; }
-  .messenger-sidebar .nav-link { color:var(--support-color-text-muted); text-align:left; }
-  .messenger-sidebar .nav-link.active { color:var(--support-color-primary); background:var(--support-color-primary-soft); }
-  .messenger-list { overflow-y:auto; max-height:65vh; }
-  .messenger-item { display:block; padding:.8rem 1rem; color:inherit; text-decoration:none; border-bottom:1px solid var(--support-color-border); }
-  .messenger-item:hover,.messenger-item.active { background:#f1f5ff; }
-  .messenger-main { display:flex; flex-direction:column; overflow:hidden; }
-  .messenger-header { padding:1rem 1.25rem; border-bottom:1px solid var(--support-color-border); }
-  .messenger-log { display:flex; flex:1; min-height:380px; max-height:62vh; flex-direction:column; gap:.85rem; overflow-y:auto; padding:1.25rem; background:#f7f9fc; }
-  .messenger-message { max-width:min(78%,48rem); padding:.75rem 1rem; border-radius:1rem; overflow-wrap:anywhere; box-shadow:0 1px 2px rgb(15 23 42 / 5%); }
-  .messenger-message.client { align-self:flex-start; color:#193b69; background:#e6efff; border-bottom-left-radius:.25rem; }
-  .messenger-message.employee { align-self:flex-end; color:#174b35; background:#dcf3e6; border-bottom-right-radius:.25rem; }
-  .messenger-message.system { align-self:center; max-width:90%; color:#465466; background:#e9edf2; border:1px solid #d8dee7; text-align:center; font-size:.875rem; }
-  .messenger-message.internal { align-self:stretch; max-width:100%; color:#704b12; background:#fff4d9; border:1px solid #f0d18c; }
-  .messenger-composer { padding:1rem; border-top:1px solid var(--support-color-border); }
-  .messenger-stat { padding:.55rem .7rem; background:#f8fafc; border-radius:.5rem; }
-  @media(max-width:767.98px) { .messenger-shell { grid-template-columns:1fr; } .messenger-list { max-height:260px; } .messenger-log { min-height:320px; } .messenger-message { max-width:92%; } }
-</style>
-{% endblock %}
+{% block styles %}{% endblock %}
 
 {% block content %}
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
