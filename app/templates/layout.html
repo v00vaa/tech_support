@@ -31,6 +31,14 @@
   >
   <link
     rel="stylesheet"
+    href="{{ url_for('static', filename='css/components.css') }}"
+  >
+  <link
+    rel="stylesheet"
+    href="{{ url_for('static', filename='css/workspace.css') }}"
+  >
+  <link
+    rel="stylesheet"
     href="{{ url_for('static', filename='css/style.css') }}"
   >
   {% block styles %}{% endblock %}
