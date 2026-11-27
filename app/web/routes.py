@@ -846,10 +846,10 @@ def portal_dialog_create() -> ResponseReturnValue:
     is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
     settings = db.session.get(GeneralSettings, 1)
     if settings is not None and not settings.web_channel_enabled:
-        message = "Приём новых обращений через веб-кабинет временно отключён."
+        notice = "Приём новых обращений через веб-кабинет временно отключён."
         if is_ajax:
-            return jsonify(status="error", message=message), 503
-        flash(message, "warning")
+            return jsonify(status="error", message=notice), 503
+        flash(notice, "warning")
         return redirect(url_for("portal.index"))
 
     form = ClientDialogForm()
@@ -864,13 +864,13 @@ def portal_dialog_create() -> ResponseReturnValue:
             )
         )
         if first_line_role is None:
-            message = (
+            notice = (
                 "Создание обращений временно недоступно: администратор не настроил "
                 "активную роль первого уровня поддержки."
             )
             if is_ajax:
-                return jsonify(status="error", message=message), 503
-            flash(message, "danger")
+                return jsonify(status="error", message=notice), 503
+            flash(notice, "danger")
             return render_template("portal/dialog_form.html", form=form), 503
 
         raw_message = (form.message.data or "").strip()
@@ -1037,10 +1037,10 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             abort(403, description="Закрытое обращение нельзя продолжить.")
         if form.validate_on_submit():
             if _dialog_has_unresolved_moderation(dialog.id, include_rejected=False):
-                message = "Дождитесь завершения проверки предыдущего сообщения."
+                notice = "Дождитесь завершения проверки предыдущего сообщения."
                 if is_ajax:
-                    return jsonify(status="error", message=message), 409
-                flash(message, "warning")
+                    return jsonify(status="error", message=notice), 409
+                flash(notice, "warning")
                 return redirect(url_for("portal.dialog_detail", dialog_id=dialog.id))
 
             global_settings = db.session.get(GeneralSettings, 1)
