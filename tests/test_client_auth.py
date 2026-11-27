@@ -457,7 +457,7 @@ def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
         assert dialog is not None
 
 
-def test_classifier_rejects_invalid_customer_message(
+def test_classifier_rejects_invalid_customer_message_in_background(
     client, customer_records, app, monkeypatch
 ) -> None:
     with app.app_context():
@@ -471,7 +471,7 @@ def test_classifier_rejects_invalid_customer_message(
         db.session.commit()
 
     monkeypatch.setattr(
-        "app.web.routes.classify_message",
+        "app.services.moderation_queue_service.classify_message",
         lambda message, settings: {
             "is_invalid": True,
             "category": "abuse",
@@ -488,11 +488,25 @@ def test_classifier_rejects_invalid_customer_message(
         data={"subject": "Invalid request", "message": "Bad message"},
     )
 
-    assert response.status_code == 400
-    assert "Сообщение содержит оскорбления.".encode() in response.data
+    assert response.status_code == 302
     with app.app_context():
+        dialog = db.session.scalar(
+            db.select(Dialog).where(Dialog.subject == "Invalid request")
+        )
+        assert dialog is not None
+        message = db.session.scalar(
+            db.select(Message).where(Message.dialog_id == dialog.id, Message.text == "Bad message")
+        )
+        assert message is not None
+        assert message.moderation_status == "PENDING"
+        from app.services.moderation_queue_service import process_pending_moderation
+
+        assert process_pending_moderation(limit=1) == 1
+        db.session.refresh(message)
+        assert message.moderation_status == "REJECTED"
+        assert message.moderation_reason == "Сообщение содержит оскорбления."
         event = db.session.scalar(
-            db.select(ModerationEvent).where(ModerationEvent.message_text == "Bad message")
+            db.select(ModerationEvent).where(ModerationEvent.message_id == message.id)
         )
         assert event is not None
         assert event.source == "classifier"
@@ -500,11 +514,6 @@ def test_classifier_rejects_invalid_customer_message(
         assert event.model_name == "qwen2.5:3b"
         assert event.category == "abuse"
         assert event.confidence == 0.99
-        rejected_dialog = db.session.scalar(
-            db.select(Dialog).where(Dialog.subject == "Invalid request")
-        )
-        assert rejected_dialog is None
-
 
 def test_classifier_is_not_called_when_ollama_is_disabled(
     client, customer_records, app, monkeypatch
