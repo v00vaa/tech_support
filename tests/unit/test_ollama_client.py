@@ -128,7 +128,10 @@ def test_generate_support_reply_returns_validated_customer_action(monkeypatch) -
                     "content": json.dumps(
                         {
                             "action": "NEED_INFO",
-                            "reply": "Уточните, когда появилась ошибка. Если журнал недоступен, опишите последние действия.",
+                            "reply": (
+                                "Уточните, когда появилась ошибка. Если журнал недоступен, "
+                                "опишите последние действия."
+                            ),
                         }
                     )
                 }
