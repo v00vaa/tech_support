@@ -117,7 +117,7 @@ def test_classifier_validates_confidence(monkeypatch: pytest.MonkeyPatch) -> Non
 
 
 
-def test_generate_support_reply_returns_validated_customer_action(monkeypatch) -> None:
+def test_support_reply_action(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
     def fake_urlopen(request, timeout):
