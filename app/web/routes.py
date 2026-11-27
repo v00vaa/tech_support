@@ -346,6 +346,32 @@ def _moderate_customer_message(
     )
 
 
+def _should_queue_ai_moderation(settings: GeneralSettings | None) -> bool:
+    """Use the background worker only when the optional Ollama classifier is active."""
+    return bool(settings and settings.classifier_enabled and settings.ollama_enabled)
+
+
+def _dialog_has_unresolved_moderation(
+    dialog_id: int, *, include_rejected: bool = True
+) -> bool:
+    """Check whether a dialog has messages not yet delivered to the support queue."""
+    statuses = ["PENDING", "PROCESSING"]
+    if include_rejected:
+        statuses.append("REJECTED")
+    return (
+        db.session.scalar(
+            db.select(Message.id)
+            .where(
+                Message.dialog_id == dialog_id,
+                Message.moderation_status.in_(statuses),
+                Message.deleted_at.is_(None),
+            )
+            .limit(1)
+        )
+        is not None
+    )
+
+
 def _record_moderation_decision(
     *,
     client_id: int,
