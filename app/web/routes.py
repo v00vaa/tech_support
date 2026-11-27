@@ -2963,8 +2963,9 @@ def ai_settings() -> ResponseReturnValue:
                 flash(f"Не удалось подключиться к Ollama: {error}", "danger")
         else:
             if form.ai_assistant_enabled.data and not form.ollama_enabled.data:
-                form.ai_assistant_enabled.errors.append(
-                    "Для работы AI-помощника необходимо включить использование Ollama."
+                flash(
+                    "Для работы AI-помощника необходимо включить использование Ollama.",
+                    "danger",
                 )
                 return render_template(
                     "settings/ai.html",
