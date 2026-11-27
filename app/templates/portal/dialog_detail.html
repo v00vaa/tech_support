@@ -162,6 +162,10 @@
             window.setTimeout(check, 2000);
             return;
           }
+          if (result.status === 'refresh') {
+            window.location.reload();
+            return;
+          }
           renderFinal(result.status, result.reason || '');
         } catch (_error) {
           window.setTimeout(check, 5000);
