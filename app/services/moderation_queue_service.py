@@ -186,8 +186,9 @@ def process_pending_moderation(*, limit: int = 5) -> int:
         assistant_result: dict[str, str] | None = None
         if not rejected and settings.ai_assistant_enabled:
             try:
-                recent_messages = db.session.scalars(
-                    select(Message)
+                recent_messages = list(
+                    db.session.scalars(
+                        select(Message)
                     .where(
                         Message.dialog_id == dialog.id,
                         Message.is_internal.is_(False),
@@ -195,8 +196,9 @@ def process_pending_moderation(*, limit: int = 5) -> int:
                         Message.moderation_status.in_([ACCEPTED, BYPASSED, PROCESSING]),
                     )
                     .order_by(Message.id.desc())
-                    .limit(10)
-                ).all()
+                        .limit(10)
+                    ).all()
+                )
                 recent_messages.reverse()
                 labels = {
                     AuthorType.CLIENT: "Клиент",
@@ -209,9 +211,7 @@ def process_pending_moderation(*, limit: int = 5) -> int:
                 )
                 client_name = dialog.client.name if dialog.client is not None else ""
                 conversation_context = (
-                    f"Тема обращения: {dialog.subject}\n"
-                    f"Имя клиента: {client_name}\n"
-                    f"{history}"
+                    f"Тема обращения: {dialog.subject}\nИмя клиента: {client_name}\n{history}"
                 )
                 assistant_result = OllamaClient(
                     settings.ollama_base_url, settings.ollama_model

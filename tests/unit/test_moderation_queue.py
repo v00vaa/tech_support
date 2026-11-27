@@ -163,9 +163,7 @@ def test_worker_bypasses_classifier_if_dialog_is_transferred_during_call(app, mo
 
 
 
-def test_ai_assistant_can_request_missing_information_without_classifier(
-    app, monkeypatch
-) -> None:
+def test_ai_assistant_can_request_missing_information_without_classifier(app, monkeypatch) -> None:
     dialog_id, message_id, _, _ = _create_pending_message(app)
     with app.app_context():
         settings = db.session.get(GeneralSettings, 1)
@@ -202,9 +200,7 @@ def test_ai_assistant_can_request_missing_information_without_classifier(
         assert assistant_message.is_internal is False
 
 
-def test_ai_assistant_can_forward_sufficient_request_to_specialist(
-    app, monkeypatch
-) -> None:
+def test_ai_assistant_can_forward_sufficient_request_to_specialist(app, monkeypatch) -> None:
     dialog_id, message_id, _, _ = _create_pending_message(app)
     with app.app_context():
         settings = db.session.get(GeneralSettings, 1)
