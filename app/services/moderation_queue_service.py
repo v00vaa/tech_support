@@ -189,13 +189,13 @@ def process_pending_moderation(*, limit: int = 5) -> int:
                 recent_messages = list(
                     db.session.scalars(
                         select(Message)
-                    .where(
-                        Message.dialog_id == dialog.id,
-                        Message.is_internal.is_(False),
-                        Message.deleted_at.is_(None),
-                        Message.moderation_status.in_([ACCEPTED, BYPASSED, PROCESSING]),
-                    )
-                    .order_by(Message.id.desc())
+                        .where(
+                            Message.dialog_id == dialog.id,
+                            Message.is_internal.is_(False),
+                            Message.deleted_at.is_(None),
+                            Message.moderation_status.in_([ACCEPTED, BYPASSED, PROCESSING]),
+                        )
+                        .order_by(Message.id.desc())
                         .limit(10)
                     ).all()
                 )
