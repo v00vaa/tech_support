@@ -162,7 +162,6 @@ def test_worker_bypasses_classifier_if_dialog_is_transferred_during_call(app, mo
         assert event.source == "workflow"
 
 
-
 def test_assistant_requests_missing_info(app, monkeypatch) -> None:
     dialog_id, message_id, _, _ = _create_pending_message(app)
     with app.app_context():
