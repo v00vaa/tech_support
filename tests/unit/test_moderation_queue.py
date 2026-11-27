@@ -70,9 +70,7 @@ def _create_pending_message(app):
         return dialog.id, message.id, role.id, employee.id
 
 
-def test_worker_accepts_message_and_releases_dialog_for_claim(
-    app, monkeypatch
-) -> None:
+def test_worker_accepts_message_and_releases_dialog_for_claim(app, monkeypatch) -> None:
     dialog_id, message_id, role_id, employee_id = _create_pending_message(app)
     monkeypatch.setattr(
         "app.services.moderation_queue_service.classify_message",
@@ -100,9 +98,7 @@ def test_worker_accepts_message_and_releases_dialog_for_claim(
         assert claim_dialog(dialog_id, employee_id, [role_id]) is True
 
 
-def test_worker_rejects_message_and_keeps_it_out_of_employee_queue(
-    app, monkeypatch
-) -> None:
+def test_worker_rejects_message_and_keeps_it_out_of_employee_queue(app, monkeypatch) -> None:
     dialog_id, message_id, role_id, employee_id = _create_pending_message(app)
     monkeypatch.setattr(
         "app.services.moderation_queue_service.classify_message",
@@ -123,9 +119,7 @@ def test_worker_rejects_message_and_keeps_it_out_of_employee_queue(
         assert claim_dialog(dialog_id, employee_id, [role_id]) is False
 
 
-def test_worker_bypasses_classifier_if_dialog_is_transferred_during_call(
-    app, monkeypatch
-) -> None:
+def test_worker_bypasses_classifier_if_dialog_is_transferred_during_call(app, monkeypatch) -> None:
     dialog_id, message_id, role_id, _ = _create_pending_message(app)
     with app.app_context():
         target = Role(

@@ -140,15 +140,19 @@ def process_pending_moderation(*, limit: int = 5) -> int:
             confidence = result["confidence"]
             rejected = invalid and confidence >= settings.classifier_min_confidence
             reason = (
-                result["reason"].strip()
-                or (
-                    "Уточните суть обращения, ожидаемый результат и уже выполненные действия. "
-                    "Если часть сведений недоступна, объясните почему и опишите, что известно."
+                (
+                    result["reason"].strip()
+                    or (
+                        "Уточните суть обращения, ожидаемый результат и уже выполненные действия. "
+                        "Если часть сведений недоступна, объясните почему и опишите, что известно."
+                    )
                 )
-            ) if rejected else (
-                "Классификатор отметил сообщение, но уверенность ниже порога."
-                if invalid
-                else "Классификатор не обнаружил нарушений."
+                if rejected
+                else (
+                    "Классификатор отметил сообщение, но уверенность ниже порога."
+                    if invalid
+                    else "Классификатор не обнаружил нарушений."
+                )
             )
             category = result["category"][:80] or None
         except (OllamaError, ValueError):

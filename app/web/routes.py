@@ -351,9 +351,7 @@ def _should_queue_ai_moderation(settings: GeneralSettings | None) -> bool:
     return bool(settings and settings.classifier_enabled and settings.ollama_enabled)
 
 
-def _dialog_has_unresolved_moderation(
-    dialog_id: int, *, include_rejected: bool = True
-) -> bool:
+def _dialog_has_unresolved_moderation(dialog_id: int, *, include_rejected: bool = True) -> bool:
     """Check whether a dialog has messages not yet delivered to the support queue."""
     statuses = ["PENDING", "PROCESSING"]
     if include_rejected:
@@ -834,9 +832,7 @@ def _moderation_applies_to_dialog(dialog: Dialog) -> bool:
 
 def _moderation_bypassed_decision() -> ModerationDecision:
     """Represent a workflow-approved message that must not be blocked by moderation."""
-    return ModerationDecision(
-        None, False, None, None, "workflow", "BYPASSED", None, None, None
-    )
+    return ModerationDecision(None, False, None, None, "workflow", "BYPASSED", None, None, None)
 
 
 @portal_bp.route("/dialogs/new", methods=["GET", "POST"], endpoint="dialog_create")
@@ -1046,9 +1042,7 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             global_settings = db.session.get(GeneralSettings, 1)
             raw_message = (form.text.data or "").strip()
             moderation_applies = _moderation_applies_to_dialog(dialog)
-            async_moderation = moderation_applies and _should_queue_ai_moderation(
-                global_settings
-            )
+            async_moderation = moderation_applies and _should_queue_ai_moderation(global_settings)
             moderation = (
                 _moderate_customer_message(
                     raw_message,

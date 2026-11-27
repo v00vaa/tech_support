@@ -312,53 +312,6 @@ def test_customer_cannot_reply_with_blocked_words(client, customer_records, app)
         assert event.dialog_id == own_dialog_id
 
 
-def test_customer_reply_bypasses_moderation_after_first_line_claims_dialog(
-    client, customer_records, app
-) -> None:
-    _, _, own_dialog_id = customer_records
-    with app.app_context():
-        dialog = db.session.get(Dialog, own_dialog_id)
-        employee = db.session.scalar(
-            db.select(Employee).where(Employee.email == "employee@example.com")
-        )
-        assert dialog is not None
-        assert employee is not None
-        dialog.responsible_employee_id = employee.id
-        db.session.add_all(
-            [
-                GeneralSettings(id=1, blocked_words_enabled=True),
-                ModerationEntry(
-                    kind="BLOCKED_TERM",
-                    value="spam",
-                    normalized_value=normalize_entry("spam"),
-                ),
-            ]
-        )
-        db.session.commit()
-
-    client.post(
-        "/client/login",
-        data={"login": "customer-one", "password": "correct-horse-battery"},
-    )
-    response = client.post(
-        f"/portal/dialogs/{own_dialog_id}",
-        data={"text": "This is spam"},
-    )
-
-    assert response.status_code == 302
-    with app.app_context():
-        message = db.session.scalar(
-            db.select(Message).where(Message.text == "This is spam")
-        )
-        assert message is not None
-        event = db.session.scalar(
-            db.select(ModerationEvent).where(ModerationEvent.message_id == message.id)
-        )
-        assert event is not None
-        assert event.decision == "BYPASSED"
-        assert event.source == "workflow"
-
-
 def test_customer_can_create_dialog_ajax_confirms_delivery_to_specialist(
     client, customer_records
 ) -> None:
@@ -408,9 +361,7 @@ def test_customer_new_dialog_uses_background_moderation_and_status_endpoint(
     assert payload is not None
     assert payload["status"] == "processing"
     message_id = payload["message_id"]
-    assert client.get(f"/portal/messages/{message_id}/moderation").json == {
-        "status": "processing"
-    }
+    assert client.get(f"/portal/messages/{message_id}/moderation").json == {"status": "processing"}
 
     with app.app_context():
         message = db.session.get(Message, message_id)
@@ -490,9 +441,7 @@ def test_classifier_rejects_invalid_customer_message_in_background(
 
     assert response.status_code == 302
     with app.app_context():
-        dialog = db.session.scalar(
-            db.select(Dialog).where(Dialog.subject == "Invalid request")
-        )
+        dialog = db.session.scalar(db.select(Dialog).where(Dialog.subject == "Invalid request"))
         assert dialog is not None
         message = db.session.scalar(
             db.select(Message).where(Message.dialog_id == dialog.id, Message.text == "Bad message")

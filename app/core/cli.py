@@ -118,9 +118,7 @@ def register_commands(app: Flask) -> None:
         show_default=True,
         type=click.IntRange(min=1, max=50),
     )
-    def run_auto_forward_worker(
-        interval: int, batch_size: int, moderation_batch_size: int
-    ) -> None:
+    def run_auto_forward_worker(interval: int, batch_size: int, moderation_batch_size: int) -> None:
         """Run automatic forwarding, moderation and retention workers until interrupted."""
         app.logger.info(
             "Worker автопередачи запущен: interval=%s batch_size=%s", interval, batch_size
