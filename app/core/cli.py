@@ -11,6 +11,7 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
+from app.services.moderation_queue_service import process_pending_moderation
 from app.services.attachment_storage_service import (
     cleanup_expired_closed_dialogs,
     cleanup_expired_moderation_events,
@@ -111,8 +112,16 @@ def register_commands(app: Flask) -> None:
     @click.option(
         "--batch-size", default=100, show_default=True, type=click.IntRange(min=1, max=1000)
     )
-    def run_auto_forward_worker(interval: int, batch_size: int) -> None:
-        """Run the automatic role forwarding worker until interrupted."""
+    @click.option(
+        "--moderation-batch-size",
+        default=5,
+        show_default=True,
+        type=click.IntRange(min=1, max=50),
+    )
+    def run_auto_forward_worker(
+        interval: int, batch_size: int, moderation_batch_size: int
+    ) -> None:
+        """Run automatic forwarding, moderation and retention workers until interrupted."""
         app.logger.info(
             "Worker автопередачи запущен: interval=%s batch_size=%s", interval, batch_size
         )
@@ -131,6 +140,9 @@ def register_commands(app: Flask) -> None:
         try:
             while not stop_event.is_set():
                 try:
+                    moderated = process_pending_moderation(limit=moderation_batch_size)
+                    if moderated:
+                        app.logger.info("Проверено сообщений модерацией: %s", moderated)
                     count = process_due_auto_forwards(limit=batch_size)
                     if count:
                         app.logger.info("Автоматически передано обращений: %s", count)
