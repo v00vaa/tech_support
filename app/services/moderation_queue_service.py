@@ -115,6 +115,12 @@ def process_pending_moderation(*, limit: int = 5) -> int:
             continue
 
         if not _still_in_first_line_queue(dialog):
+            if dialog.status == DialogStatus.WAITING_CLIENT:
+                dialog.status = (
+                    DialogStatus.IN_PROGRESS
+                    if dialog.responsible_employee_id is not None
+                    else DialogStatus.WAITING_EMPLOYEE
+                )
             _finish_message(
                 message,
                 decision=BYPASSED,
@@ -260,7 +266,11 @@ def process_pending_moderation(*, limit: int = 5) -> int:
                 elif dialog.status == DialogStatus.WAITING_CLIENT:
                     dialog.status = DialogStatus.WAITING_EMPLOYEE
         if decision == BYPASSED and dialog.status == DialogStatus.WAITING_CLIENT:
-            dialog.status = DialogStatus.WAITING_EMPLOYEE
+            dialog.status = (
+                DialogStatus.IN_PROGRESS
+                if dialog.responsible_employee_id is not None
+                else DialogStatus.WAITING_EMPLOYEE
+            )
         try:
             _finish_message(
                 message,
