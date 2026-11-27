@@ -2,6 +2,7 @@
 
 from app.extensions import db
 from app.models import (
+    AuthorType,
     Client,
     Dialog,
     DialogStatus,
@@ -46,7 +47,7 @@ def _create_pending_message(app):
         db.session.flush()
         message = Message(
             dialog_id=dialog.id,
-            author_type="CLIENT",
+            author_type=AuthorType.CLIENT,
             author_id=client.id,
             text="Please investigate this issue",
             is_internal=False,
