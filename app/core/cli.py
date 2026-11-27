@@ -11,12 +11,12 @@ from werkzeug.security import generate_password_hash
 from app.extensions import db
 from app.models import AuthorType, Client, Dialog, DialogStatus, Employee, Role
 from app.services import dialog_service, message_service
-from app.services.moderation_queue_service import process_pending_moderation
 from app.services.attachment_storage_service import (
     cleanup_expired_closed_dialogs,
     cleanup_expired_moderation_events,
     remove_orphaned_attachment_files,
 )
+from app.services.moderation_queue_service import process_pending_moderation
 from app.services.rbac_service import ensure_rbac_catalogue
 from app.services.routing_service import process_due_auto_forwards
 
