@@ -160,3 +160,80 @@ def test_worker_bypasses_classifier_if_dialog_is_transferred_during_call(app, mo
         assert event is not None
         assert event.decision == "BYPASSED"
         assert event.source == "workflow"
+
+
+
+def test_ai_assistant_can_request_missing_information_without_classifier(
+    app, monkeypatch
+) -> None:
+    dialog_id, message_id, _, _ = _create_pending_message(app)
+    with app.app_context():
+        settings = db.session.get(GeneralSettings, 1)
+        assert settings is not None
+        settings.classifier_enabled = False
+        settings.ai_assistant_enabled = True
+        settings.ai_assistant_context = "Вход доступен через корпоративную учётную запись."
+        db.session.commit()
+
+    monkeypatch.setattr(
+        "app.services.moderation_queue_service.OllamaClient.generate_support_reply",
+        lambda self, **kwargs: {
+            "action": "NEED_INFO",
+            "reply": "Уточните время ошибки. Если журнал недоступен, опишите последние действия.",
+        },
+    )
+
+    with app.app_context():
+        assert process_pending_moderation(limit=1) == 1
+        original = db.session.get(Message, message_id)
+        dialog = db.session.get(Dialog, dialog_id)
+        assistant_message = db.session.scalar(
+            db.select(Message).where(
+                Message.dialog_id == dialog_id,
+                Message.author_type == AuthorType.SYSTEM,
+                Message.text.startswith("Уточните время ошибки"),
+            )
+        )
+        assert original is not None
+        assert original.moderation_status == "ACCEPTED"
+        assert dialog is not None
+        assert dialog.status == DialogStatus.WAITING_CLIENT
+        assert assistant_message is not None
+        assert assistant_message.is_internal is False
+
+
+def test_ai_assistant_can_forward_sufficient_request_to_specialist(
+    app, monkeypatch
+) -> None:
+    dialog_id, message_id, _, _ = _create_pending_message(app)
+    with app.app_context():
+        settings = db.session.get(GeneralSettings, 1)
+        assert settings is not None
+        settings.classifier_enabled = False
+        settings.ai_assistant_enabled = True
+        db.session.commit()
+
+    monkeypatch.setattr(
+        "app.services.moderation_queue_service.OllamaClient.generate_support_reply",
+        lambda self, **kwargs: {
+            "action": "FORWARD_TO_SPECIALIST",
+            "reply": "Информации достаточно. Сообщение отправлено специалисту.",
+        },
+    )
+
+    with app.app_context():
+        assert process_pending_moderation(limit=1) == 1
+        original = db.session.get(Message, message_id)
+        dialog = db.session.get(Dialog, dialog_id)
+        assert original is not None
+        assert original.moderation_status == "ACCEPTED"
+        assert dialog is not None
+        assert dialog.status == DialogStatus.OPEN
+        assistant_message = db.session.scalar(
+            db.select(Message).where(
+                Message.dialog_id == dialog_id,
+                Message.author_type == AuthorType.SYSTEM,
+                Message.text.startswith("Информации достаточно"),
+            )
+        )
+        assert assistant_message is not None
