@@ -465,6 +465,7 @@ def test_classifier_rejects_invalid_customer_message_in_background(
         assert event.category == "abuse"
         assert event.confidence == 0.99
 
+
 def test_classifier_is_not_called_when_ollama_is_disabled(
     client, customer_records, app, monkeypatch
 ) -> None:
