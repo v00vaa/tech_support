@@ -114,3 +114,51 @@ def test_classifier_validates_confidence(monkeypatch: pytest.MonkeyPatch) -> Non
     )
     with pytest.raises(ValueError):
         classify_message("bad", GeneralSettings(id=1))
+
+
+
+def test_generate_support_reply_returns_validated_customer_action(monkeypatch) -> None:
+    captured: dict[str, object] = {}
+
+    def fake_urlopen(request, timeout):
+        captured.update(json.loads(request.data.decode("utf-8")))
+        return FakeResponse(
+            {
+                "message": {
+                    "content": json.dumps(
+                        {
+                            "action": "NEED_INFO",
+                            "reply": "Уточните, когда появилась ошибка. Если журнал недоступен, опишите последние действия.",
+                        }
+                    )
+                }
+            }
+        )
+
+    monkeypatch.setattr("app.services.ollama_client.urlopen", fake_urlopen)
+    result = OllamaClient("http://ollama:11434", "qwen2.5:3b").generate_support_reply(
+        message="Не работает вход",
+        conversation_context="Клиент: Не работает вход",
+        system_context="Вход выполняется по корпоративной учётной записи.",
+        system_prompt="Ты помощник поддержки.",
+    )
+
+    assert result["action"] == "NEED_INFO"
+    assert "журнал недоступен" in result["reply"]
+    messages = captured["messages"]
+    assert isinstance(messages, list)
+    assert "корпоративной учётной записи" in messages[0]["content"]
+    assert "Клиент: Не работает вход" in messages[1]["content"]
+
+
+def test_generate_support_reply_rejects_unknown_action(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "app.services.ollama_client.urlopen",
+        lambda request, timeout: FakeResponse(
+            {"message": {"content": '{"action": "DELETE_DIALOG", "reply": "done"}'}}
+        ),
+    )
+    with pytest.raises(OllamaError):
+        OllamaClient("http://ollama:11434", "qwen2.5:3b").generate_support_reply(
+            "message", "history", "context", "system"
+        )
