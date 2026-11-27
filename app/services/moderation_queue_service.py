@@ -172,6 +172,7 @@ def process_pending_moderation(*, limit: int = 5) -> int:
         if dialog is None:
             db.session.rollback()
             continue
+        db.session.refresh(dialog)
         if not _still_in_first_line_queue(dialog):
             decision = BYPASSED
             source = "workflow"
