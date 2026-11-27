@@ -87,7 +87,11 @@ class OllamaClient:
         )
         system_content = "\n\n".join(
             part.strip()
-            for part in (system_prompt, mandatory_guidance, f"Сведения об основной системе:\n{system_context}")
+            for part in (
+                system_prompt,
+                mandatory_guidance,
+                f"Сведения об основной системе:\n{system_context}",
+            )
             if part.strip()
         )
         user_content = (
