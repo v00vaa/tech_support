@@ -92,6 +92,7 @@ def test_auto_forward_worker_exposes_interval_and_batch_options(app) -> None:
     assert result.exit_code == 0
     assert "--interval" in result.output
     assert "--batch-size" in result.output
+    assert "--moderation-batch-size" in result.output
 
 
 def test_seed_command_creates_demo_data_and_can_run_twice(app) -> None:
@@ -164,6 +165,7 @@ def test_auto_forward_worker_stops_gracefully_on_sigterm(app, monkeypatch) -> No
         "process_due_auto_forwards",
         lambda *, limit: processed_batches.append(limit) or 0,
     )
+    monkeypatch.setattr(cli_module, "process_pending_moderation", lambda *, limit: 0)
 
     result = app.test_cli_runner().invoke(
         args=["run-auto-forward-worker", "--interval", "5", "--batch-size", "7"]

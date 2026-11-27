@@ -261,7 +261,11 @@ def messages(dialog_id: int) -> ResponseReturnValue:
     if request.method in {"GET", "HEAD"}:
         statement = (
             select(Message)
-            .where(Message.dialog_id == dialog.id, Message.deleted_at.is_(None))
+            .where(
+                Message.dialog_id == dialog.id,
+                Message.deleted_at.is_(None),
+                Message.moderation_status.in_(["ACCEPTED", "BYPASSED"]),
+            )
             .order_by(Message.created_at, Message.id)
         )
         if not has_permission(employee, "dialogs.add_internal_note"):

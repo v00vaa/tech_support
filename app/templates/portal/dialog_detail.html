@@ -16,6 +16,8 @@
   .client-message.employee { align-self:flex-start; color:#193b69; background:#e6efff; border-bottom-left-radius:.25rem; }
   .client-message.system { align-self:center; max-width:90%; color:#465466; background:#e9edf2; text-align:center; font-size:.875rem; }
   .moderation-feedback { border-radius:.65rem; padding:.75rem 1rem; }
+  .message-moderation-state { font-size:.8rem; margin-top:.5rem; }
+  .message-moderation-state .spinner-border { width:.85rem; height:.85rem; }
   .moderation-processing { display:flex; align-items:center; gap:.6rem; color:var(--support-color-text-muted); }
   .moderation-processing .spinner-border { width:1.1rem; height:1.1rem; }
   @media(max-width:767.98px) { .client-messenger { grid-template-columns:1fr; } .client-ticket-list { max-height:250px; overflow-y:auto; } .client-chat-log { min-height:320px; } .client-message { max-width:92%; } }
@@ -77,6 +79,19 @@
         <article class="client-message {{ message.author_type.value|lower }}">
           <div class="small fw-semibold mb-1">{{ 'Вы' if message.author_type.value == 'CLIENT' else ('Служба поддержки' if message.author_type.value == 'EMPLOYEE' else 'Система') }}</div>
           <div>{{ message.text }}</div>
+          {% if message.author_type.value == 'CLIENT' and message.moderation_status in ['PENDING', 'PROCESSING', 'REJECTED'] %}
+            <div class="message-moderation-state" data-moderation-state
+                 data-status-url="{{ url_for('portal.moderation_status', message_id=message.id) }}"
+                 data-state="{{ message.moderation_status }}">
+              {% if message.moderation_status in ['PENDING', 'PROCESSING'] %}
+                <span class="text-muted"><span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Сообщение обрабатывается…</span>
+              {% else %}
+                <div class="alert alert-warning py-2 px-3 mb-0">
+                  <strong>Нужно уточнение.</strong> {{ message.moderation_reason }}
+                </div>
+              {% endif %}
+            </div>
+          {% endif %}
           {% for attachment in message.attachments %}
             <div class="mt-2">
               <a href="{{ url_for('messages.attachment_download', attachment_id=attachment.id) }}" class="d-inline-flex align-items-center gap-2 text-decoration-none" target="_blank" rel="noopener">
@@ -116,6 +131,45 @@
     const log = document.getElementById('client-chat-log');
     if (log) log.scrollTop = log.scrollHeight;
 
+    const pollModerationState = async (element) => {
+      const renderFinal = (state, reason = '') => {
+        element.replaceChildren();
+        if (state === 'sent') {
+          const label = document.createElement('span');
+          label.className = 'text-success';
+          label.textContent = 'Сообщение отправлено специалисту.';
+          element.append(label);
+        } else if (state === 'needs_revision') {
+          const alert = document.createElement('div');
+          alert.className = 'alert alert-warning py-2 px-3 mb-0';
+          const heading = document.createElement('strong');
+          heading.textContent = 'Нужно уточнение. ';
+          alert.append(heading, document.createTextNode(reason));
+          element.append(alert);
+        } else if (state === 'superseded') {
+          element.textContent = 'Это сообщение заменено новым.';
+        }
+      };
+
+      const check = async () => {
+        try {
+          const response = await fetch(element.dataset.statusUrl, {
+            headers: { 'Accept': 'application/json' }
+          });
+          if (!response.ok) return;
+          const result = await response.json();
+          if (result.status === 'processing') {
+            window.setTimeout(check, 2000);
+            return;
+          }
+          renderFinal(result.status, result.reason || '');
+        } catch (_error) {
+          window.setTimeout(check, 5000);
+        }
+      };
+      check();
+    };
+    document.querySelectorAll('[data-moderation-state][data-state="PENDING"], [data-moderation-state][data-state="PROCESSING"]').forEach(pollModerationState);
     document.querySelectorAll('[data-moderation-form]').forEach((form) => {
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
@@ -138,7 +192,7 @@
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
           });
           const result = await response.json();
-          if (result.status === 'sent' && result.redirect_url) {
+          if (['sent', 'processing'].includes(result.status) && result.redirect_url) {
             window.location.assign(result.redirect_url);
             return;
           }

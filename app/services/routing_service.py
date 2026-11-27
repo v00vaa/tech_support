@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 
 from app.extensions import db
 from app.models.dialog import Dialog, DialogStatus
@@ -161,6 +161,11 @@ def process_due_auto_forwards(*, now: datetime | None = None, limit: int = 100) 
                     ),
                     Dialog.role_assigned_at.is_not(None),
                     Dialog.role_assigned_at <= threshold,
+                    ~exists().where(
+                        Message.dialog_id == Dialog.id,
+                        Message.moderation_status.in_(["PENDING", "PROCESSING", "REJECTED"]),
+                        Message.deleted_at.is_(None),
+                    ),
                 )
                 .order_by(Dialog.role_assigned_at, Dialog.id)
                 .limit(limit - transferred)

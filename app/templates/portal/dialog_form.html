@@ -63,7 +63,7 @@
             headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
           });
           const result = await response.json();
-          if (result.status === 'sent' && result.redirect_url) {
+          if (['sent', 'processing'].includes(result.status) && result.redirect_url) {
             window.location.assign(result.redirect_url);
             return;
           }

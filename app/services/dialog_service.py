@@ -3,7 +3,7 @@
 from datetime import UTC, datetime
 from typing import Any, cast
 
-from sqlalchemy import update
+from sqlalchemy import exists, update
 from sqlalchemy.engine import CursorResult
 
 from app.extensions import db
@@ -83,6 +83,11 @@ def claim_dialog(dialog_id: int, employee_id: int, role_ids: list[int]) -> bool:
                 Dialog.assigned_role_id.in_(role_ids),
                 Dialog.responsible_employee_id.is_(None),
                 Dialog.status.in_([DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE]),
+                ~exists().where(
+                    Message.dialog_id == Dialog.id,
+                    Message.moderation_status.in_(["PENDING", "PROCESSING", "REJECTED"]),
+                    Message.deleted_at.is_(None),
+                ),
             )
             .values(
                 responsible_employee_id=employee_id,
