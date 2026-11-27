@@ -379,6 +379,54 @@ def test_customer_can_create_dialog_ajax_confirms_delivery_to_specialist(
     assert "специалисту" in payload["message"]
     assert payload["redirect_url"].startswith("/portal/dialogs/")
 
+def test_customer_new_dialog_uses_background_moderation_and_status_endpoint(
+    client, customer_records, app
+) -> None:
+    with app.app_context():
+        db.session.add(
+            GeneralSettings(
+                id=1,
+                blocked_words_enabled=False,
+                classifier_enabled=True,
+                ollama_enabled=True,
+            )
+        )
+        db.session.commit()
+
+    client.post(
+        "/client/login",
+        data={"login": "customer-one", "password": "correct-horse-battery"},
+    )
+    response = client.post(
+        "/portal/dialogs/new",
+        data={"subject": "Background review", "message": "Please investigate"},
+        headers={"X-Requested-With": "XMLHttpRequest", "Accept": "application/json"},
+    )
+
+    assert response.status_code == 202
+    payload = response.get_json()
+    assert payload is not None
+    assert payload["status"] == "processing"
+    message_id = payload["message_id"]
+    assert client.get(f"/portal/messages/{message_id}/moderation").json == {
+        "status": "processing"
+    }
+
+    with app.app_context():
+        message = db.session.get(Message, message_id)
+        assert message is not None
+        message.moderation_status = "REJECTED"
+        message.moderation_reason = "Уточните, когда возникла проблема."
+        db.session.commit()
+
+    result = client.get(f"/portal/messages/{message_id}/moderation")
+    assert result.status_code == 200
+    assert result.json == {
+        "status": "needs_revision",
+        "reason": "Уточните, когда возникла проблема.",
+    }
+
+
 def test_customer_can_create_dialog_when_blocked_word_filter_is_disabled(
     client, customer_records, app
 ) -> None:
