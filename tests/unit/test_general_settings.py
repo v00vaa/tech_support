@@ -14,6 +14,8 @@ def test_closed_dialog_retention_defaults_to_never(app):
         stored = db.session.get(GeneralSettings, 1)
         assert stored is not None
         assert stored.closed_dialog_retention_days is None
+        assert stored.ai_assistant_enabled is False
+        assert stored.ai_assistant_context == ""
 
         db.session.remove()
         db.drop_all()
