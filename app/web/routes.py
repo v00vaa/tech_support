@@ -826,7 +826,7 @@ def _moderation_applies_to_dialog(dialog: Dialog) -> bool:
         first_line_role is not None
         and dialog.assigned_role_id == first_line_role
         and dialog.status in {DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE}
-        and not _dialog_has_unresolved_moderation(dialog.id)
+        and not _dialog_has_unresolved_moderation(dialog.id, include_rejected=False)
     )
 
 
