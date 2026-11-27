@@ -8,6 +8,7 @@ from app.models import (
     Employee,
     GeneralSettings,
     Message,
+    ModerationEvent,
     Role,
 )
 from app.services.dialog_service import claim_dialog
