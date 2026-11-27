@@ -346,9 +346,13 @@ def _moderate_customer_message(
     )
 
 
-def _should_queue_ai_moderation(settings: GeneralSettings | None) -> bool:
+def _should_queue_ai_processing(settings: GeneralSettings | None) -> bool:
     """Use the background worker only when the optional Ollama classifier is active."""
-    return bool(settings and settings.classifier_enabled and settings.ollama_enabled)
+    return bool(
+        settings
+        and settings.ollama_enabled
+        and (settings.classifier_enabled or settings.ai_assistant_enabled)
+    )
 
 
 def _dialog_has_unresolved_moderation(dialog_id: int, *, include_rejected: bool = True) -> bool:
@@ -825,7 +829,12 @@ def _moderation_applies_to_dialog(dialog: Dialog) -> bool:
     return (
         first_line_role is not None
         and dialog.assigned_role_id == first_line_role
-        and dialog.status in {DialogStatus.OPEN, DialogStatus.WAITING_EMPLOYEE}
+        and dialog.status
+        in {
+            DialogStatus.OPEN,
+            DialogStatus.WAITING_EMPLOYEE,
+            DialogStatus.WAITING_CLIENT,
+        }
         and not _dialog_has_unresolved_moderation(dialog.id, include_rejected=False)
     )
 
@@ -1093,7 +1102,11 @@ def portal_dialog_detail(dialog_id: int) -> ResponseReturnValue:
             try:
                 saved_paths = _store_message_attachments(message, form.attachments.data or [])
                 if dialog.status == DialogStatus.WAITING_CLIENT:
-                    dialog.status = DialogStatus.IN_PROGRESS
+                    dialog.status = (
+                        DialogStatus.IN_PROGRESS
+                        if dialog.responsible_employee_id is not None
+                        else DialogStatus.WAITING_EMPLOYEE
+                    )
                 db.session.commit()
             except ValueError as error:
                 db.session.rollback()
