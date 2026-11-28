@@ -1,1 +1,7 @@
-{% extends "layout.html" %}{% block content %}<h1>Создать сотрудника</h1><div class="card"><div class="card-body"><form method="post">{% include 'employees/_form.html' %}</form></div></div>{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Новый сотрудник · Support Desk{% endblock %}
+{% block content %}
+<header class="page-heading"><div><p class="page-eyebrow">Управление доступом</p><h1>Создать сотрудника</h1><p class="page-description">Создайте локальную учётную запись сотрудника.</p></div></header>
+{# TODO(UI): Prefer the invitation flow with one-time setup of the employee password instead of manually entering credentials. #}
+<div class="row"><div class="col-12 col-xl-8"><div class="card"><div class="card-body"><form method="post">{% include "employees/_form.html" %}</form></div></div></div></div>
+{% endblock %}
