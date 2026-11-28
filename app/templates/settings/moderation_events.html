@@ -5,16 +5,12 @@
   {% set active_settings_section = 'moderation' %}
   {% include "components/_settings_navigation.html" %}
   <section class="col-md-9 col-lg-10">
-    <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
-      <div>
-        <h2 class="h3 mb-1">Журнал модерации</h2>
-        <p class="text-muted mb-0">Все решения проверки клиентских сообщений: принятые, отклонённые и пропущенные проверки.</p>
-      </div>
+    <header class="page-heading">
+      <div><p class="page-eyebrow">Безопасность сообщений</p><h1>Журнал модерации</h1><p class="page-description">Все решения проверки клиентских сообщений: принятые, отклонённые и пропущенные проверки.</p></div>
       <a class="btn btn-outline-secondary" href="{{ url_for('settings.moderation_settings') }}">Настройки фильтров</a>
-    </div>
+    </header>
     <div class="alert alert-warning">
-      В журнале сохраняется исходный текст каждого проверенного сообщения. Доступ ограничен сотрудниками с правом просмотра настроек; разбор отклонений требует права редактирования настроек. Доступ к журналу ограничен
-      сотрудниками с правом просмотра настроек; изменение результата требует права редактирования настроек.
+      В журнале сохраняется исходный текст каждого проверенного сообщения. Доступ к журналу ограничен сотрудниками с правом просмотра настроек. Разбор отклонений требует права редактирования настроек.
     </div>
     <form method="get" class="card card-body mb-3">
       <div class="row g-2 align-items-end">
