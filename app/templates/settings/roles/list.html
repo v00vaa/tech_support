@@ -1,31 +1,20 @@
 {% extends "layout.html" %}
 {% block content %}
-{# TODO(UI): The "Сотрудники" control is currently a non-interactive active tab label; either turn role sections into real tabs or render it as a heading. #}
 <div class="row g-4">
-  <aside class="col-md-3 col-lg-2">
-    <h1 class="h4 mb-3">Настройки</h1>
-    <div class="list-group">
-      <a class="list-group-item list-group-item-action active" href="{{ url_for('settings.role_list') }}">Роли</a>
-      {% if has_permission(current_user, 'settings.view') %}
-      {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
-      {% if slug != 'workflow' or has_permission(current_user, 'roles.manage_routing') %}
-      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.workflow_editor') if slug == 'workflow' else url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
-      {% endif %}
-      {% endfor %}
-      {% endif %}
-    </div>
-  </aside>
+  {% set active_settings_section = "roles" %}
+  {% include "components/_settings_navigation.html" %}
 
   <section class="col-md-9 col-lg-10">
-    <div class="d-flex justify-content-between align-items-center mb-3">
+    <header class="page-heading">
       <div>
+        <p class="page-eyebrow">Настройки доступа</p>
         <h2 class="h3 mb-1">Роли</h2>
-        <p class="text-muted mb-0">Раскройте роль, чтобы управлять ее составом. Администратор может отметить одну роль как первый уровень поддержки.</p>
+        <p class="page-description">Раскройте роль, чтобы управлять её составом. Администратор может отметить одну роль как первый уровень поддержки.</p>
       </div>
       {% if has_permission(current_user, 'roles.create') %}
-      <a class="btn btn-primary" href="{{ url_for('settings.role_create') }}">Создать роль</a>
+        <a class="btn btn-primary" href="{{ url_for('settings.role_create') }}">Создать роль</a>
       {% endif %}
-    </div>
+    </header>
 
     <div class="accordion" id="rolesAccordion">
       {% for role in roles %}
@@ -54,7 +43,7 @@
             </form>
             {% endif %}
             <div class="d-flex flex-wrap gap-2 mb-3" role="group" aria-label="Разделы роли">
-              <button type="button" class="btn btn-primary btn-sm" aria-current="page">Сотрудники</button>
+              <span class="btn btn-primary btn-sm" aria-current="page">Сотрудники</span>
               {% if has_permission(current_user, 'roles.manage_routing') %}
               <a class="btn btn-outline-primary btn-sm" href="{{ url_for('settings.role_routing', role_id=role.id, direction='outgoing') }}">Направляют к</a>
               {% endif %}
