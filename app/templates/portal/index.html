@@ -1,39 +1,17 @@
 {% extends "layout.html" %}
-
 {% block title %}Мои обращения · Support Desk{% endblock %}
-
 {% block content %}
-<section class="mb-4 d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-  <div>
-    <p class="text-uppercase text-primary small fw-semibold mb-2">Клиентский кабинет</p>
-    <h1 class="mb-2">Здравствуйте, {{ current_user.name }}</h1>
-    <p class="text-muted mb-0">Здесь отображаются только ваши обращения в службу поддержки.</p>
-  </div>
-  {% if web_channel_enabled %}
-  <a class="btn btn-primary" href="{{ url_for('portal.dialog_create') }}">Создать обращение</a>
-  {% else %}
-  <span class="badge text-bg-warning">Приём новых обращений временно отключён</span>
-  {% endif %}
+<header class="page-heading">
+  <div><p class="page-eyebrow">Клиентский кабинет</p><h1>Здравствуйте, {{ current_user.name }}</h1><p class="page-description">Здесь отображаются только ваши обращения в службу поддержки.</p></div>
+  {% if web_channel_enabled %}<a class="btn btn-primary" href="{{ url_for('portal.dialog_create') }}">Создать обращение</a>{% else %}<span class="badge text-bg-warning">Приём новых обращений временно отключён</span>{% endif %}
+</header>
+<section class="card">
+  <div class="card-header d-flex justify-content-between align-items-center"><h2 class="h6 mb-0">История обращений</h2><span class="badge text-bg-light">{{ dialogs|length }}</span></div>
+  <div class="table-responsive"><table class="table table-hover align-middle">
+    <thead><tr><th>Тема</th><th>Статус</th><th>Создано</th><th>Обновлено</th><th></th></tr></thead>
+    <tbody>{% for dialog in dialogs %}
+      <tr><td class="fw-semibold">{{ dialog.subject }}</td><td><span class="badge text-bg-primary">{{ dialog.status.value.replace('_', ' ') }}</span></td><td>{{ dialog.created_at.strftime('%d.%m.%Y %H:%M') }}</td><td>{{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('portal.dialog_detail', dialog_id=dialog.id) }}">Открыть</a></td></tr>
+    {% else %}<tr><td colspan="5"><div class="empty-state"><h2 class="h5">Обращений пока нет</h2><p class="mb-0">Создайте первое обращение, чтобы связаться со службой поддержки.</p>{% if web_channel_enabled %}<a class="btn btn-primary mt-3" href="{{ url_for('portal.dialog_create') }}">Создать обращение</a>{% endif %}</div></td></tr>{% endfor %}</tbody>
+  </table></div>
 </section>
-
-<div class="card">
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead><tr><th>Тема</th><th>Статус</th><th>Создано</th><th>Обновлено</th><th></th></tr></thead>
-      <tbody>
-        {% for dialog in dialogs %}
-          <tr>
-            <td class="fw-semibold">{{ dialog.subject }}</td>
-            <td><span class="badge text-bg-primary">{{ dialog.status.value.replace('_', ' ') }}</span></td>
-            <td>{{ dialog.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td>{{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}</td>
-            <td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{{ url_for('portal.dialog_detail', dialog_id=dialog.id) }}">Открыть</a></td>
-          </tr>
-        {% else %}
-          <tr><td colspan="5" class="text-center text-muted py-4">У вас пока нет обращений.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-</div>
 {% endblock %}
