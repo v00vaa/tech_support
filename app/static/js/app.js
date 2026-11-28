@@ -14,7 +14,7 @@
 function handleFormSubmit(event) {
   const form = event.currentTarget;
 
-  if (event.defaultPrevented) {
+  if (event.defaultPrevented || form.matches("[data-moderation-form]")) {
     return;
   }
 
