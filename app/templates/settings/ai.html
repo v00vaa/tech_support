@@ -5,8 +5,10 @@
   {% set active_settings_section = 'ai' %}
   {% include "components/_settings_navigation.html" %}
   <section class="col-md-9 col-lg-10">
-    <h2 class="h3">Локальная AI-модель</h2>
-    <p class="text-muted">Настройка локальной модели, классификатора и помощника, который уточняет данные у клиента до передачи обращения специалисту.</p>
+    <header class="page-heading">
+      <div><p class="page-eyebrow">Автоматизация</p><h1>Локальная AI-модель</h1><p class="page-description">Настройка локальной модели, классификатора и помощника, который уточняет данные у клиента до передачи обращения специалисту.</p></div>
+    </header>
+    {# TODO(UI): Add a prompt preview/test panel with a sanitized sample message and visible model response. #}
     <form method="post" class="card"><div class="card-body">
       {{ form.hidden_tag() }}
       <div class="form-check form-switch mb-4">
