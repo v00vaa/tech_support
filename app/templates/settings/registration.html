@@ -8,11 +8,7 @@
   {% include "components/_settings_navigation.html" %}
 
   <section class="col-md-9 col-lg-8">
-    <div class="mb-4">
-      <p class="text-uppercase text-primary small fw-semibold mb-2">Клиентские аккаунты</p>
-      <h2 class="h3 mb-2">Настройки регистрации</h2>
-      <p class="text-muted mb-0">Выберите доступные способы создания учётных записей и контактные данные клиентов.</p>
-    </div>
+    <header class="page-heading"><div><p class="page-eyebrow">Клиентские аккаунты</p><h1>Настройки регистрации</h1><p class="page-description">Выберите доступные способы создания учётных записей и контактные данные клиентов.</p></div></header>
     <form method="post" novalidate>
       {{ form.hidden_tag() }}
       <div class="card mb-4">
