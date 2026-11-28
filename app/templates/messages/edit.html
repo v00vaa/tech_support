@@ -1,1 +1,6 @@
-{% extends "layout.html" %}{% block content %}<h1>Изменить сообщение</h1><div class="card"><div class="card-body"><form method="post">{{ form.hidden_tag() }}<div class="mb-3">{{ form.text.label(class_='form-label') }}{{ form.text(class_='form-control', rows='5') }}{% for error in form.text.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{{ form.submit(class_='btn btn-primary') }} <a class="btn btn-outline-secondary" href="{{ url_for('dialogs.dialog_detail', dialog_id=message.dialog_id) }}">Отмена</a></form></div></div>{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Изменить сообщение · Support Desk{% endblock %}
+{% block content %}
+<header class="page-heading"><div><p class="page-eyebrow">Обращение · #{{ message.dialog_id }}</p><h1>Изменить сообщение</h1><p class="page-description">Исправьте текст и сохраните изменения.</p></div></header>
+<div class="row"><div class="col-12 col-xl-8"><div class="card"><div class="card-body"><form method="post">{{ form.hidden_tag() }}<div class="mb-3">{{ form.text.label(class_='form-label') }}{{ form.text(class_='form-control', rows='5') }}{% for error in form.text.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}</div><div class="form-actions">{{ form.submit(class_='btn btn-primary') }}<a class="btn btn-outline-secondary" href="{{ url_for('dialogs.dialog_detail', dialog_id=message.dialog_id) }}">Отмена</a></div></form></div></div></div></div>
+{% endblock %}
