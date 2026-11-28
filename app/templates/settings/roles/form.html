@@ -1,7 +1,18 @@
 {% extends "layout.html" %}
 {% block content %}
-<h1 class="h3 mb-3">{{ 'Изменить роль' if role else 'Создать роль' }}</h1>
-<div class="card"><div class="card-body">
+<div class="row g-4">
+  {% set active_settings_section = 'roles' %}
+  {% include "components/_settings_navigation.html" %}
+  <section class="col-md-9 col-lg-10">
+    <header class="page-heading">
+      <div>
+        <p class="page-eyebrow">Настройки доступа</p>
+        <h1>{{ 'Изменить роль' if role else 'Создать роль' }}</h1>
+        <p class="page-description">Настройте назначение роли и доступные разрешения.</p>
+      </div>
+      <a class="btn btn-outline-secondary" href="{{ url_for('settings.role_list') }}">К списку ролей</a>
+    </header>
+    <div class="card"><div class="card-body">
 <form method="post" id="role-form">
   {{ form.hidden_tag() }}
   <div class="alert alert-light border small">Внутренний идентификатор роли создаётся автоматически и не отображается в настройках.</div>
@@ -67,7 +78,9 @@
   {{ form.submit(class_='btn btn-primary') }}
   <a class="btn btn-outline-secondary" href="{{ url_for('settings.role_list') }}">Отмена</a>
 </form>
-</div></div>
+    </div></div>
+  </section>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
