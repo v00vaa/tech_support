@@ -1,89 +1,67 @@
 {% extends "layout.html" %}
-
 {% block title %}Новое обращение · Support Desk{% endblock %}
-
 {% block content %}
-<section class="row justify-content-center py-4">
-  <div class="col-12 col-lg-8">
-    <div class="card">
-      <div class="card-body p-4">
-        <h1 class="h3 mb-4">Новое обращение</h1>
-        <form method="post" enctype="multipart/form-data" novalidate data-moderation-form>
-          {{ form.hidden_tag() }}
-          <div class="mb-3">
-            {{ form.subject.label(class_="form-label") }}
-            {{ form.subject(class_="form-control", maxlength="255") }}
-            {% for error in form.subject.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-4">
-            {{ form.message.label(class_="form-label") }}
-            {{ form.message(class_="form-control", rows="6") }}
-            {% for error in form.message.errors %}<div class="text-danger small mt-1">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-4">
-            {{ form.attachments.label(class_="form-label") }}
-            {{ form.attachments(class_="form-control", multiple=true, accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip") }}
-            <div class="form-text">До 5 файлов, не более 10 МБ каждый.</div>
-          </div>
-          <div class="alert d-none mb-3" data-moderation-feedback role="status" aria-live="polite"></div>
-          <div class="d-flex align-items-center gap-2 mb-3 d-none" data-moderation-processing role="status"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Обработка сообщения…</span></div>
-          <div class="d-flex gap-2">
-            {{ form.submit(class_="btn btn-primary") }}
-            <a class="btn btn-outline-secondary" href="{{ url_for('portal.index') }}">Отмена</a>
-          </div>
-        </form>
-      </div>
-    </div>
-  </div>
-</section>
+<header class="page-heading"><div><p class="page-eyebrow">Клиентский кабинет</p><h1>Новое обращение</h1><p class="page-description">Опишите проблему как можно подробнее. Специалист поддержки сможет быстрее помочь, если вы приложите необходимые сведения.</p></div><a class="btn btn-outline-secondary" href="{{ url_for('portal.index') }}">К обращениям</a></header>
+<div class="row justify-content-center"><div class="col-12 col-xl-9">
+  <div class="card"><div class="card-body p-4">
+    <form method="post" enctype="multipart/form-data" novalidate data-moderation-form>
+      {{ form.hidden_tag() }}
+      <div class="mb-3">{{ form.subject.label(class_="form-label") }}{{ form.subject(class_="form-control", maxlength="255", placeholder="Кратко опишите тему обращения") }}{% for error in form.subject.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}</div>
+      <div class="mb-4">{{ form.message.label(class_="form-label") }}{{ form.message(class_="form-control", rows="7", placeholder="Что произошло? Какие действия вы выполняли? Какой результат ожидали?") }}{% for error in form.message.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}</div>
+      <div class="mb-4">{{ form.attachments.label(class_="form-label") }}{{ form.attachments(class_="form-control", multiple=true, accept=".png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.csv,.doc,.docx,.xls,.xlsx,.zip") }}<div class="form-text">До 5 файлов, не более 10 МБ каждый.</div></div>
+      <div class="alert d-none mb-3" data-moderation-feedback role="status" aria-live="polite"></div>
+      <div class="d-flex align-items-center gap-2 mb-3 d-none" data-moderation-processing role="status"><span class="spinner-border spinner-border-sm" aria-hidden="true"></span><span>Обработка сообщения…</span></div>
+      <div class="form-actions">{{ form.submit(class_="btn btn-primary") }}<a class="btn btn-outline-secondary" href="{{ url_for('portal.index') }}">Отмена</a></div>
+    </form>
+  </div></div>
+</div></div>
 {% endblock %}
-
 {% block scripts %}
 <script>
   (() => {
-    document.querySelectorAll('[data-moderation-form]').forEach((form) => {
-      form.addEventListener('submit', async (event) => {
+    document.querySelectorAll("[data-moderation-form]").forEach((form) => {
+      form.addEventListener("submit", async (event) => {
         event.preventDefault();
         const button = form.querySelector('button[type="submit"], input[type="submit"]');
-        const processing = form.querySelector('[data-moderation-processing]');
-        const feedback = form.querySelector('[data-moderation-feedback]');
+        const processing = form.querySelector("[data-moderation-processing]");
+        const feedback = form.querySelector("[data-moderation-feedback]");
         if (button?.disabled) return;
 
         if (feedback) {
-          feedback.className = 'alert d-none mb-3';
-          feedback.textContent = '';
+          feedback.className = "alert d-none mb-3";
+          feedback.textContent = "";
         }
-        if (processing) processing.classList.remove('d-none');
+        if (processing) processing.classList.remove("d-none");
         if (button) button.disabled = true;
 
         try {
           const response = await fetch(form.action || window.location.href, {
-            method: 'POST',
+            method: "POST",
             body: new FormData(form),
-            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' }
+            headers: { "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
           });
           const result = await response.json();
-          if (['sent', 'processing'].includes(result.status) && result.redirect_url) {
+          if (["sent", "processing"].includes(result.status) && result.redirect_url) {
             window.location.assign(result.redirect_url);
             return;
           }
           if (feedback) {
-            feedback.classList.remove('d-none');
-            feedback.classList.add(result.status === 'needs_revision' ? 'alert-warning' : 'alert-danger');
-            feedback.textContent = result.message || 'Не удалось отправить обращение.';
+            feedback.classList.remove("d-none");
+            feedback.classList.add(result.status === "needs_revision" ? "alert-warning" : "alert-danger");
+            feedback.textContent = result.message || "Не удалось отправить обращение.";
             if (result.errors) {
-              const details = Object.values(result.errors).flat().join(' ');
-              if (details) feedback.textContent += ' ' + details;
+              const details = Object.values(result.errors).flat().join(" ");
+              if (details) feedback.textContent += " " + details;
             }
           }
         } catch (_error) {
           if (feedback) {
-            feedback.classList.remove('d-none');
-            feedback.classList.add('alert-danger');
-            feedback.textContent = 'Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз.';
+            feedback.classList.remove("d-none");
+            feedback.classList.add("alert-danger");
+            feedback.textContent = "Не удалось связаться с сервером. Проверьте соединение и попробуйте ещё раз.";
           }
         } finally {
-          if (processing) processing.classList.add('d-none');
+          if (processing) processing.classList.add("d-none");
           if (button) button.disabled = false;
         }
       });
