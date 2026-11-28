@@ -1,2 +1,30 @@
-{# TODO(UI): Replace direct password entry with an invitation/temporary-password setup flow. Add the employee's corporate-system identity and synchronization state when employee import is implemented. #}
-{{ form.hidden_tag() }}{% for field in [form.name, form.email, form.position, form.password] %}<div class="mb-3">{{ field.label(class_='form-label') }}{{ field(class_='form-control') }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}<div class="form-check mb-3">{{ form.is_active(class_='form-check-input') }}{{ form.is_active.label(class_='form-check-label') }}</div>{{ form.submit(class_='btn btn-primary') }} <a class="btn btn-outline-secondary" href="{{ url_for('employees.employee_list') }}">Отмена</a>
+{# TODO(UI): Replace direct password entry with an invitation/temporary-password setup flow. #}
+{{ form.hidden_tag() }}
+<div class="mb-3">
+  {{ form.name.label(class_="form-label") }}
+  {{ form.name(class_="form-control", autocomplete="name") }}
+  {% for error in form.name.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  {{ form.email.label(class_="form-label") }}
+  {{ form.email(class_="form-control", autocomplete="email", inputmode="email") }}
+  {% for error in form.email.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  {{ form.position.label(class_="form-label") }}
+  {{ form.position(class_="form-control") }}
+  {% for error in form.position.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  {{ form.password.label(class_="form-label") }}
+  {{ form.password(class_="form-control", autocomplete="new-password") }}
+  {% for error in form.password.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="form-check mb-3">
+  {{ form.is_active(class_="form-check-input") }}
+  {{ form.is_active.label(class_="form-check-label") }}
+</div>
+<div class="form-actions">
+  {{ form.submit(class_="btn btn-primary") }}
+  <a class="btn btn-outline-secondary" href="{{ url_for('employees.employee_list') }}">Отмена</a>
+</div>
