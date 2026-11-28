@@ -1,26 +1,11 @@
 {% extends "layout.html" %}
-
 {% block title %}Регистрация завершена · Support Desk{% endblock %}
-
 {% block content %}
-<section class="row justify-content-center py-5">
-  <div class="col-12 col-md-8 col-lg-6">
-    <div class="card">
-      <div class="card-body p-4 p-lg-5 text-center">
-        <div class="mb-3 text-success" aria-hidden="true">
-          <span class="display-4">✓</span>
-        </div>
-        <h1 class="h3 mb-3">Регистрация завершена</h1>
-        {% for category, message in messages %}
-            <div class="alert alert-{{ 'warning' if category == 'warning' else ('info' if category == 'info' else 'success') }}" role="status">
-              {{ message }}
-            </div>
-        {% endfor %}
-        <p class="small text-muted mb-0">
-          <a href="{{ url_for('auth.client_login') }}" class="btn btn-primary mt-3">Перейти ко входу</a>
-        </p>
-      </div>
-    </div>
-  </div>
-</section>
+<section class="row justify-content-center py-5"><div class="col-12 col-md-8 col-lg-6">
+  <div class="card"><div class="card-body p-4 p-lg-5 text-center">
+    <div class="display-4 text-success mb-3" aria-hidden="true">✓</div><p class="page-eyebrow">Support Desk</p><h1 class="h3 mb-3">Регистрация завершена</h1>
+    {% for category, message in messages %}<div class="alert alert-{{ 'warning' if category == 'warning' else ('info' if category == 'info' else 'success') }}" role="status">{{ message }}</div>{% endfor %}
+    <a href="{{ url_for('auth.client_login') }}" class="btn btn-primary mt-3">Перейти ко входу</a>
+  </div></div>
+</div></section>
 {% endblock %}
