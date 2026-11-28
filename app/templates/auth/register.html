@@ -1,83 +1,121 @@
 {% extends "layout.html" %}
-
 {% block title %}Регистрация клиента · Support Desk{% endblock %}
-
 {% block vendor_scripts %}{% endblock %}
-
 {% block content %}
 <section class="row justify-content-center py-4 py-lg-5">
   <div class="col-12 col-md-9 col-lg-7 col-xl-6">
-    <div class="card"><div class="card-body p-4 p-lg-5">
-      <div class="mb-4">
-        <p class="text-uppercase text-primary small fw-semibold mb-2">Support Desk</p>
-        <h1 class="h3 mb-2">{% if automatic_mode %}Проверка данных и регистрация{% else %}Регистрация клиента{% endif %}</h1>
-        {% if automatic_mode and external_client %}
-          <p class="text-muted mb-0">Основная система передала профиль «<strong>{{ external_client.name }}</strong>». Проверьте сведения, заполните недостающие поля и задайте пароль.</p>
-        {% else %}
-          <p class="text-muted mb-0">Создайте учётную запись для работы с обращениями в службу поддержки.</p>
-        {% endif %}
-      </div>
+    <div class="card">
+      <div class="card-body p-4 p-lg-5">
+        <header class="mb-4">
+          <p class="page-eyebrow">Support Desk</p>
+          <h1 class="h3 mb-2">
+            {% if automatic_mode %}Проверка данных и регистрация{% else %}Регистрация клиента{% endif %}
+          </h1>
+          {% if automatic_mode and external_client %}
+            <p class="text-muted mb-0">
+              Основная система передала профиль «<strong>{{ external_client.name }}</strong>».
+              Проверьте сведения, заполните недостающие поля и задайте пароль.
+            </p>
+          {% else %}
+            <p class="text-muted mb-0">Создайте учётную запись для работы с обращениями в службу поддержки.</p>
+          {% endif %}
+        </header>
 
-      {% if already_registered %}
-        <div class="alert alert-info" role="status">Учётная запись для этого профиля уже существует. Войдите с использованием своего логина.</div>
-      {% elif automatic_mode and not external_client %}
-        <div class="alert alert-danger">Ссылка регистрации недействительна или устарела.</div>
-      {% else %}
-        {% if automatic_mode %}
-          <div class="alert alert-success" role="status"><strong>Профиль найден.</strong> Идентификатор основной системы: {{ external_client.external_id }}. Данные можно проверить перед созданием аккаунта.</div>
-        {% endif %}
-        <form method="post" novalidate>
-          {{ form.hidden_tag() }}
+        {% if already_registered %}
+          <div class="alert alert-info" role="status">
+            Учётная запись для этого профиля уже существует. Войдите с использованием своего логина.
+          </div>
+        {% elif automatic_mode and not external_client %}
+          <div class="alert alert-danger" role="alert">
+            Ссылка регистрации недействительна или устарела.
+          </div>
+        {% else %}
           {% if automatic_mode %}
-            <input type="hidden" name="registration_token" value="{{ registration_token }}">
-          {% endif %}
-          <div class="mb-3">
-            {{ form.login.label(class_="form-label") }}
-            {{ form.login(class_="form-control", autocomplete="username", placeholder="Придумайте логин") }}
-            {% for error in form.login.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
-          </div>
-          {% if settings.collect_request_details %}
-            <div class="mb-3">
-              {{ form.name.label(class_="form-label") }}
-              {{ form.name(class_="form-control", autocomplete="name", placeholder="Имя для обращений") }}
-              {% for error in form.name.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+            <div class="alert alert-success" role="status">
+              <strong>Профиль найден.</strong>
+              Идентификатор основной системы: {{ external_client.external_id }}.
+              Данные можно проверить перед созданием аккаунта.
             </div>
           {% endif %}
-          {% if settings.email_enabled %}
+
+          {# TODO(UI/INTEGRATION): Show which fields came from the external system and mark missing values before the registration API is connected. #}
+          <form method="post" novalidate>
+            {{ form.hidden_tag() }}
+            {% if automatic_mode %}
+              <input type="hidden" name="registration_token" value="{{ registration_token }}">
+            {% endif %}
+
             <div class="mb-3">
-              {{ form.email.label(class_="form-label") }}
-              {{ form.email(class_="form-control", autocomplete="email", inputmode="email", placeholder="name@example.com") }}
-              {% for error in form.email.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+              {{ form.login.label(class_="form-label") }}
+              {{ form.login(class_="form-control", autocomplete="username", placeholder="Придумайте логин") }}
+              {% for error in form.login.errors %}
+                <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+              {% endfor %}
             </div>
-          {% endif %}
-          {% if settings.phone_enabled %}
+
+            {% if settings.collect_request_details %}
+              <div class="mb-3">
+                {{ form.name.label(class_="form-label") }}
+                {{ form.name(class_="form-control", autocomplete="name", placeholder="Имя для обращений") }}
+                {% for error in form.name.errors %}
+                  <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if settings.email_enabled %}
+              <div class="mb-3">
+                {{ form.email.label(class_="form-label") }}
+                {{ form.email(class_="form-control", autocomplete="email", inputmode="email", placeholder="name@example.com") }}
+                {% for error in form.email.errors %}
+                  <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if settings.phone_enabled %}
+              <div class="mb-3">
+                {{ form.phone.label(class_="form-label") }}
+                {{ form.phone(class_="form-control", autocomplete="tel", inputmode="tel", placeholder="+7 (___) ___-__-__") }}
+                {% for error in form.phone.errors %}
+                  <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if not settings.email_enabled and not settings.phone_enabled %}
+              <div class="alert alert-danger" role="alert">
+                Администратор не настроил ни одного способа связи.
+              </div>
+            {% endif %}
+
             <div class="mb-3">
-              {{ form.phone.label(class_="form-label") }}
-              {{ form.phone(class_="form-control", autocomplete="tel", inputmode="tel", placeholder="+7 (___) ___-__-__") }}
-              {% for error in form.phone.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+              {{ form.password.label(class_="form-label") }}
+              {{ form.password(class_="form-control", autocomplete="new-password") }}
+              <div class="form-text">Не менее 12 символов.</div>
+              {% for error in form.password.errors %}
+                <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+              {% endfor %}
             </div>
-          {% endif %}
-          {% if not settings.email_enabled and not settings.phone_enabled %}
-            <div class="alert alert-danger">Администратор не настроил ни одного способа связи.</div>
-          {% endif %}
-          <div class="mb-3">
-            {{ form.password.label(class_="form-label") }}
-            {{ form.password(class_="form-control", autocomplete="new-password") }}
-            <div class="form-text">Не менее 12 символов.</div>
-            {% for error in form.password.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
-          </div>
-          <div class="mb-4">
-            {{ form.confirm_password.label(class_="form-label") }}
-            {{ form.confirm_password(class_="form-control", autocomplete="new-password") }}
-            {% for error in form.confirm_password.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
-          </div>
-          {{ form.submit(class_="btn btn-primary btn-lg w-100") }}
-        </form>
-      {% endif %}
-      <div class="border-top mt-4 pt-3 text-center text-muted small">
-        Уже есть аккаунт? <a href="{{ url_for('auth.client_login') }}">Войти в клиентский кабинет</a>.
+
+            <div class="mb-4">
+              {{ form.confirm_password.label(class_="form-label") }}
+              {{ form.confirm_password(class_="form-control", autocomplete="new-password") }}
+              {% for error in form.confirm_password.errors %}
+                <div class="text-danger small mt-1" role="alert">{{ error }}</div>
+              {% endfor %}
+            </div>
+
+            {{ form.submit(class_="btn btn-primary btn-lg w-100") }}
+          </form>
+        {% endif %}
+
+        <div class="border-top mt-4 pt-3 text-center text-muted small">
+          Уже есть аккаунт?
+          <a href="{{ url_for('auth.client_login') }}">Войти в клиентский кабинет</a>.
+        </div>
       </div>
-    </div></div>
+    </div>
   </div>
 </section>
 {% endblock %}
