@@ -1,31 +1,54 @@
 {% extends "layout.html" %}
+{% block title %}{{ title }} · Support Desk{% endblock %}
 {% block content %}
-{# TODO(UI): Replace this shared placeholder with dedicated forms and read/write flows for workflow, channels, integrations, company sync, moderation, AI, and notifications. Hide links until each section has a working screen. #}
+{# TODO(UI/BACKEND): This route is a presentation-only placeholder. Replace the demo controls with persisted settings and dedicated forms when the corresponding integration/service exists. #}
 <div class="row g-4">
-  <aside class="col-md-3 col-lg-2">
-    <h1 class="h4 mb-3">Настройки</h1>
-    <div class="list-group">
-      {% if has_permission(current_user, 'roles.view') or current_user.roles|selectattr('role_type', 'equalto', 'HR')|list or current_user.roles|selectattr('role_type', 'equalto', 'GLOBAL_HR')|list %}
-      <a class="list-group-item list-group-item-action" href="{{ url_for('settings.role_list') }}">Роли</a>
-      {% endif %}
-      {% if has_permission(current_user, 'settings.view') %}
-      {% for slug, label in [('workflow','Рабочие процессы'),('channels','Каналы'),('integrations','Интеграции'),('company','Корпоративная система'),('moderation','Модерация'),('ai','AI'),('notifications','Уведомления')] %}
-      {% if slug != 'workflow' or has_permission(current_user, 'roles.manage_routing') %}
-      <a class="list-group-item list-group-item-action {{ 'active' if section == slug else '' }}" href="{{ url_for('settings.workflow_editor') if slug == 'workflow' else url_for('settings.channel_settings') if slug == 'channels' else url_for('settings.moderation_settings') if slug == 'moderation' else url_for('settings.ai_settings') if slug == 'ai' else url_for('settings.settings_stub', section=slug) }}">{{ label }}</a>
-      {% endif %}
-      {% endfor %}
-      {% endif %}
+  {% set active_settings_section = section %}
+  {% include "components/_settings_navigation.html" %}
+  <section class="col-md-9 col-lg-10 settings-content">
+    <header class="page-heading">
+      <div><p class="page-eyebrow">Настройки системы</p><h1>{{ title }}</h1><p class="page-description">Предварительный макет раздела. Представленные ниже элементы демонстрируют предполагаемую структуру интерфейса и пока не сохраняют настройки.</p></div>
+      <span class="badge text-bg-warning">Макет · TODO</span>
+    </header>
+
+    {% if section == 'integrations' %}
+      <div class="row g-3 content-section">
+        <div class="col-12 col-xl-6"><article class="card h-100"><div class="card-header d-flex justify-content-between"><strong>Корпоративная система</strong><span class="badge text-bg-secondary">Не подключена</span></div><div class="card-body"><p class="text-muted">Обмен профилями клиентов и сотрудников с основной системой.</p><label class="form-label">Адрес API</label><input class="form-control mb-3" placeholder="https://api.example.local" disabled><label class="form-label">Способ авторизации</label><select class="form-select mb-3" disabled><option>Токен интеграции</option></select><button class="btn btn-outline-secondary" type="button" disabled>Проверить подключение</button></div></article></div>
+        <div class="col-12 col-xl-6"><article class="card h-100"><div class="card-header"><strong>Внешние сервисы</strong></div><div class="card-body"><div class="d-flex justify-content-between border-bottom py-2"><span>SMTP</span><span class="badge text-bg-light">Настраивается отдельно</span></div><div class="d-flex justify-content-between border-bottom py-2"><span>Ollama</span><a href="{{ url_for('settings.ai_settings') }}">Настроить AI</a></div><div class="d-flex justify-content-between py-2"><span>REST API</span><a href="{{ url_for('api.clients') }}">Документация API</a></div></div></article></div>
+      </div>
+      {# TODO: Add encrypted secret storage, connection tests, sync direction, field mapping, retry policy and audit log. #}
+    {% elif section == 'company' %}
+      <div class="card content-section"><div class="card-header"><strong>Синхронизация с корпоративной системой</strong></div><div class="card-body">
+        <div class="alert alert-info">Это макет будущей интеграции. Сохранение и реальный обмен данными пока не реализованы.</div>
+        <div class="row g-3"><div class="col-md-6"><label class="form-label">Базовый URL</label><input class="form-control" placeholder="https://company.example.local" disabled></div><div class="col-md-6"><label class="form-label">Идентификатор системы</label><input class="form-control" placeholder="support-desk" disabled></div><div class="col-md-6"><label class="form-label">Синхронизация клиентов</label><select class="form-select" disabled><option>Вручную / по запросу</option><option>Периодически</option></select></div><div class="col-md-6"><label class="form-label">Синхронизация сотрудников</label><select class="form-select" disabled><option>Отключена</option><option>Периодически</option></select></div></div>
+        <div class="d-flex flex-wrap gap-2 mt-3"><button class="btn btn-outline-secondary" type="button" disabled>Проверить соединение</button><button class="btn btn-outline-secondary" type="button" disabled>Предпросмотр импорта</button></div>
+      </div></div>
+      {# TODO: Implement signed short-lived client-bound tokens, non-mutating profile lookup, explicit confirmation and safe field mapping. #}
+    {% elif section == 'notifications' %}
+      <div class="card content-section"><div class="card-header"><strong>Уведомления</strong></div><div class="card-body">
+        <p class="text-muted">Предполагаемые события, по которым система сможет отправлять уведомления сотрудникам и клиентам.</p>
+        {% for label, description in [('Новое обращение','Уведомление очереди первого уровня'),('Ответ специалиста','Уведомление клиента о новом сообщении'),('Передача обращения','Уведомление целевой очереди'),('Изменение статуса','Информирование участников диалога'),('Приглашение сотрудника','Отправка ссылки активации')] %}
+          <div class="d-flex flex-column flex-sm-row justify-content-between gap-2 border-bottom py-3"><div><strong>{{ label }}</strong><div class="small text-muted">{{ description }}</div></div><div class="form-check form-switch"><input class="form-check-input" type="checkbox" role="switch" disabled aria-label="{{ label }}"></div></div>
+        {% endfor %}
+        <div class="mt-3"><label class="form-label">Канал доставки</label><select class="form-select" disabled><option>Email</option><option>Внутренние уведомления</option></select></div>
+      </div></div>
+      {# TODO: Add per-event recipient rules, templates, delivery status, retry handling and notification preferences. #}
+    {% else %}
+      <div class="card content-section"><div class="card-body">
+        <h2 class="h5">Предварительный экран</h2><p class="text-muted">Для этого раздела пока нет отдельной формы. Ниже показан пример будущей панели настроек.</p>
+        <div class="row g-3"><div class="col-md-6"><label class="form-label">Название</label><input class="form-control" placeholder="Название параметра" disabled></div><div class="col-md-6"><label class="form-label">Состояние</label><select class="form-select" disabled><option>Отключено</option><option>Включено</option></select></div></div>
+      </div></div>
+      {# TODO: Replace the generic preview with a dedicated screen after the backend capability and its configuration schema are defined. #}
+    {% endif %}
+
+    <div class="prototype-note mt-3">
+      <strong>Что требуется реализовать</strong>
+      <ul class="mb-0 mt-2">
+        <li>Определить и согласовать параметры раздела.</li>
+        <li>Добавить серверное хранение и проверку значений.</li>
+        <li>Подключить действия формы и отображение результата.</li>
+      </ul>
     </div>
-  </aside>
-  <section class="col-md-9 col-lg-10">
-    <h2 class="h3">{{ title }}</h2>
-    <div class="card"><div class="card-body">
-      <p class="lead">Функциональность находится в разработке.</p>
-      <p>Этот раздел будет использоваться для настройки {{ title|lower }} системы технической поддержки.</p>
-      {% if section == 'company' %}
-      <p>В будущем здесь будет настроено получение клиентов и сотрудников из основной корпоративной информационной системы.</p>
-      {% endif %}
-    </div></div>
   </section>
 </div>
 {% endblock %}
