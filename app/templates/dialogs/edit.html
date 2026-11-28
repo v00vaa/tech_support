@@ -1,1 +1,6 @@
-{% extends "layout.html" %}{% block content %}<h1>Изменить диалог #{{ dialog.id }}</h1><div class="card"><div class="card-body"><form method="post">{% include 'dialogs/_form.html' %}</form></div></div>{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Изменить обращение · Support Desk{% endblock %}
+{% block content %}
+<header class="page-heading"><div><p class="page-eyebrow">Обращение · #{{ dialog.id }}</p><h1>Изменить обращение</h1><p class="page-description">Измените основные параметры обращения.</p></div></header>
+<div class="row"><div class="col-12 col-xl-8"><div class="card"><div class="card-body"><form method="post">{% include "dialogs/_form.html" %}</form></div></div></div></div>
+{% endblock %}
