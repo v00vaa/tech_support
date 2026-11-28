@@ -5,17 +5,17 @@
   {% include "components/_settings_navigation.html" %}
 
   <section class="col-md-9 col-lg-10">
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
+    <header class="page-heading">
       <div>
-        <a href="{{ url_for('settings.role_list') }}" class="text-decoration-none">← Все роли</a>
-        <h2 class="h3 mt-2">{{ role.name }}</h2>
-        <p class="text-muted mb-0">{{ 'Исходящие направления: куда эта роль передает диалоги.' if direction == 'outgoing' else 'Входящие направления: из каких ролей сюда могут поступать диалоги.' }}</p>
+        <p class="page-eyebrow"><a href="{{ url_for('settings.role_list') }}">Все роли</a> · Маршрутизация</p>
+        <h1>{{ role.name }}</h1>
+        <p class="page-description">{{ 'Исходящие направления: куда эта роль передает диалоги.' if direction == 'outgoing' else 'Входящие направления: из каких ролей сюда могут поступать диалоги.' }}</p>
       </div>
       <div class="btn-group">
         <a class="btn {{ 'btn-primary' if direction == 'outgoing' else 'btn-outline-primary' }}" href="{{ url_for('settings.role_routing', role_id=role.id, direction='outgoing') }}">Направляют к</a>
         <a class="btn {{ 'btn-primary' if direction == 'incoming' else 'btn-outline-primary' }}" href="{{ url_for('settings.role_routing', role_id=role.id, direction='incoming') }}">Получают от</a>
       </div>
-    </div>
+    </header>
 
     {% if direction == 'outgoing' %}
     {% if has_permission(current_user, 'roles.manage_routing') %}
