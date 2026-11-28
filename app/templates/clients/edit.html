@@ -1,1 +1,15 @@
-{% extends "layout.html" %}{% block content %}<h1>Изменить клиента</h1><div class="card"><div class="card-body"><form method="post">{% include 'clients/_form.html' %}</form></div></div>{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Изменить клиента · Support Desk{% endblock %}
+{% block content %}
+<header class="page-heading">
+  <div><p class="page-eyebrow">Клиент · #{{ client.id }}</p><h1>Изменить профиль</h1><p class="page-description">{{ client.name }}</p></div>
+</header>
+{# TODO(UI/INTEGRATION): Show read-only external identity and disable fields controlled by the corporate source once synchronization is available. #}
+<div class="row">
+  <div class="col-12 col-xl-8">
+    <div class="card"><div class="card-body">
+      <form method="post">{% include "clients/_form.html" %}</form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
