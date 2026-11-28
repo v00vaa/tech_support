@@ -5,8 +5,7 @@
   {% set active_settings_section = 'channels' %}
   {% include "components/_settings_navigation.html" %}
   <section class="col-md-9 col-lg-10">
-    <h2 class="h3">Каналы обращений</h2>
-    <p class="text-muted">Управление источниками, из которых клиенты могут создавать обращения.</p>
+    <header class="page-heading"><div><p class="page-eyebrow">Каналы связи</p><h1>Каналы обращений</h1><p class="page-description">Управление источниками, из которых клиенты могут создавать обращения.</p></div></header>
     <div class="card mb-4">
       <div class="card-header d-flex justify-content-between align-items-center">
         <span class="fw-semibold">Web — клиентский веб-кабинет</span>
@@ -28,6 +27,7 @@
         </form>
       </div>
     </div>
+    {# TODO(UI/INTEGRATION): Add Telegram, VK and embeddable widget settings only after their adapters and webhook handling are implemented. #}
     <div class="card">
       <div class="card-header fw-semibold">Другие каналы</div>
       <div class="card-body text-muted">
