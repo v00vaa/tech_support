@@ -1,2 +1,21 @@
-{# TODO(UI/INTEGRATION): For clients linked to the corporate system, replace unrestricted manual profile creation/editing with the external-profile sync flow. Keep this form only for standalone deployments without a source account. Show external identity and sync state on the client card. #}
-{{ form.hidden_tag() }}{% for field in [form.name, form.email, form.phone] %}<div class="mb-3">{{ field.label(class_='form-label') }}{{ field(class_='form-control') }}{% for error in field.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}</div>{% endfor %}{{ form.submit(class_='btn btn-primary') }} <a class="btn btn-outline-secondary" href="{{ url_for('clients.client_list') }}">Отмена</a>
+{# TODO(UI/INTEGRATION): For linked profiles, replace unrestricted manual editing with the external-profile sync flow. #}
+{{ form.hidden_tag() }}
+<div class="mb-3">
+  {{ form.name.label(class_="form-label") }}
+  {{ form.name(class_="form-control", autocomplete="name") }}
+  {% for error in form.name.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  {{ form.email.label(class_="form-label") }}
+  {{ form.email(class_="form-control", autocomplete="email", inputmode="email") }}
+  {% for error in form.email.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="mb-3">
+  {{ form.phone.label(class_="form-label") }}
+  {{ form.phone(class_="form-control", autocomplete="tel", inputmode="tel") }}
+  {% for error in form.phone.errors %}<div class="text-danger small mt-1" role="alert">{{ error }}</div>{% endfor %}
+</div>
+<div class="form-actions">
+  {{ form.submit(class_="btn btn-primary") }}
+  <a class="btn btn-outline-secondary" href="{{ url_for('clients.client_list') }}">Отмена</a>
+</div>
