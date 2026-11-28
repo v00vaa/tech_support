@@ -1,1 +1,50 @@
-{% extends "layout.html" %}{% block content %}{# TODO(UI): Add the external account identifier/source and synchronization status when the main-system integration is implemented. Add dialog status/date metadata and pagination for long histories. #}<div class="d-flex justify-content-between"><h1>{{ client.name }}</h1><a class="btn btn-outline-secondary" href="{{ url_for('clients.client_edit', client_id=client.id) }}">Изменить</a></div><div class="card"><div class="card-body"><dl class="row mb-0"><dt class="col-sm-3">Email</dt><dd class="col-sm-9">{{ client.email }}</dd><dt class="col-sm-3">Телефон</dt><dd class="col-sm-9">{{ client.phone or '—' }}</dd></dl></div></div><h2 class="h4 mt-4">Диалоги</h2><ul class="list-group">{% for dialog in client.dialogs %}<li class="list-group-item"><a href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}">#{{ dialog.id }} · {{ dialog.subject }}</a></li>{% else %}<li class="list-group-item text-muted">Диалогов нет.</li>{% endfor %}</ul>{% endblock %}
+{% extends "layout.html" %}
+{% block title %}{{ client.name }} · Клиенты · Support Desk{% endblock %}
+{% block content %}
+{# TODO(UI/INTEGRATION): Add the external account identifier, source-system link and last synchronization status when the corporate-system integration exposes these values. #}
+<header class="page-heading">
+  <div>
+    <p class="page-eyebrow">Карточка клиента · #{{ client.id }}</p>
+    <h1>{{ client.name }}</h1>
+    <p class="page-description">Контактные данные и обращения клиента.</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-outline-secondary" href="{{ url_for('clients.client_list') }}">К списку</a>
+    {% if has_permission(current_user, 'clients.edit') %}
+      <a class="btn btn-primary" href="{{ url_for('clients.client_edit', client_id=client.id) }}">Изменить</a>
+    {% endif %}
+  </div>
+</header>
+
+<section class="card content-section">
+  <div class="card-header"><h2 class="h6 mb-0">Контактная информация</h2></div>
+  <div class="card-body">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Email</dt><dd class="col-sm-9">{{ client.email or 'Не указан' }}</dd>
+      <dt class="col-sm-3">Телефон</dt><dd class="col-sm-9">{{ client.phone or 'Не указан' }}</dd>
+    </dl>
+  </div>
+</section>
+
+<section class="content-section">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="h4 mb-0">Обращения</h2>
+    <span class="badge text-bg-light">{{ client.dialogs|length }}</span>
+  </div>
+  <div class="card">
+    <div class="list-group list-group-flush">
+      {% for dialog in client.dialogs %}
+        <a class="list-group-item list-group-item-action d-flex justify-content-between align-items-center gap-3" href="{{ url_for('dialogs.dialog_detail', dialog_id=dialog.id) }}">
+          <span class="min-w-0">
+            <strong class="d-block text-truncate">#{{ dialog.id }} · {{ dialog.subject }}</strong>
+            <span class="small text-muted">{{ dialog.updated_at.strftime('%d.%m.%Y %H:%M') }}</span>
+          </span>
+          <span class="badge text-bg-light">{{ dialog.status.value.replace('_', ' ') }}</span>
+        </a>
+      {% else %}
+        <div class="empty-state">У клиента пока нет обращений.</div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}
