@@ -1,7 +1,5 @@
 {% extends "layout.html" %}
-
 {% block title %}Вход клиента · Support Desk{% endblock %}
-
 {% block content %}
 <section class="row justify-content-center py-4 py-lg-5">
   <div class="col-12 col-sm-10 col-md-7 col-lg-5 col-xl-4">
@@ -9,7 +7,7 @@
       <div class="card-body p-4 p-lg-5">
         <div class="text-center mb-4">
           <span class="support-brand-mark mb-3" aria-hidden="true">S</span>
-          <p class="text-uppercase text-primary small fw-semibold mb-2">Support Desk</p>
+          <p class="page-eyebrow">Support Desk</p>
           <h1 class="h3 mb-2">Вход для клиентов</h1>
           <p class="text-muted mb-0">Войдите, чтобы просматривать обращения и переписываться со службой поддержки.</p>
         </div>
@@ -33,13 +31,13 @@
           {{ form.submit(class_="btn btn-primary btn-lg w-100") }}
         </form>
 
-        <div class="border-top mt-4 pt-3 text-center small">
+        <nav class="border-top mt-4 pt-3 text-center small" aria-label="Дополнительные действия">
           <a href="{{ url_for('auth.client_register') }}">Создать аккаунт</a>
           <span class="text-muted mx-2">·</span>
           <a href="{{ url_for('client_password_reset.request_password_reset') }}">Забыли пароль?</a>
           <span class="text-muted mx-2">·</span>
           <a href="{{ url_for('auth.login') }}">Вход для сотрудников</a>
-        </div>
+        </nav>
       </div>
     </div>
   </div>
