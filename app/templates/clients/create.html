@@ -1,1 +1,15 @@
-{% extends "layout.html" %}{% block content %}<h1>Создать клиента</h1><div class="card"><div class="card-body"><form method="post">{% include 'clients/_form.html' %}</form></div></div>{% endblock %}
+{% extends "layout.html" %}
+{% block title %}Новый клиент · Support Desk{% endblock %}
+{% block content %}
+<header class="page-heading">
+  <div><p class="page-eyebrow">Управление клиентами</p><h1>Создать клиента</h1><p class="page-description">Добавьте локальную учётную запись клиента.</p></div>
+</header>
+{# TODO(UI/INTEGRATION): For linked profiles, replace manual creation with a lookup/import flow from the corporate system. #}
+<div class="row">
+  <div class="col-12 col-xl-8">
+    <div class="card"><div class="card-body">
+      <form method="post">{% include "clients/_form.html" %}</form>
+    </div></div>
+  </div>
+</div>
+{% endblock %}
