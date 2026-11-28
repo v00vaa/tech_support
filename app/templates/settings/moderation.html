@@ -5,8 +5,7 @@
   {% set active_settings_section = 'moderation' %}
   {% include "components/_settings_navigation.html" %}
   <section class="col-md-9 col-lg-10">
-    <h2 class="h3">Модерация сообщений</h2>
-    <p class="text-muted">Списки хранятся отдельными записями. Можно добавлять несколько строк, искать и отключать элементы.</p>
+    <header class="page-heading"><div><p class="page-eyebrow">Безопасность сообщений</p><h1>Модерация сообщений</h1><p class="page-description">Управление словарём, примерами классификатора и решениями автоматической проверки.</p></div></header>
     <a class="btn btn-outline-secondary btn-sm mb-3" href="{{ url_for('settings.moderation_events') }}">Журнал всех решений модерации</a>
     <form method="post" class="card mb-4"><div class="card-body">
       {{ form.hidden_tag() }}
